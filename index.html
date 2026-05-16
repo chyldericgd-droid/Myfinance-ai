@@ -10,7 +10,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -28,6 +28,10 @@
 }
 html,body{height:100%;height:100dvh}
 body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:14px;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"cv02","cv03","cv04","cv11";letter-spacing:-0.005em}
+/* Keep focused field visible above mobile keyboard */
+input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
+.fi.err{border-color:var(--red) !important;animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* SCROLL */
 .scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
@@ -173,11 +177,23 @@ select.fi{cursor:pointer}
 .stitle{font-size:20px;font-weight:800;margin-bottom:14px;letter-spacing:-.3px}
 .ssub{font-size:12px;color:var(--mut);margin-bottom:14px;margin-top:-8px}
 
-/* ONLINE BADGE - bulletproof fixed (iOS WebKit safe) */
-.online-badge{position:fixed !important;top:calc(8px + env(safe-area-inset-top));right:12px;z-index:9999;padding:5px 11px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.5px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:opacity .2s;pointer-events:none;transform:translateZ(0);-webkit-transform:translate3d(0,0,0);will-change:auto;contain:layout style}
-.mo.on ~ .online-badge,body.modal-open .online-badge{opacity:0;transform:translateY(-6px)}
-.ob-on{background:rgba(16,185,129,.15);border:1px solid var(--grn);color:var(--grn)}
-.ob-off{background:rgba(244,63,94,.15);border:1px solid var(--red);color:var(--red)}
+/* ONLINE BADGE - hidden (connectivity is now shown via background ambiance) */
+.online-badge{display:none !important}
+
+/* DYNAMIC LED AMBIANCE — online = vibrant radial glow, offline = matte dark */
+body{transition:background .6s ease}
+body.online{
+  background:
+    radial-gradient(1200px 700px at 12% -8%, rgba(139,92,246,.18), transparent 60%),
+    radial-gradient(900px 600px at 100% 110%, rgba(6,182,212,.14), transparent 65%),
+    radial-gradient(600px 400px at 50% 50%, rgba(167,139,250,.06), transparent 70%),
+    var(--bg);
+}
+body.offline{
+  background:#06060a;
+  filter:saturate(.85);
+}
+body.offline .aifab{filter:grayscale(.6)}
 
 
 /* AI FLOAT */
@@ -389,15 +405,7 @@ select.fi{cursor:pointer}
 .bai{border-bottom-left-radius:5px}
 .bus{border-bottom-right-radius:5px}
 
-/* Online badge — pill polish */
-.online-badge{
-  border-radius:24px;padding:6px 13px;
-  background:rgba(18,18,28,.7);
-  backdrop-filter:blur(20px) saturate(1.4);
-  -webkit-backdrop-filter:blur(20px) saturate(1.4);
-}
-.ob-on{background:rgba(16,185,129,.18)}
-.ob-off{background:rgba(244,63,94,.18)}
+/* Online badge — removed (handled by body ambiance) */
 
 /* Section title — tighter */
 .stitle{font-size:24px;letter-spacing:-.6px;font-weight:800;margin-bottom:8px}
@@ -460,7 +468,121 @@ select.fi{cursor:pointer}
 // ════════════════════════════════════════
 const I18N={
   fr:{
+    // === v4.11 hardcoded FR → i18n full coverage ===
+    groq_invalid_key:"Clé invalide. Elle doit commencer par gsk_…",
+    groq_saved:"✅ Clé Groq enregistrée ! L'IA est maintenant active.",
+    groq_advice_invalid:"\n\n🔑 Clé invalide. Va dans Config → entre ta clé Groq depuis console.groq.com",
+    groq_api_err:"Erreur API",
+    groq_sandbox:"🔒 Preview Claude.ai — API bloquée par sandbox. Sur Netlify ça marche.",
+    net_unavailable:"⚠️ Réseau indisponible.",
+    no_key_online:"🔑 Clé API manquante. Va dans Config → entre ta clé Groq gratuite (console.groq.com).",
+    offline_prefix:"📴 Hors-ligne — ",
+    err_select_both_accs:"Sélectionne les deux comptes",
+    err_same_accs:"Comptes identiques",
+    err_insufficient_balance:"Solde insuffisant",
+    err_select_cat_acc:"Sélectionne une catégorie et un compte",
+    err_balance_logic:"⛔ Solde insuffisant\n\n{acc} : {bal}\nDépense demandée : {amt}\n\nLogique : on ne peut pas dépenser ce qu'on n'a pas.",
+    confirm_push_goal_days:"⚠️ IVY : cette dépense de {amt} repousse \"{g}\" de {n} jour{s}.\n\nTu confirmes ?",
+    confirm_push_goal_hours:"⚠️ IVY : cette dépense de {amt} repousse \"{g}\" de {h} heures.\n\nTu confirmes ?",
+    confirm_del_tx:"Supprimer cette transaction ?",
+    confirm_del_acc:"Supprimer ce compte ?",
+    confirm_dup_cat:"⚠️ Une catégorie \"{cat}\" existe déjà.\n\nCréer un doublon quand même ?",
+    confirm_del_cat:"Supprimer cette catégorie ?",
+    confirm_del_goal:"Supprimer cet objectif ?",
+    confirm_del_goal_savings:"Cet objectif a {amt} mis de côté.\n\nOK = renvoyer l'argent vers {dest} avant suppression.\nAnnuler = supprimer SANS toucher à l'épargne (l'argent reste dans le compte Épargne).",
+    err_amount_invalid:"Montant invalide",
+    err_choose_source:"Choisis un compte source",
+    err_savings_overflow:"Tu ne peux pas reprendre plus que ce que tu as mis",
+    err_account_not_found:"Compte introuvable",
+    err_savings_insufficient:"Épargne insuffisante (les comptes ont été modifiés à la main ?)",
+    err_deposit_insufficient:"Solde insuffisant.\n{acc} : {bal}\nDemandé : {amt}\n\nTu ne peux pas mettre de côté de l'argent que tu n'as pas.",
+    notif_unsupported:"Notifications non supportées sur ce navigateur",
+    notif_blocked:"Notifications bloquées. Va dans les paramètres de ton navigateur → Site → Notifications → Autoriser, puis reviens.",
+    notif_denied:"Permission refusée. Active les notifications dans les paramètres de ton navigateur.",
+    notif_test_title:"🎉 Finance AI OS",
+    notif_test_body:"Notifications activées ! Tu recevras tes rappels.",
+    notif_demo_title:"🔔 Finance AI OS",
+    notif_demo_body:"Ça marche ! Tu vas recevoir tes rappels comme ça.",
+    copied:"✅ Copié !",
+    data_restored:"✅ Données restaurées !",
+    code_invalid:"❌ Code invalide.",
+    wipe_confirm:"⚠️ Effacer TOUTES les données ? Irréversible.",
+    indexeddb_unavailable:"IndexedDB indisponible. Active le stockage dans ton navigateur.",
+    ai_offline_title:"📴 Hors ligne",
+    ai_offline_body:"L'IA Groq nécessite une connexion. En offline, va sur l'écran IA pour utiliser l'analyse locale.",
+    ai_open_local:"Ouvrir IA Local",
+    ai_nokey_title:"🔑 Clé Groq manquante",
+    ai_nokey_body:"Pour activer l'IA, configure ta clé Groq (gratuite) dans Config.",
+    ai_goto_config:"Aller dans Config",
+    modal_cat_new:"Nouvelle catégorie",
+    modal_goal_new:"Nouvel objectif",
+    modal_transfer:"⇄ Virement",
+    modal_backup_title:"📤 Code de sauvegarde",
+    modal_backup_help:"Copie ce code. Sur un autre appareil, utilise \"Restaurer\" pour récupérer toutes tes données.",
+    modal_backup_copy:"📋 Copier",
+    modal_backup_stats:"transactions · comptes · objectifs",
+    modal_restore:"📥 Restaurer",
+    modal_restore_warn:"⚠️ Toutes les données actuelles seront remplacées.",
+    btn_create:"Créer",
+    btn_save:"Enregistrer",
+    btn_delete:"Supprimer",
+    btn_delete_acc:"Supprimer ce compte",
+    btn_transfer:"Transférer",
+    btn_restore:"Restaurer",
+    btn_set_aside:"Mettre de côté",
+    btn_withdraw:"Reprendre",
+    opt_expense:"Dépense",
+    opt_income:"Revenu",
+    goal_withdraw_btn_inline:"↩︎ Reprendre de l'argent de cet objectif",
+    goal_deposit_title:"💰",
+    goal_deposit_already:"Déjà mis de côté :",
+    goal_deposit_intro:"L'argent va sortir du compte choisi et entrer dans {sav}. Ton solde principal va vraiment baisser — c'est fait exprès, pour que ton cerveau voie l'effort.",
+    goal_withdraw_title:"↩︎ Reprendre — ",
+    goal_withdraw_avail:"Disponible sur cet objectif :",
+    goal_withdraw_help:"L'argent revient depuis l'épargne vers le compte choisi.",
+    toast_set_aside:"✓ {amt} mis de côté pour {g}",
+    toast_withdraw:"↩︎ {amt} repris de {g}",
+    main_account_default:"le compte principal",
+    savings_default_name:"Épargne",
     // === extra v4.8 ===,
+    // === v4.10 cloud + fixes ===
+    cloud_title:"Sauvegarde Cloud",
+    cloud_desc:"Synchronise tes données sur tous tes appareils. Compte gratuit en 5 secondes, aucune config Google requise.",
+    cloud_disconnected:"Non connecté",
+    cloud_connected:"✓ Connecté",
+    cloud_email_ph:"Email",
+    cloud_pwd_ph:"Mot de passe (min 6)",
+    cloud_signin:"🔑 Se connecter",
+    cloud_signup:"✨ Créer un compte",
+    cloud_signout:"Se déconnecter",
+    cloud_backup_now:"⤴︎ Sauvegarder maintenant",
+    cloud_restore_now:"⤵︎ Restaurer depuis le Cloud",
+    cloud_loading:"Cloud en cours de chargement…",
+    cloud_need_credentials:"Email + mot de passe (≥6 caractères) requis.",
+    cloud_need_credentials_short:"Email + mot de passe requis.",
+    cloud_account_created:"✅ Compte créé. Sauvegarde automatique activée.",
+    cloud_signin_first:"Connecte-toi d'abord.",
+    cloud_exists_restore:"☁️ Une sauvegarde Cloud existe. Restaurer les données du Cloud (remplace les données locales) ?",
+    cloud_saved:"✅ Sauvegardé sur le Cloud.",
+    cloud_save_fail:"❌ Échec sauvegarde Cloud : ",
+    cloud_none_found:"Aucune sauvegarde trouvée sur le Cloud.",
+    cloud_confirm_restore:"⚠️ Restaurer depuis le Cloud remplacera toutes les données locales. Continuer ?",
+    cloud_restored:"✅ Données restaurées depuis le Cloud.",
+    cloud_restore_fail:"❌ Échec restauration Cloud : ",
+    acc_add:"Ajouter un compte",
+    acc_add_balance:"Solde initial",
+    an_pic:"Pic",
+    ant_effect:"Effet",
+    celebration_streak:"Série",
+    delete_key_label:"Supprimer la clé",
+    goals_destiny:"Destin",
+    hourly_equiv:"équiv. horaire",
+    no_tx:"Aucune transaction",
+    period_insight_no_data:"Pas assez de données.",
+    tx_recent:"Transactions récentes",
+    tx_title:"Transactions",
+    tx_type_exp:"Dépense",
+    wipe_accounts:"Effacer tous les comptes",
     pl_day:"aujourd'hui",
     pl_week:"cette semaine",
     pl_month:"ce mois",
@@ -703,7 +825,111 @@ const I18N={
     gloss_pressure_t:'📊 Pression 7 jours',gloss_pressure_d:"Compare cette semaine à ton habitude des 30 derniers jours. +20% = tu accélères. -20% = tu freines. Le cerveau ne sent pas la différence en temps réel — d'où l'importance de la mesurer.",
   },
   en:{
+    // === v4.11 hardcoded FR → i18n full coverage ===
+    groq_invalid_key:"Invalid key. It must start with gsk_…",
+    groq_saved:"✅ Groq key saved! AI is now active.",
+    groq_advice_invalid:"\n\n🔑 Invalid key. Go to Config → enter your Groq key from console.groq.com",
+    groq_api_err:"API error",
+    groq_sandbox:"🔒 Claude.ai preview — API blocked by sandbox. Works on Netlify.",
+    net_unavailable:"⚠️ Network unavailable.",
+    no_key_online:"🔑 API key missing. Go to Config → enter your free Groq key (console.groq.com).",
+    offline_prefix:"📴 Offline — ",
+    err_select_both_accs:"Select both accounts",
+    err_same_accs:"Identical accounts",
+    err_insufficient_balance:"Insufficient balance",
+    err_select_cat_acc:"Select a category and an account",
+    err_balance_logic:"⛔ Insufficient balance\n\n{acc}: {bal}\nRequested: {amt}\n\nLogic: you cannot spend what you don't have.",
+    confirm_push_goal_days:"⚠️ IVY: this {amt} expense pushes \"{g}\" back by {n} day{s}.\n\nConfirm?",
+    confirm_push_goal_hours:"⚠️ IVY: this {amt} expense pushes \"{g}\" back by {h} hours.\n\nConfirm?",
+    confirm_del_tx:"Delete this transaction?",
+    confirm_del_acc:"Delete this account?",
+    confirm_dup_cat:"⚠️ A category \"{cat}\" already exists.\n\nCreate a duplicate anyway?",
+    confirm_del_cat:"Delete this category?",
+    confirm_del_goal:"Delete this goal?",
+    confirm_del_goal_savings:"This goal has {amt} set aside.\n\nOK = send the money back to {dest} before deletion.\nCancel = delete WITHOUT touching savings (money stays in Savings account).",
+    err_amount_invalid:"Invalid amount",
+    err_choose_source:"Choose a source account",
+    err_savings_overflow:"You cannot withdraw more than you put in",
+    err_account_not_found:"Account not found",
+    err_savings_insufficient:"Insufficient savings (were accounts edited manually?)",
+    err_deposit_insufficient:"Insufficient balance.\n{acc}: {bal}\nRequested: {amt}\n\nYou cannot set aside money you don't have.",
+    notif_unsupported:"Notifications not supported on this browser",
+    notif_blocked:"Notifications blocked. Go to your browser settings → Site → Notifications → Allow, then come back.",
+    notif_denied:"Permission denied. Enable notifications in your browser settings.",
+    notif_test_title:"🎉 Finance AI OS",
+    notif_test_body:"Notifications enabled! You'll receive your reminders.",
+    notif_demo_title:"🔔 Finance AI OS",
+    notif_demo_body:"It works! You'll receive your reminders like this.",
+    copied:"✅ Copied!",
+    data_restored:"✅ Data restored!",
+    code_invalid:"❌ Invalid code.",
+    wipe_confirm:"⚠️ Erase ALL data? Irreversible.",
+    indexeddb_unavailable:"IndexedDB unavailable. Enable storage in your browser.",
+    ai_offline_title:"📴 Offline",
+    ai_offline_body:"Groq AI requires a connection. Offline, go to the AI screen for local analysis.",
+    ai_open_local:"Open Local AI",
+    ai_nokey_title:"🔑 Missing Groq key",
+    ai_nokey_body:"To enable AI, configure your free Groq key in Config.",
+    ai_goto_config:"Open Config",
+    modal_cat_new:"New category",
+    modal_goal_new:"New goal",
+    modal_transfer:"⇄ Transfer",
+    modal_backup_title:"📤 Backup code",
+    modal_backup_help:"Copy this code. On another device, use \"Restore\" to recover all your data.",
+    modal_backup_copy:"📋 Copy",
+    modal_backup_stats:"transactions · accounts · goals",
+    modal_restore:"📥 Restore",
+    modal_restore_warn:"⚠️ All current data will be replaced.",
+    btn_create:"Create",
+    btn_save:"Save",
+    btn_delete:"Delete",
+    btn_delete_acc:"Delete this account",
+    btn_transfer:"Transfer",
+    btn_restore:"Restore",
+    btn_set_aside:"Set aside",
+    btn_withdraw:"Withdraw",
+    opt_expense:"Expense",
+    opt_income:"Income",
+    goal_withdraw_btn_inline:"↩︎ Take money back from this goal",
+    goal_deposit_title:"💰",
+    goal_deposit_already:"Already set aside:",
+    goal_deposit_intro:"Money will leave the chosen account and enter {sav}. Your main balance will really drop — on purpose, so your brain feels the effort.",
+    goal_withdraw_title:"↩︎ Withdraw — ",
+    goal_withdraw_avail:"Available on this goal:",
+    goal_withdraw_help:"Money returns from savings to the selected account.",
+    toast_set_aside:"✓ {amt} set aside for {g}",
+    toast_withdraw:"↩︎ {amt} taken back from {g}",
+    main_account_default:"the main account",
+    savings_default_name:"Savings",
     // === extra v4.8 ===,
+    // === v4.10 cloud + fixes ===
+    cloud_title:"Cloud Backup",
+    cloud_desc:"Sync your data across all your devices. Free account in 5 seconds, no Google config needed.",
+    cloud_disconnected:"Not connected",
+    cloud_connected:"✓ Connected",
+    cloud_email_ph:"Email",
+    cloud_pwd_ph:"Password (min 6)",
+    cloud_signin:"🔑 Sign in",
+    cloud_signup:"✨ Create account",
+    cloud_signout:"Sign out",
+    cloud_backup_now:"⤴︎ Back up now",
+    cloud_restore_now:"⤵︎ Restore from Cloud",
+    cloud_loading:"Cloud is loading…",
+    cloud_need_credentials:"Email + password (≥6 characters) required.",
+    cloud_need_credentials_short:"Email + password required.",
+    cloud_account_created:"✅ Account created. Auto-backup enabled.",
+    cloud_signin_first:"Sign in first.",
+    cloud_exists_restore:"☁️ A Cloud backup exists. Restore Cloud data (replaces local data)?",
+    cloud_saved:"✅ Saved to Cloud.",
+    cloud_save_fail:"❌ Cloud backup failed: ",
+    cloud_none_found:"No backup found on Cloud.",
+    cloud_confirm_restore:"⚠️ Restoring from Cloud will replace all local data. Continue?",
+    cloud_restored:"✅ Data restored from Cloud.",
+    cloud_restore_fail:"❌ Cloud restore failed: ",
+    hourly_equiv:"hourly equiv.",
+    no_tx:"No transactions",
+    tx_type_exp:"Expense",
+    wipe_accounts:"Wipe all accounts",
     pl_day:"today",
     pl_week:"this week",
     pl_month:"this month",
@@ -926,7 +1152,121 @@ const I18N={
     gloss_pressure_t:'📊 7-day pressure',gloss_pressure_d:'Compares this week with your 30-day habit. +20% = you are speeding up. -20% = you are braking. The brain does not feel the difference in real time — that is why measuring it matters.',
   },
   es:{
+    // === v4.11 hardcoded FR → i18n full coverage ===
+    groq_invalid_key:"Clave inválida. Debe empezar por gsk_…",
+    groq_saved:"✅ Clave Groq guardada. La IA está activa.",
+    groq_advice_invalid:"\n\n🔑 Clave inválida. Ve a Config → introduce tu clave Groq desde console.groq.com",
+    groq_api_err:"Error de API",
+    groq_sandbox:"🔒 Vista previa Claude.ai — API bloqueada por el sandbox. Funciona en Netlify.",
+    net_unavailable:"⚠️ Red no disponible.",
+    no_key_online:"🔑 Falta la clave API. Ve a Config → introduce tu clave gratuita Groq (console.groq.com).",
+    offline_prefix:"📴 Sin conexión — ",
+    err_select_both_accs:"Selecciona ambas cuentas",
+    err_same_accs:"Cuentas idénticas",
+    err_insufficient_balance:"Saldo insuficiente",
+    err_select_cat_acc:"Selecciona una categoría y una cuenta",
+    err_balance_logic:"⛔ Saldo insuficiente\n\n{acc}: {bal}\nGasto solicitado: {amt}\n\nLógica: no puedes gastar lo que no tienes.",
+    confirm_push_goal_days:"⚠️ IVY: este gasto de {amt} retrasa \"{g}\" {n} día{s}.\n\n¿Confirmas?",
+    confirm_push_goal_hours:"⚠️ IVY: este gasto de {amt} retrasa \"{g}\" {h} horas.\n\n¿Confirmas?",
+    confirm_del_tx:"¿Eliminar esta transacción?",
+    confirm_del_acc:"¿Eliminar esta cuenta?",
+    confirm_dup_cat:"⚠️ Ya existe una categoría \"{cat}\".\n\n¿Crear un duplicado igualmente?",
+    confirm_del_cat:"¿Eliminar esta categoría?",
+    confirm_del_goal:"¿Eliminar este objetivo?",
+    confirm_del_goal_savings:"Este objetivo tiene {amt} apartados.\n\nOK = devolver el dinero a {dest} antes de borrar.\nCancelar = borrar SIN tocar el ahorro (el dinero queda en la cuenta de Ahorro).",
+    err_amount_invalid:"Importe inválido",
+    err_choose_source:"Elige una cuenta de origen",
+    err_savings_overflow:"No puedes retirar más de lo que has aportado",
+    err_account_not_found:"Cuenta no encontrada",
+    err_savings_insufficient:"Ahorro insuficiente (¿se editaron las cuentas manualmente?)",
+    err_deposit_insufficient:"Saldo insuficiente.\n{acc}: {bal}\nSolicitado: {amt}\n\nNo puedes apartar dinero que no tienes.",
+    notif_unsupported:"Notificaciones no soportadas en este navegador",
+    notif_blocked:"Notificaciones bloqueadas. Ve a la configuración del navegador → Sitio → Notificaciones → Permitir y vuelve.",
+    notif_denied:"Permiso denegado. Activa las notificaciones en la configuración del navegador.",
+    notif_test_title:"🎉 Finance AI OS",
+    notif_test_body:"¡Notificaciones activadas! Recibirás tus recordatorios.",
+    notif_demo_title:"🔔 Finance AI OS",
+    notif_demo_body:"¡Funciona! Recibirás tus recordatorios así.",
+    copied:"✅ ¡Copiado!",
+    data_restored:"✅ ¡Datos restaurados!",
+    code_invalid:"❌ Código inválido.",
+    wipe_confirm:"⚠️ ¿Borrar TODOS los datos? Irreversible.",
+    indexeddb_unavailable:"IndexedDB no disponible. Activa el almacenamiento del navegador.",
+    ai_offline_title:"📴 Sin conexión",
+    ai_offline_body:"La IA Groq necesita conexión. Sin conexión, abre la pantalla IA para usar el análisis local.",
+    ai_open_local:"Abrir IA Local",
+    ai_nokey_title:"🔑 Falta clave Groq",
+    ai_nokey_body:"Para activar la IA, configura tu clave gratuita Groq en Config.",
+    ai_goto_config:"Ir a Config",
+    modal_cat_new:"Nueva categoría",
+    modal_goal_new:"Nuevo objetivo",
+    modal_transfer:"⇄ Transferencia",
+    modal_backup_title:"📤 Código de copia",
+    modal_backup_help:"Copia este código. En otro dispositivo, usa \"Restaurar\" para recuperar todos tus datos.",
+    modal_backup_copy:"📋 Copiar",
+    modal_backup_stats:"transacciones · cuentas · objetivos",
+    modal_restore:"📥 Restaurar",
+    modal_restore_warn:"⚠️ Todos los datos actuales serán reemplazados.",
+    btn_create:"Crear",
+    btn_save:"Guardar",
+    btn_delete:"Eliminar",
+    btn_delete_acc:"Eliminar esta cuenta",
+    btn_transfer:"Transferir",
+    btn_restore:"Restaurar",
+    btn_set_aside:"Apartar",
+    btn_withdraw:"Retirar",
+    opt_expense:"Gasto",
+    opt_income:"Ingreso",
+    goal_withdraw_btn_inline:"↩︎ Retirar dinero de este objetivo",
+    goal_deposit_title:"💰",
+    goal_deposit_already:"Ya apartado:",
+    goal_deposit_intro:"El dinero saldrá de la cuenta elegida y entrará en {sav}. Tu saldo principal bajará de verdad — es a propósito, para que tu cerebro sienta el esfuerzo.",
+    goal_withdraw_title:"↩︎ Retirar — ",
+    goal_withdraw_avail:"Disponible en este objetivo:",
+    goal_withdraw_help:"El dinero vuelve del ahorro a la cuenta elegida.",
+    toast_set_aside:"✓ {amt} apartado para {g}",
+    toast_withdraw:"↩︎ {amt} retirado de {g}",
+    main_account_default:"la cuenta principal",
+    savings_default_name:"Ahorro",
     // === extra v4.8 ===,
+    // === v4.10 cloud + fixes ===
+    cloud_title:"Copia en la Nube",
+    cloud_desc:"Sincroniza tus datos en todos tus dispositivos. Cuenta gratis en 5 segundos, sin configuración de Google.",
+    cloud_disconnected:"No conectado",
+    cloud_connected:"✓ Conectado",
+    cloud_email_ph:"Correo",
+    cloud_pwd_ph:"Contraseña (mín. 6)",
+    cloud_signin:"🔑 Iniciar sesión",
+    cloud_signup:"✨ Crear cuenta",
+    cloud_signout:"Cerrar sesión",
+    cloud_backup_now:"⤴︎ Guardar ahora",
+    cloud_restore_now:"⤵︎ Restaurar desde la Nube",
+    cloud_loading:"Cargando la Nube…",
+    cloud_need_credentials:"Correo + contraseña (≥6 caracteres) requeridos.",
+    cloud_need_credentials_short:"Correo + contraseña requeridos.",
+    cloud_account_created:"✅ Cuenta creada. Copia automática activada.",
+    cloud_signin_first:"Inicia sesión primero.",
+    cloud_exists_restore:"☁️ Existe una copia en la Nube. ¿Restaurar los datos de la Nube (reemplaza los locales)?",
+    cloud_saved:"✅ Guardado en la Nube.",
+    cloud_save_fail:"❌ Error al guardar en la Nube: ",
+    cloud_none_found:"No se encontró ninguna copia en la Nube.",
+    cloud_confirm_restore:"⚠️ Restaurar desde la Nube reemplazará todos los datos locales. ¿Continuar?",
+    cloud_restored:"✅ Datos restaurados desde la Nube.",
+    cloud_restore_fail:"❌ Error al restaurar de la Nube: ",
+    acc_add:"Añadir cuenta",
+    acc_add_balance:"Saldo inicial",
+    an_pic:"Pico",
+    ant_effect:"Efecto",
+    celebration_streak:"Racha",
+    delete_key_label:"Borrar clave",
+    goals_destiny:"Destino",
+    hourly_equiv:"equiv. por hora",
+    no_tx:"Sin transacciones",
+    period_insight_no_data:"Datos insuficientes.",
+    tx_recent:"Transacciones recientes",
+    tx_title:"Transacciones",
+    tx_type_exp:"Gasto",
+    wipe_accounts:"Borrar todas las cuentas",
     pl_day:"hoy",
     pl_week:"esta semana",
     pl_month:"este mes",
@@ -1140,7 +1480,121 @@ const I18N={
     gloss_pressure_t:'📊 Presión 7 días',gloss_pressure_d:'Compara esta semana con tu hábito de 30 días. +20% = aceleras. -20% = frenas. El cerebro no siente la diferencia en tiempo real — por eso importa medirla.',
   },
   pt:{
+    // === v4.11 hardcoded FR → i18n full coverage ===
+    groq_invalid_key:"Chave inválida. Deve começar por gsk_…",
+    groq_saved:"✅ Chave Groq guardada. A IA está ativa.",
+    groq_advice_invalid:"\n\n🔑 Chave inválida. Vai a Config → introduz a tua chave Groq de console.groq.com",
+    groq_api_err:"Erro de API",
+    groq_sandbox:"🔒 Pré-visualização Claude.ai — API bloqueada pelo sandbox. Funciona em Netlify.",
+    net_unavailable:"⚠️ Rede indisponível.",
+    no_key_online:"🔑 Falta a chave API. Vai a Config → introduz a tua chave Groq gratuita (console.groq.com).",
+    offline_prefix:"📴 Offline — ",
+    err_select_both_accs:"Seleciona ambas as contas",
+    err_same_accs:"Contas idênticas",
+    err_insufficient_balance:"Saldo insuficiente",
+    err_select_cat_acc:"Seleciona uma categoria e uma conta",
+    err_balance_logic:"⛔ Saldo insuficiente\n\n{acc}: {bal}\nDespesa pedida: {amt}\n\nLógica: não podes gastar o que não tens.",
+    confirm_push_goal_days:"⚠️ IVY: esta despesa de {amt} atrasa \"{g}\" em {n} dia{s}.\n\nConfirmas?",
+    confirm_push_goal_hours:"⚠️ IVY: esta despesa de {amt} atrasa \"{g}\" em {h} horas.\n\nConfirmas?",
+    confirm_del_tx:"Eliminar esta transação?",
+    confirm_del_acc:"Eliminar esta conta?",
+    confirm_dup_cat:"⚠️ Já existe uma categoria \"{cat}\".\n\nCriar duplicado mesmo assim?",
+    confirm_del_cat:"Eliminar esta categoria?",
+    confirm_del_goal:"Eliminar este objetivo?",
+    confirm_del_goal_savings:"Este objetivo tem {amt} guardados.\n\nOK = devolver o dinheiro a {dest} antes de apagar.\nCancelar = apagar SEM mexer na poupança (o dinheiro fica na conta Poupança).",
+    err_amount_invalid:"Valor inválido",
+    err_choose_source:"Escolhe uma conta de origem",
+    err_savings_overflow:"Não podes retirar mais do que colocaste",
+    err_account_not_found:"Conta não encontrada",
+    err_savings_insufficient:"Poupança insuficiente (as contas foram editadas manualmente?)",
+    err_deposit_insufficient:"Saldo insuficiente.\n{acc}: {bal}\nPedido: {amt}\n\nNão podes guardar dinheiro que não tens.",
+    notif_unsupported:"Notificações não suportadas neste navegador",
+    notif_blocked:"Notificações bloqueadas. Vai às definições do navegador → Site → Notificações → Permitir e volta.",
+    notif_denied:"Permissão recusada. Ativa as notificações nas definições do navegador.",
+    notif_test_title:"🎉 Finance AI OS",
+    notif_test_body:"Notificações ativadas! Vais receber os teus lembretes.",
+    notif_demo_title:"🔔 Finance AI OS",
+    notif_demo_body:"Funciona! Vais receber os teus lembretes assim.",
+    copied:"✅ Copiado!",
+    data_restored:"✅ Dados restaurados!",
+    code_invalid:"❌ Código inválido.",
+    wipe_confirm:"⚠️ Apagar TODOS os dados? Irreversível.",
+    indexeddb_unavailable:"IndexedDB indisponível. Ativa o armazenamento no navegador.",
+    ai_offline_title:"📴 Offline",
+    ai_offline_body:"A IA Groq precisa de ligação. Offline, abre o ecrã IA para usar a análise local.",
+    ai_open_local:"Abrir IA Local",
+    ai_nokey_title:"🔑 Falta chave Groq",
+    ai_nokey_body:"Para ativar a IA, configura a tua chave Groq gratuita em Config.",
+    ai_goto_config:"Ir para Config",
+    modal_cat_new:"Nova categoria",
+    modal_goal_new:"Novo objetivo",
+    modal_transfer:"⇄ Transferência",
+    modal_backup_title:"📤 Código de cópia",
+    modal_backup_help:"Copia este código. Noutro dispositivo, usa \"Restaurar\" para recuperar todos os dados.",
+    modal_backup_copy:"📋 Copiar",
+    modal_backup_stats:"transações · contas · objetivos",
+    modal_restore:"📥 Restaurar",
+    modal_restore_warn:"⚠️ Todos os dados atuais serão substituídos.",
+    btn_create:"Criar",
+    btn_save:"Guardar",
+    btn_delete:"Eliminar",
+    btn_delete_acc:"Eliminar esta conta",
+    btn_transfer:"Transferir",
+    btn_restore:"Restaurar",
+    btn_set_aside:"Guardar",
+    btn_withdraw:"Retirar",
+    opt_expense:"Despesa",
+    opt_income:"Receita",
+    goal_withdraw_btn_inline:"↩︎ Retirar dinheiro deste objetivo",
+    goal_deposit_title:"💰",
+    goal_deposit_already:"Já guardado:",
+    goal_deposit_intro:"O dinheiro vai sair da conta escolhida e entrar em {sav}. O teu saldo principal vai mesmo descer — é de propósito, para o cérebro sentir o esforço.",
+    goal_withdraw_title:"↩︎ Retirar — ",
+    goal_withdraw_avail:"Disponível neste objetivo:",
+    goal_withdraw_help:"O dinheiro volta da poupança para a conta escolhida.",
+    toast_set_aside:"✓ {amt} guardado para {g}",
+    toast_withdraw:"↩︎ {amt} retirado de {g}",
+    main_account_default:"a conta principal",
+    savings_default_name:"Poupança",
     // === extra v4.8 ===,
+    // === v4.10 cloud + fixes ===
+    cloud_title:"Backup na Nuvem",
+    cloud_desc:"Sincroniza os teus dados em todos os dispositivos. Conta gratuita em 5 segundos, sem configuração Google.",
+    cloud_disconnected:"Não conectado",
+    cloud_connected:"✓ Conectado",
+    cloud_email_ph:"E-mail",
+    cloud_pwd_ph:"Palavra-passe (mín. 6)",
+    cloud_signin:"🔑 Entrar",
+    cloud_signup:"✨ Criar conta",
+    cloud_signout:"Sair",
+    cloud_backup_now:"⤴︎ Guardar agora",
+    cloud_restore_now:"⤵︎ Restaurar da Nuvem",
+    cloud_loading:"A carregar a Nuvem…",
+    cloud_need_credentials:"E-mail + palavra-passe (≥6 caracteres) obrigatórios.",
+    cloud_need_credentials_short:"E-mail + palavra-passe obrigatórios.",
+    cloud_account_created:"✅ Conta criada. Backup automático ativado.",
+    cloud_signin_first:"Entra primeiro.",
+    cloud_exists_restore:"☁️ Existe um backup na Nuvem. Restaurar dados da Nuvem (substitui os locais)?",
+    cloud_saved:"✅ Guardado na Nuvem.",
+    cloud_save_fail:"❌ Falha ao guardar na Nuvem: ",
+    cloud_none_found:"Nenhum backup encontrado na Nuvem.",
+    cloud_confirm_restore:"⚠️ Restaurar da Nuvem irá substituir todos os dados locais. Continuar?",
+    cloud_restored:"✅ Dados restaurados da Nuvem.",
+    cloud_restore_fail:"❌ Falha ao restaurar da Nuvem: ",
+    acc_add:"Adicionar conta",
+    acc_add_balance:"Saldo inicial",
+    an_pic:"Pico",
+    ant_effect:"Efeito",
+    celebration_streak:"Sequência",
+    delete_key_label:"Apagar chave",
+    goals_destiny:"Destino",
+    hourly_equiv:"equiv. por hora",
+    no_tx:"Sem transações",
+    period_insight_no_data:"Dados insuficientes.",
+    tx_recent:"Transações recentes",
+    tx_title:"Transações",
+    tx_type_exp:"Despesa",
+    wipe_accounts:"Apagar todas as contas",
     pl_day:"hoje",
     pl_week:"esta semana",
     pl_month:"este mês",
@@ -1718,11 +2172,7 @@ function riskLevel(kpi){
 // ════════════════════════════════════════
 function updateOnlineStatus(){
   const on=navigator.onLine;
-  const b=$('onlineBadge');
-  if(b){
-    if(on){b.className='online-badge ob-on';b.textContent=t('online')}
-    else{b.className='online-badge ob-off';b.textContent=t('offline')}
-  }
+  // Badge supprimé — la connectivité est portée par l'ambiance (background LED).
   const fab=$('aiFab');
   if(fab){
     const hasKey=!!getGroqKey();
@@ -1732,8 +2182,16 @@ function updateOnlineStatus(){
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
 }
-window.addEventListener('online',()=>{try{updateOnlineStatus();maybeAutoInsight()}catch(e){}});
-window.addEventListener('offline',()=>{try{updateOnlineStatus()}catch(e){}});
+// Haptic feedback helper (no-op on unsupported devices)
+function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||10); }catch(e){} }
+window.haptic = haptic;
+// Bind haptics to nav + primary buttons + FAB (delegated, structure unchanged)
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('.ni, .btn, .aifab, .fab, .ftab');
+  if(el) haptic(8);
+}, {passive:true});
+window.addEventListener('online',()=>{try{updateOnlineStatus();haptic(15);if(typeof maybeAutoInsight==='function')maybeAutoInsight()}catch(e){}});
+window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10])}catch(e){}});
 
 // ════════════════════════════════════════
 // AI — GEMINI (hybrid local/cloud)
@@ -1814,8 +2272,19 @@ function buildCtx(){
     };
   }
 
-  // ── Tous les comptes (vue patrimoine totale) ──
-  const allAccounts=accs.map(a=>({nom:a.name,type:a.type,solde:a.balance||0}));
+  // ── Tous les comptes (vue patrimoine totale, avec rôle) ──
+  // type='savings' = verrouillé (l'IA doit traiter cet argent comme INTOUCHABLE sans transfert explicite via objectif).
+  // type autre = compte actif / principal (dispo immédiate pour dépenses).
+  const allAccounts=accs.map(a=>({
+    id:a.id,
+    nom:a.name,
+    type:a.type||'main',
+    role:(a.type==='savings')?'EPARGNE_VERROUILLEE':'COMPTE_ACTIF',
+    solde:a.balance||0,
+    estPrincipal:(a.type!=='savings'),
+  }));
+  const comptesPrincipaux=allAccounts.filter(a=>a.estPrincipal);
+  const comptesEpargne=allAccounts.filter(a=>!a.estPrincipal);
 
   // ── Tous les objectifs (pas seulement le prioritaire) ──
   const allGoals=goals.map(g=>({
@@ -1839,6 +2308,9 @@ function buildCtx(){
     objectifPrioritaire,
     tousLesObjectifs:allGoals,
     comptes:allAccounts,
+    comptesPrincipauxResume:{nombre:comptesPrincipaux.length,totalDisponible:comptesPrincipaux.reduce((s,a)=>s+a.solde,0)},
+    comptesEpargneResume:{nombre:comptesEpargne.length,totalEpargne:comptesEpargne.reduce((s,a)=>s+a.solde,0)},
+    toutesLesCategories:cats.map(c=>({id:c.id,nom:c.name,icone:c.icon,type:c.type})),
     indicateurs:{
       capitalActif:k.activeBalance,
       epargne:k.savingsBalance,
@@ -1889,14 +2361,22 @@ async function askAI(userMsg){
 
 ABSOLUTE RULES:
 1. You know their LIFE GOALS ("objectifPrioritaire" + "tousLesObjectifs"). Judge every expense against those dreams.
-2. Be DIRECT and UNFILTERED. No unnecessary politeness. Name the betrayal when it exists: "You just pushed [Goal] back X days. For a snack. Really?"
-3. You are NOT mean — you are LOYAL to their future. Brutal but not cruel. Attack the behavior, never the person.
-4. Always quantify IMPACT in DAYS on the priority goal. If no goal, force them to set one.
-5. NEUROSCIENCE as armor: name the bias (dopamine, decision fatigue, loss aversion, anchoring, domino effect).
-6. Use FRICTION SCORE (0-100): <40="drifting", 40-70="zigzagging", >70="on track".
-7. Read BEHAVIORAL FIELDS (mood, location, time, note) to identify the real trigger.
-8. STRUCTURE: (a) what you see (precise numbers), (b) the betrayal or victory (in goal days), (c) ONE concrete order for today — not a suggestion, an order.
-9. 4-6 sentences max. Single emoji allowed as signature (⚡, 🎯, 🔥). ${langInstruction} Zero jargon.
+2. ACCOUNT AWARENESS — non-negotiable:
+   • "comptes" lists every account with its role: COMPTE_ACTIF (spendable today) vs EPARGNE_VERROUILLEE (locked savings — sacred, untouchable for normal spending).
+   • Use "comptesPrincipauxResume.totalDisponible" as TRUE spendable cash. Never confuse it with savings.
+   • Use "comptesEpargneResume.totalEpargne" as locked reserves. Recommend touching it only to fund a goal deposit, an emergency (safetyDays critical), or via an explicit transfer the user requested.
+   • If the user asks "combien j'ai" / "how much do I have", ALWAYS distinguish active vs savings — never lump them.
+   • Reason across the full account set; suggest a transfer (active → savings, or vice-versa) when it serves the priority goal.
+3. CATEGORY AWARENESS: "toutesLesCategories" lists every category the user created. Reference them by their real name when proposing cuts or shifts. Never invent categories that don't exist.
+4. Be DIRECT and UNFILTERED. No unnecessary politeness. Name the betrayal when it exists: "You just pushed [Goal] back X days. For a snack. Really?"
+5. LOGICAL, NOT EMOTIONAL: every claim must trace back to a number in the data (KPIs, account balances, category totals, recent tx). No vibes. If data is thin (dataDays<14), say so and reason only on what exists.
+6. You are NOT mean — you are LOYAL to their future. Brutal but not cruel. Attack the behavior, never the person.
+7. Always quantify IMPACT in DAYS on the priority goal. If no goal, force them to set one.
+8. NEUROSCIENCE as armor: name the bias (dopamine, decision fatigue, loss aversion, anchoring, domino effect).
+9. Use FRICTION SCORE (0-100): <40="drifting", 40-70="zigzagging", >70="on track".
+10. Read BEHAVIORAL FIELDS (mood, location, time, note) to identify the real trigger.
+11. STRUCTURE: (a) what you see (precise numbers, including which account), (b) the betrayal or victory (in goal days), (c) ONE concrete order for today — not a suggestion, an order. When relevant, the order can be "transfer X from [active] to [savings]" or vice-versa.
+12. 4-6 sentences max. Single emoji allowed as signature (⚡, 🎯, 🔥). ${langInstruction} Zero jargon.
 
 You are the voice that prevents this person from dying mediocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
@@ -1917,9 +2397,9 @@ You are the voice that prevents this person from dying mediocre.`;
       });
       const d = await resp.json();
       if(!resp.ok){
-        const msg = d.error?.message||'Erreur API';
+        const msg = d.error?.message||t('groq_api_err');
         const isKey = msg.includes('401')||msg.includes('invalid')||msg.includes('key');
-        const advice = isKey ? '\n\n🔑 Clé invalide. Va dans Config → entre ta clé Groq depuis console.groq.com' : '';
+        const advice = isKey ? t('groq_advice_invalid') : '';
         return{text:'⚠️ Groq: '+msg+advice+'\n\n'+localAI(userMsg), src:'Erreur'};
       }
       const t = d.choices?.[0]?.message?.content;
@@ -1927,14 +2407,14 @@ You are the voice that prevents this person from dying mediocre.`;
     }catch(e){
       console.warn('Groq failed:',e);
       const isSandbox = window.location.href.includes('claude.ai');
-      if(isSandbox) return{text:'🔒 Preview Claude.ai — API bloquée par sandbox. Sur Netlify ça marche.\n\n'+localAI(userMsg), src:'Sandbox'};
-      return{text:'⚠️ Réseau indisponible.\n\n'+localAI(userMsg), src:'Local'};
+      if(isSandbox) return{text:t('groq_sandbox')+'\n\n'+localAI(userMsg), src:'Sandbox'};
+      return{text:t('net_unavailable')+'\n\n'+localAI(userMsg), src:'Local'};
     }
   }
   if(!key && navigator.onLine){
-    return{text:'🔑 Clé API manquante. Va dans Config → entre ta clé Groq gratuite (console.groq.com).\n\n'+localAI(userMsg), src:'Local'};
+    return{text:t('no_key_online')+'\n\n'+localAI(userMsg), src:'Local'};
   }
-  return{text:'📴 Hors-ligne — '+localAI(userMsg), src:'Local'};
+  return{text:t('offline_prefix')+localAI(userMsg), src:'Local'};
 }
 
 
@@ -2012,11 +2492,11 @@ async function maybeAutoInsight(){
 }
 function openAIQuick(){
   if(!navigator.onLine){
-    openModal(`<h3>📴 Hors ligne</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">L'IA Groq nécessite une connexion. En offline, va sur l'écran <strong>IA</strong> pour utiliser l'analyse locale.</p><button class="btn" onclick="closeModal();go('ai')">Ouvrir IA Local</button>`);
+    openModal(`<h3>${t('ai_offline_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_offline_body')}</p><button class="btn" onclick="closeModal();go('ai')">${t('ai_open_local')}</button>`);
     return;
   }
   if(!getGroqKey()){
-    openModal(`<h3>🔑 Clé Groq manquante</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">Pour activer l'IA, configure ta clé Groq (gratuite) dans Config.</p><button class="btn" onclick="closeModal();go('settings')">Aller dans Config</button>`);
+    openModal(`<h3>${t('ai_nokey_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_nokey_body')}</p><button class="btn" onclick="closeModal();go('settings')">${t('ai_goto_config')}</button>`);
     return;
   }
   openModal(`
@@ -2874,9 +3354,9 @@ function renderCategoryBarsAdaptive(p,ptxs){
 
 function saveGroqKey(){
   const k = document.getElementById('new-groq-key')?.value.trim();
-  if(!k || !k.startsWith('gsk_')){alert('Clé invalide. Elle doit commencer par gsk_...');return}
+  if(!k || !k.startsWith('gsk_')){alert(t('groq_invalid_key'));return}
   localStorage.setItem('groq_api_key', k);
-  alert('✅ Clé Groq enregistrée! L\'IA est maintenant active.');
+  alert(t('groq_saved'));
   render();
 }
 function clearGroqKey(){
@@ -3230,16 +3710,23 @@ function renderSettings(){
     <button class="btn btn-ghost" onclick="openTransferModal()">${t('transfer_btn')}</button>
   </div>
 
-  <!-- GOOGLE DRIVE -->
+  <!-- CLOUD SYNC (Supabase) -->
   <div class="card">
-    <div class="ch">☁️ ${t('cfg_drive')}</div>
-    <p style="font-size:12px;color:var(--mut);margin-bottom:10px;line-height:1.6">${t('cfg_drive_desc')}</p>
-    <div id="driveStatus" style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--mut)">${t('cfg_drive_disconnected')}</div>
-    <button class="btn" id="driveConnectBtn" style="margin-bottom:8px" onclick="gdriveConnect()">${t('cfg_drive_connect')}</button>
-    <div id="driveActions" style="display:none">
-      <button class="btn" style="margin-bottom:8px" onclick="gdriveBackup()">${t('cfg_drive_backup')}</button>
-      <button class="btn btn-ghost" style="margin-bottom:8px" onclick="gdriveRestore()">${t('cfg_drive_restore')}</button>
-      <button class="btn btn-ghost" onclick="gdriveDisconnect()">${t('cfg_drive_disconnect')}</button>
+    <div class="ch">☁️ ${t('cloud_title')}</div>
+    <p style="font-size:12px;color:var(--mut);margin-bottom:10px;line-height:1.6">${t('cloud_desc')}</p>
+    <div id="cloudStatus" style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--mut)">${t('cloud_disconnected')}</div>
+
+    <div id="cloudAuthForm">
+      <input class="fi" id="cloudEmail" type="email" placeholder="${t('cloud_email_ph')}" autocomplete="email" style="margin-bottom:8px">
+      <input class="fi" id="cloudPwd" type="password" placeholder="${t('cloud_pwd_ph')}" autocomplete="current-password" style="margin-bottom:8px">
+      <button class="btn" style="margin-bottom:8px" onclick="cloudSignIn()">${t('cloud_signin')}</button>
+      <button class="btn btn-ghost" onclick="cloudSignUp()">${t('cloud_signup')}</button>
+    </div>
+
+    <div id="cloudActions" style="display:none">
+      <button class="btn" style="margin-bottom:8px" onclick="cloudBackup()">${t('cloud_backup_now')}</button>
+      <button class="btn btn-ghost" style="margin-bottom:8px" onclick="cloudRestore()">${t('cloud_restore_now')}</button>
+      <button class="btn btn-ghost" onclick="cloudSignOut()">${t('cloud_signout')}</button>
     </div>
   </div>
 
@@ -3427,8 +3914,13 @@ function showIvyVerdict(html){
 }
 
 async function saveTx(){
-  const amt=parseFloat($('txAmt')?.value);
-  if(!amt||amt<=0){alert('Montant invalide');return}
+  const amtEl=$('txAmt');
+  const amt=parseFloat(amtEl?.value);
+  if(!amt||amt<=0){
+    if(amtEl){amtEl.classList.add('err');setTimeout(()=>amtEl.classList.remove('err'),500);amtEl.focus();}
+    haptic([20,40,20]);
+    return;
+  }
   const date=new Date($('txDate')?.value||new Date()).toISOString();
   const note=$('txNote')?.value||'';
   const mood=document.querySelector('input[name="txMood"]:checked')?.value||'';
@@ -3436,10 +3928,10 @@ async function saveTx(){
 
   if(_txType==='transfer'){
     const fromId=$('txFrom')?.value,toId=$('txTo')?.value;
-    if(!fromId||!toId){alert('Sélectionne les deux comptes');return}
-    if(fromId===toId){alert('Comptes identiques');return}
+    if(!fromId||!toId){alert(t('err_select_both_accs'));return}
+    if(fromId===toId){alert(t('err_same_accs'));return}
     const from=accs.find(a=>a.id===fromId),to=accs.find(a=>a.id===toId);
-    if(from.balance<amt){alert('Solde insuffisant');return}
+    if(from.balance<amt){alert(t('err_insufficient_balance'));return}
     from.balance-=amt;to.balance+=amt;
     await dbPut('accounts',from);await dbPut('accounts',to);
     await dbPut('transactions',{id:uid(),amount:amt,type:'transfer',categoryId:'transfer',accountId:fromId,toAccountId:toId,date,note,mood,location,createdAt:new Date().toISOString()});
@@ -3447,7 +3939,7 @@ async function saveTx(){
   }
 
   const catId=$('txCat')?.value,accId=$('txAcc')?.value;
-  if(!catId||!accId){alert('Sélectionne une catégorie et un compte');return}
+  if(!catId||!accId){alert(t('err_select_cat_acc'));return}
 
   // ── Friction Prédictive (avant validation) ──
   if(_txType==='expense' && (DOPAMINE_CATS.includes(catId) || (catId==='food' && note && FOOD_IMPULSE_RE.test(note)))){
@@ -3456,20 +3948,21 @@ async function saveTx(){
     if(days!==null && g && days>=0.5){
       const h=Math.round(days*24);
       const msg=days>=1
-        ? `⚠️ IVY : cette dépense de ${fmtFull(amt)} repousse "${g.name}" de ${days} jour${days>1?'s':''}.\n\nTu confirmes ?`
-        : `⚠️ IVY : cette dépense de ${fmtFull(amt)} repousse "${g.name}" de ${h} heures.\n\nTu confirmes ?`;
+        ? t('confirm_push_goal_days').replace('{amt}',fmtFull(amt)).replace('{g}',g.name).replace('{n}',days).replace('{s}',days>1?'s':'')
+        : t('confirm_push_goal_hours').replace('{amt}',fmtFull(amt)).replace('{g}',g.name).replace('{h}',h);
       if(!confirm(msg)) return;
     }
   }
 
   const acc=accs.find(a=>a.id===accId);
   if(_txType==='expense' && acc.balance < amt){
-    alert(`⛔ Solde insuffisant\n\n${acc.icon} ${acc.name} : ${fmtFull(acc.balance)}\nDépense demandée : ${fmtFull(amt)}\n\nLogique : on ne peut pas dépenser ce qu'on n'a pas.`);
+    alert(t('err_balance_logic').replace('{acc}',acc.icon+' '+acc.name).replace('{bal}',fmtFull(acc.balance)).replace('{amt}',fmtFull(amt)));
     return;
   }
   acc.balance+=_txType==='income'?amt:-amt;
   await dbPut('accounts',acc);
   await dbPut('transactions',{id:uid(),amount:amt,type:_txType,categoryId:catId,accountId:accId,date,note,mood,location,createdAt:new Date().toISOString()});
+  haptic(15);
   closeModal();await render();
 
   // ── IVY : verdict proactif après coup (dépenses uniquement) ──
@@ -3504,7 +3997,7 @@ function openTxDetailModal(id){
 
 async function delTx(id){
   const t=txs.find(x=>x.id===id);if(!t)return;
-  if(!confirm('Supprimer cette transaction ?'))return;
+  if(!confirm(t('confirm_del_tx')))return;
   const acc=accs.find(a=>a.id===t.accountId);
   if(acc){acc.balance+=t.type==='expense'?t.amount:-t.amount;await dbPut('accounts',acc)}
   if(t.type==='transfer'&&t.toAccountId){
@@ -3628,7 +4121,7 @@ function openAddAccountModal(){
       <option value="business">Business</option>
     </select>
     <input id="accBal" class="fi" type="number" placeholder="${t('acc_bal_ph')}" inputmode="decimal">
-    <button class="btn" onclick="saveNewAccount()">Créer</button>
+    <button class="btn" onclick="saveNewAccount()">${t('btn_create')}</button>
   `);
 }
 async function saveNewAccount(){
@@ -3643,8 +4136,8 @@ function openEditAccountModal(id){
     <input id="eAccName" class="fi" value="${a.name}">
     <input id="eAccIcon" class="fi" value="${a.icon}">
     <input id="eAccBal" class="fi" type="number" value="${a.balance}" inputmode="decimal">
-    <button class="btn" style="margin-bottom:8px" onclick="updateAccount('${id}')">Enregistrer</button>
-    <button class="btn btn-red" onclick="delAccount('${id}')">Supprimer ce compte</button>
+    <button class="btn" style="margin-bottom:8px" onclick="updateAccount('${id}')">${t('btn_save')}</button>
+    <button class="btn btn-red" onclick="delAccount('${id}')">${t('btn_delete_acc')}</button>
   `);
 }
 async function updateAccount(id){
@@ -3653,7 +4146,7 @@ async function updateAccount(id){
   await dbPut('accounts',a);closeModal();await render();
 }
 async function delAccount(id){
-  if(!confirm('Supprimer ce compte ?'))return;
+  if(!confirm(t('confirm_del_acc')))return;
   await dbDel('accounts',id);closeModal();await render();
 }
 
@@ -3662,14 +4155,14 @@ async function delAccount(id){
 // ════════════════════════════════════════
 function openAddCatModal(){
   openModal(`
-    <h3>Nouvelle catégorie</h3>
+    <h3>${t('modal_cat_new')}</h3>
     <input id="catName" class="fi" placeholder="${t('cat_name_ph')}">
     <input id="catIcon" class="fi" placeholder="${t('cat_icon_ph')}">
     <select id="catType" class="fi">
-      <option value="expense">Dépense</option>
-      <option value="income">Revenu</option>
+      <option value="expense">${t('opt_expense')}</option>
+      <option value="income">${t('opt_income')}</option>
     </select>
-    <button class="btn" onclick="saveNewCat()">Créer</button>
+    <button class="btn" onclick="saveNewCat()">${t('btn_create')}</button>
   `);
 }
 async function saveNewCat(){
@@ -3677,7 +4170,7 @@ async function saveNewCat(){
   const type=$('catType')?.value||'expense';
   const dup=cats.find(c=>c.type===type && c.name.trim().toLowerCase()===name.trim().toLowerCase());
   if(dup){
-    if(!confirm(`⚠️ Une catégorie "${dup.icon} ${dup.name}" existe déjà.\n\nCréer un doublon quand même ?`)) return;
+    if(!confirm(t('confirm_dup_cat').replace('{cat}',dup.icon+' '+dup.name))) return;
   }
   await dbPut('categories',{id:'cat'+uid(),name,icon:$('catIcon')?.value||'📌',type});
   closeModal();await render();
@@ -3689,11 +4182,11 @@ function openEditCatModal(id){
     <input id="eCatName" class="fi" value="${c.name}">
     <input id="eCatIcon" class="fi" value="${c.icon}">
     <select id="eCatType" class="fi">
-      <option value="expense" ${c.type==='expense'?'selected':''}>Dépense</option>
-      <option value="income" ${c.type==='income'?'selected':''}>Revenu</option>
+      <option value="expense" ${c.type==='expense'?'selected':''}>${t('opt_expense')}</option>
+      <option value="income" ${c.type==='income'?'selected':''}>${t('opt_income')}</option>
     </select>
-    <button class="btn" style="margin-bottom:8px" onclick="updateCat('${id}')">Enregistrer</button>
-    <button class="btn btn-red" onclick="delCat('${id}')">Supprimer</button>
+    <button class="btn" style="margin-bottom:8px" onclick="updateCat('${id}')">${t('btn_save')}</button>
+    <button class="btn btn-red" onclick="delCat('${id}')">${t('btn_delete')}</button>
   `);
 }
 async function updateCat(id){
@@ -3702,7 +4195,7 @@ async function updateCat(id){
   await dbPut('categories',c);closeModal();await render();
 }
 async function delCat(id){
-  if(!confirm('Supprimer cette catégorie ?'))return;
+  if(!confirm(t('confirm_del_cat')))return;
   await dbDel('categories',id);closeModal();await render();
 }
 
@@ -3711,14 +4204,14 @@ async function delCat(id){
 // ════════════════════════════════════════
 function openAddGoalModal(){
   openModal(`
-    <h3>Nouvel objectif</h3>
+    <h3>${t('modal_goal_new')}</h3>
     <input id="gName" class="fi" placeholder="${t('goals_name')}">
     <input id="gTarget" class="fi" type="number" placeholder="${t('goals_target')}" inputmode="decimal">
     <input id="gIcon" class="fi" placeholder="${t('goals_icon')}">
     <input id="gDeadline" class="fi" type="date" style="color:var(--txt2)" title="Deadline (optionnel)">
     <div style="font-size:10px;color:var(--mut);margin:-6px 0 8px;padding-left:2px">Date limite (optionnel — active le suivi de trajectoire)</div>
     <input id="gNote" class="fi" placeholder="${t('goals_note')}">
-    <button class="btn" onclick="saveGoal()">Créer</button>
+    <button class="btn" onclick="saveGoal()">${t('btn_create')}</button>
   `);
 }
 async function saveGoal(){
@@ -3734,29 +4227,29 @@ function openDepositModal(id){
   const sources=accs.filter(a=>a.type!=='savings');
   const savingsAcc=accs.find(a=>a.type==='savings');
   openModal(`
-    <h3>💰 ${g.icon} ${g.name}</h3>
-    <div style="color:var(--mut);font-size:12px;margin-bottom:8px">Déjà mis de côté : <b style="color:var(--txt)">${fmtFull(g.saved)}</b> / ${fmtFull(g.target)}</div>
-    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.5">L'argent va sortir du compte choisi et entrer dans <b>${savingsAcc?savingsAcc.icon+' '+savingsAcc.name:'Épargne'}</b>. Ton solde principal va vraiment baisser — c'est fait exprès, pour que ton cerveau voie l'effort.</div>
+    <h3>${t('goal_deposit_title')} ${g.icon} ${g.name}</h3>
+    <div style="color:var(--mut);font-size:12px;margin-bottom:8px">${t('goal_deposit_already')} <b style="color:var(--txt)">${fmtFull(g.saved)}</b> / ${fmtFull(g.target)}</div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.5">${t('goal_deposit_intro').replace('{sav}','<b>'+(savingsAcc?savingsAcc.icon+' '+savingsAcc.name:t('savings_default_name'))+'</b>')}</div>
     <select id="depFrom" class="fi">
       ${sources.map(a=>`<option value="${a.id}">${a.icon} ${a.name} — dispo : ${fmtFull(a.balance)}</option>`).join('')}
     </select>
     <input id="depAmt" class="fi" type="number" placeholder="${t('goals_deposit')}" inputmode="decimal">
-    <button class="btn" onclick="saveDeposit('${id}')">Mettre de côté</button>
-    ${g.saved>0?`<button class="btn btn-ghost" style="margin-top:8px" onclick="openWithdrawGoal('${id}')">↩︎ Reprendre de l'argent de cet objectif</button>`:''}
+    <button class="btn" onclick="saveDeposit('${id}')">${t('btn_set_aside')}</button>
+    ${g.saved>0?`<button class="btn btn-ghost" style="margin-top:8px" onclick="openWithdrawGoal('${id}')">${t('goal_withdraw_btn_inline')}</button>`:''}
   `);
 }
 async function saveDeposit(id){
   const g=goals.find(x=>x.id===id);
   const amt=parseFloat($('depAmt')?.value);
   const fromId=$('depFrom')?.value;
-  if(!g||!amt||amt<=0){alert('Montant invalide');return}
+  if(!g||!amt||amt<=0){alert(t('err_amount_invalid'));return}
   const from=accs.find(a=>a.id===fromId);
   let savingsAcc=accs.find(a=>a.type==='savings');
-  if(!from){alert('Choisis un compte source');return}
-  if(from.balance<amt){alert(`Solde insuffisant.\n${from.icon} ${from.name} : ${fmtFull(from.balance)}\nDemandé : ${fmtFull(amt)}\n\nTu ne peux pas mettre de côté de l'argent que tu n'as pas.`);return}
+  if(!from){alert(t('err_choose_source'));return}
+  if(from.balance<amt){alert(t('err_deposit_insufficient').replace('{acc}',from.icon+' '+from.name).replace('{bal}',fmtFull(from.balance)).replace('{amt}',fmtFull(amt)));return}
   // Crée le compte épargne s'il manque (cas extrême)
   if(!savingsAcc){
-    savingsAcc={id:'savings',name:'Épargne',icon:'💰',type:'savings',balance:0};
+    savingsAcc={id:'savings',name:t('savings_default_name'),icon:'💰',type:'savings',balance:0};
     accs.push(savingsAcc);
   }
   // Mouvement réel d'argent
@@ -3773,30 +4266,30 @@ async function saveDeposit(id){
   await dbPut('transactions',{id:uid(),amount:amt,type:'transfer',categoryId:'transfer',accountId:fromId,toAccountId:savingsAcc.id,date:new Date().toISOString(),note:`→ Objectif : ${g.name}`,goalId:g.id,createdAt:new Date().toISOString()});
   closeModal();
   await render();
-  showToast(`✓ ${fmtFull(amt)} mis de côté pour ${g.name}`);
+  showToast(t('toast_set_aside').replace('{amt}',fmtFull(amt)).replace('{g}',g.name));
 }
 function openWithdrawGoal(id){
   const g=goals.find(x=>x.id===id);if(!g)return;
   const sources=accs.filter(a=>a.type!=='savings');
   openModal(`
-    <h3>↩︎ Reprendre — ${g.icon} ${g.name}</h3>
-    <div style="color:var(--mut);font-size:12px;margin-bottom:10px">Disponible sur cet objectif : <b style="color:var(--txt)">${fmtFull(g.saved)}</b></div>
-    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.5">L'argent revient depuis l'épargne vers le compte choisi.</div>
+    <h3>${t('goal_withdraw_title')}${g.icon} ${g.name}</h3>
+    <div style="color:var(--mut);font-size:12px;margin-bottom:10px">${t('goal_withdraw_avail')} <b style="color:var(--txt)">${fmtFull(g.saved)}</b></div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.5">${t('goal_withdraw_help')}</div>
     <select id="wdTo" class="fi">${sources.map(a=>`<option value="${a.id}">${a.icon} ${a.name}</option>`).join('')}</select>
     <input id="wdAmt" class="fi" type="number" placeholder="${t('goal_withdraw_ph')}" inputmode="decimal" max="${g.saved}">
-    <button class="btn btn-red" onclick="doWithdrawGoal('${id}')">Reprendre</button>
+    <button class="btn btn-red" onclick="doWithdrawGoal('${id}')">${t('btn_withdraw')}</button>
   `);
 }
 async function doWithdrawGoal(id){
   const g=goals.find(x=>x.id===id);
   const amt=parseFloat($('wdAmt')?.value);
   const toId=$('wdTo')?.value;
-  if(!g||!amt||amt<=0){alert('Montant invalide');return}
-  if(amt>g.saved){alert('Tu ne peux pas reprendre plus que ce que tu as mis');return}
+  if(!g||!amt||amt<=0){alert(t('err_amount_invalid'));return}
+  if(amt>g.saved){alert(t('err_savings_overflow'));return}
   const savingsAcc=accs.find(a=>a.type==='savings');
   const to=accs.find(a=>a.id===toId);
-  if(!savingsAcc||!to){alert('Compte introuvable');return}
-  if(savingsAcc.balance<amt){alert('Épargne insuffisante (les comptes ont été modifiés à la main ?)');return}
+  if(!savingsAcc||!to){alert(t('err_account_not_found'));return}
+  if(savingsAcc.balance<amt){alert(t('err_savings_insufficient'));return}
   savingsAcc.balance-=amt;to.balance+=amt;
   await dbPut('accounts',savingsAcc);await dbPut('accounts',to);
   g.saved-=amt;
@@ -3805,14 +4298,14 @@ async function doWithdrawGoal(id){
   await dbPut('goals',g);
   await dbPut('transactions',{id:uid(),amount:amt,type:'transfer',categoryId:'transfer',accountId:savingsAcc.id,toAccountId:toId,date:new Date().toISOString(),note:`↩︎ Repris de : ${g.name}`,goalId:g.id,createdAt:new Date().toISOString()});
   closeModal();await render();
-  showToast(`↩︎ ${fmtFull(amt)} repris de ${g.name}`);
+  showToast(t('toast_withdraw').replace('{amt}',fmtFull(amt)).replace('{g}',g.name));
 }
 async function delGoal(id){
   const g=goals.find(x=>x.id===id);if(!g)return;
   if(g.saved>0){
     const sources=accs.filter(a=>a.type!=='savings');
     const def=sources[0];
-    const choice=confirm(`Cet objectif a ${fmtFull(g.saved)} mis de côté.\n\nOK = renvoyer l'argent vers ${def?def.icon+' '+def.name:'le compte principal'} avant suppression.\nAnnuler = supprimer SANS toucher à l'épargne (l'argent reste dans le compte Épargne).`);
+    const choice=confirm(t('confirm_del_goal_savings').replace('{amt}',fmtFull(g.saved)).replace('{dest}',def?def.icon+' '+def.name:t('main_account_default')));
     if(choice && def){
       const savingsAcc=accs.find(a=>a.type==='savings');
       if(savingsAcc && savingsAcc.balance>=g.saved){
@@ -3822,7 +4315,7 @@ async function delGoal(id){
       }
     }
   } else {
-    if(!confirm('Supprimer cet objectif ?'))return;
+    if(!confirm(t('confirm_del_goal')))return;
   }
   await dbDel('goals',id);await render();
 }
@@ -3832,20 +4325,20 @@ async function delGoal(id){
 // ════════════════════════════════════════
 function openTransferModal(){
   openModal(`
-    <h3>⇄ Virement</h3>
+    <h3>${t('modal_transfer')}</h3>
     <select id="tFrom" class="fi">${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name} (${fmtFull(a.balance)})</option>`).join('')}</select>
     <div style="text-align:center;color:var(--mut);margin:-4px 0 4px">↓</div>
     <select id="tTo" class="fi">${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name}</option>`).join('')}</select>
     <input id="tAmt" class="fi" type="number" placeholder="${t('transfer_amt_ph')}" inputmode="decimal">
     <input id="tNote" class="fi" placeholder="${t('transfer_note_ph')}">
-    <button class="btn" onclick="doTransfer()">Transférer</button>
+    <button class="btn" onclick="doTransfer()">${t('btn_transfer')}</button>
   `);
 }
 async function doTransfer(){
   const fromId=$('tFrom')?.value,toId=$('tTo')?.value,amt=parseFloat($('tAmt')?.value);
-  if(fromId===toId){alert('Comptes identiques');return}
+  if(fromId===toId){alert(t('err_same_accs'));return}
   const from=accs.find(a=>a.id===fromId),to=accs.find(a=>a.id===toId);
-  if(!from||!to||!amt||from.balance<amt){alert('Solde insuffisant');return}
+  if(!from||!to||!amt||from.balance<amt){alert(t('err_insufficient_balance'));return}
   from.balance-=amt;to.balance+=amt;
   await dbPut('accounts',from);await dbPut('accounts',to);
   await dbPut('transactions',{id:uid(),amount:amt,type:'transfer',categoryId:'transfer',accountId:fromId,toAccountId:toId,date:new Date().toISOString(),note:$('tNote')?.value||''});
@@ -3896,21 +4389,21 @@ function applyLang(code){
 // ════════════════════════════════════════
 async function saveSet(key,val){settings[key]=val;await dbPut('settings',{key,value:val})}
 async function toggleNotifs(){
-  if(!('Notification' in window)){alert('Notifications non supportées sur ce navigateur');return}
+  if(!('Notification' in window)){alert(t('notif_unsupported'));return}
   if(Notification.permission==='denied'){
-    alert('Notifications bloquées. Va dans les paramètres de Chrome → Site → Notifications → Autoriser, puis reviens.');
+    alert(t('notif_blocked'));
     return;
   }
   if(Notification.permission!=='granted'){
     const p=await Notification.requestPermission();
-    if(p!=='granted'){alert('Permission refusée. Active les notifications dans les paramètres Chrome.');return}
+    if(p!=='granted'){alert(t('notif_denied'));return}
   }
   await saveSet('notifEnabled',true);
   // Test immédiat pour confirmer que ça marche
-  setTimeout(()=>sendNotif('🎉 Finance AI OS','Notifications activées ! Tu recevras tes rappels.','test'),500);
+  setTimeout(()=>sendNotif(t('notif_test_title'),t('notif_test_body'),'test'),500);
   await render();
 }
-function testNotif(){sendNotif('🔔 Finance AI OS','Ça marche ! Tu vas recevoir tes rappels comme ça.','test')}
+function testNotif(){sendNotif(t('notif_demo_title'),t('notif_demo_body'),'test')}
 
 // ════════════════════════════════════════
 // SYNC / EXPORT
@@ -3919,25 +4412,25 @@ async function doExport(){
   const payload={v:3,date:new Date().toISOString(),txs,accs,cats,goals,settings:Object.entries(settings).map(([k,v])=>({key:k,value:v}))};
   const code=btoa(encodeURIComponent(JSON.stringify(payload)));
   openModal(`
-    <h3>📤 Code de sauvegarde</h3>
-    <p style="font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.6">Copie ce code. Sur un autre appareil, utilise "Restaurer" pour récupérer toutes tes données.</p>
+    <h3>${t('modal_backup_title')}</h3>
+    <p style="font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.6">${t('modal_backup_help')}</p>
     <div class="scode" id="scode">${code}</div>
-    <button class="btn" style="margin-top:12px" onclick="copyCode()">📋 Copier</button>
-    <div style="font-size:10px;color:var(--mut);margin-top:8px;text-align:center">${txs.length} transactions · ${accs.length} comptes · ${goals.length} objectifs</div>
+    <button class="btn" style="margin-top:12px" onclick="copyCode()">${t('modal_backup_copy')}</button>
+    <div style="font-size:10px;color:var(--mut);margin-top:8px;text-align:center">${txs.length} / ${accs.length} / ${goals.length} — ${t('modal_backup_stats')}</div>
   `);
 }
 function copyCode(){
   const c=$('scode')?.textContent;if(!c)return;
-  navigator.clipboard?.writeText(c).then(()=>alert('✅ Copié !')).catch(()=>{
-    const ta=document.createElement('textarea');ta.value=c;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('✅ Copié !');
+  navigator.clipboard?.writeText(c).then(()=>alert(t('copied'))).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=c;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert(t('copied'));
   });
 }
 function doImport(){
   openModal(`
-    <h3>📥 Restaurer</h3>
-    <p style="font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.6">⚠️ Toutes les données actuelles seront remplacées.</p>
+    <h3>${t('modal_restore')}</h3>
+    <p style="font-size:12px;color:var(--mut);margin-bottom:12px;line-height:1.6">${t('modal_restore_warn')}</p>
     <textarea id="importCode" class="fi" style="height:120px;resize:none" placeholder="${t('backup_import_ph')}"></textarea>
-    <button class="btn" onclick="processImport()">Restaurer</button>
+    <button class="btn" onclick="processImport()">${t('btn_restore')}</button>
   `);
 }
 async function processImport(){
@@ -3950,8 +4443,8 @@ async function processImport(){
     for(const c of p.cats||[])await dbPut('categories',c);
     for(const g of p.goals||[])await dbPut('goals',g);
     for(const s of p.settings||[])await dbPut('settings',s);
-    closeModal();await render();alert('✅ Données restaurées !');
-  }catch(e){alert('❌ Code invalide.')}
+    closeModal();await render();alert(t('data_restored'));
+  }catch(e){alert(t('code_invalid'))}
 }
 function exportCSV(){
   const rows=[['Date','Type','Montant','Catégorie','Compte','Note']];
@@ -3960,7 +4453,7 @@ function exportCSV(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='transactions.csv';a.click();URL.revokeObjectURL(url);
 }
 async function confirmClear(){
-  if(!confirm('⚠️ Effacer TOUTES les données ? Irréversible.'))return;
+  if(!confirm(t('wipe_confirm')))return;
   for(const s of['transactions','accounts','categories','goals','settings'])await dbClear(s);
   await initData();await render();
 }
@@ -4041,180 +4534,156 @@ if('serviceWorker' in navigator){
 
 
 // ════════════════════════════════════════
-// GOOGLE DRIVE BACKUP
+// CLOUD SYNC (Supabase) — universel, no Google config
 // ════════════════════════════════════════
-const GDRIVE_CONFIG = {
-  CLIENT_ID: '548605771267-a8nskjhah481vb3n60t6liibl8i7ia6h.apps.googleusercontent.com',
-  SCOPE: 'https://www.googleapis.com/auth/drive.file',
-  FILENAME: 'finance-ai-backup.json',
-};
-const gdrive = { token:null, fileId:null, dirty:false, tokenClient:null, _pendingBackup:false, _pendingRestore:false };
+const SUPA_URL  = 'https://wbkqoaeqewotigmsuvbc.supabase.co';
+const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6India3FvYWVxZXdvdGlnbXN1dmJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NjQxNzcsImV4cCI6MjA5NDU0MDE3N30.p65-RAw1YADHEpyKWaZ_8Fo18qJhEHxd-h60OJINNhU';
+let supa = null;
+const cloud = { user:null, dirty:false, _t:null };
 
-async function gdriveLoadState(){
-  try{
-    const sa = await dbAll('settings');
-    sa.forEach(s=>{
-      if(s.key==='gdrive_token' && s.value && s.value.exp>Date.now()) gdrive.token=s.value;
-      if(s.key==='gdrive_fileId') gdrive.fileId=s.value;
-    });
-  }catch(e){}
-}
-async function gdriveSaveKV(k,v){ try{ await dbPut('settings',{key:k,value:v}); }catch(e){} }
-
-function gdriveInit(){
-  if(typeof google==='undefined' || !google.accounts){ setTimeout(gdriveInit,500); return; }
-  try{
-    gdrive.tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GDRIVE_CONFIG.CLIENT_ID,
-      scope: GDRIVE_CONFIG.SCOPE,
-      callback: async (resp)=>{
-        if(resp && resp.access_token){
-          gdrive.token = { token:resp.access_token, exp:Date.now()+(resp.expires_in*1000)-60000 };
-          await gdriveSaveKV('gdrive_token', gdrive.token);
-          gdriveUpdateUI();
-          if(gdrive._pendingBackup){ gdrive._pendingBackup=false; gdriveBackup(); }
-          if(gdrive._pendingRestore){ gdrive._pendingRestore=false; gdriveRestore(); }
-        }
-      }
-    });
-    gdriveUpdateUI();
-  }catch(e){ console.warn('GIS init', e); }
+function cloudClient(){
+  if(!supa && typeof supabase !== 'undefined'){
+    supa = supabase.createClient(SUPA_URL, SUPA_KEY, { auth:{ persistSession:true, autoRefreshToken:true, storage: localStorage }});
+  }
+  return supa;
 }
 
-function gdriveConnect(){
-  if(!gdrive.tokenClient){ alert('Google Identity en cours de chargement, réessaie dans une seconde.'); return; }
-  gdrive.tokenClient.requestAccessToken({ prompt: gdrive.token ? '' : 'consent' });
-}
-async function gdriveDisconnect(){
-  gdrive.token=null; gdrive.fileId=null;
-  await gdriveSaveKV('gdrive_token', null);
-  await gdriveSaveKV('gdrive_fileId', null);
-  gdriveUpdateUI();
-  alert('Déconnecté de Google Drive.');
-}
-function gdriveEnsureToken(next){
-  if(gdrive.token && gdrive.token.exp>Date.now()){ next(); return; }
-  if(!gdrive.tokenClient){ alert('Google Identity en cours de chargement.'); return; }
-  if(next===gdriveBackup) gdrive._pendingBackup=true;
-  if(next===gdriveRestore) gdrive._pendingRestore=true;
-  gdrive.tokenClient.requestAccessToken({ prompt:'' });
-}
-
-async function gdriveFindFile(){
-  const q = encodeURIComponent(`name='${GDRIVE_CONFIG.FILENAME}' and trashed=false`);
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`,{
-    headers:{ Authorization:'Bearer '+gdrive.token.token }
-  });
-  if(!r.ok) throw new Error('drive list '+r.status);
-  const j = await r.json();
-  return (j.files && j.files[0]) || null;
-}
-
-function gdriveBuildPayload(){
+function cloudBuildPayload(){
   return {
-    v:3, app:'finance-ai-os', date:new Date().toISOString(),
+    v:1, app:'finance-ai-os', date:new Date().toISOString(),
     txs, accs, cats, goals,
-    settings: Object.entries(settings).map(([k,v])=>({key:k,value:v})).filter(s=>!/^gdrive_/.test(s.key))
+    settings: Object.entries(settings).map(([k,v])=>({key:k,value:v})).filter(s=>!/^gdrive_|^cloud_/.test(s.key))
   };
 }
 
-async function gdriveBackup(silent){
-  if(!gdrive.token){ gdriveEnsureToken(gdriveBackup); return; }
+async function cloudInit(){
+  const c = cloudClient();
+  if(!c){ setTimeout(cloudInit, 500); return; }
   try{
-    let fileId = gdrive.fileId;
-    if(!fileId){
-      const found = await gdriveFindFile();
-      if(found) fileId = found.id;
-    }
-    const payload = JSON.stringify(gdriveBuildPayload());
-    const boundary = '-------finance-ai-'+Date.now();
-    const meta = { name: GDRIVE_CONFIG.FILENAME, mimeType:'application/json' };
-    const body =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n` +
-      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
-    const url = fileId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-    const r = await fetch(url, {
-      method: fileId ? 'PATCH' : 'POST',
-      headers:{ Authorization:'Bearer '+gdrive.token.token, 'Content-Type':`multipart/related; boundary=${boundary}` },
-      body
-    });
-    if(!r.ok){
-      if(r.status===401){ gdrive.token=null; await gdriveSaveKV('gdrive_token',null); gdriveConnect(); return; }
-      throw new Error('upload '+r.status);
-    }
-    const j = await r.json();
-    gdrive.fileId = j.id; await gdriveSaveKV('gdrive_fileId', j.id);
-    gdrive.dirty=false; gdriveUpdateUI();
-    if(!silent) alert('✅ Sauvegardé sur Google Drive.');
-  }catch(e){ console.warn('gdriveBackup',e); if(!silent) alert('❌ Échec sauvegarde Drive.'); }
+    const { data } = await c.auth.getSession();
+    cloud.user = data.session?.user || null;
+  }catch(e){}
+  c.auth.onAuthStateChange((_e, session)=>{
+    cloud.user = session?.user || null;
+    cloudUpdateUI();
+  });
+  cloudUpdateUI();
 }
 
-async function gdriveRestore(){
-  if(!gdrive.token){ gdriveEnsureToken(gdriveRestore); return; }
+async function cloudSignUp(){
+  const c = cloudClient(); if(!c){ alert(t('cloud_loading')); return; }
+  const email = document.getElementById('cloudEmail')?.value.trim();
+  const password = document.getElementById('cloudPwd')?.value;
+  if(!email || !password || password.length<6){ alert(t('cloud_need_credentials')); return; }
+  const { data, error } = await c.auth.signUp({ email, password, options:{ emailRedirectTo: window.location.origin } });
+  if(error){ alert('❌ '+error.message); return; }
+  cloud.user = data.user;
+  cloudUpdateUI();
+  alert(t('cloud_account_created'));
+  cloudBackup(true);
+}
+
+async function cloudSignIn(){
+  const c = cloudClient(); if(!c){ alert(t('cloud_loading')); return; }
+  const email = document.getElementById('cloudEmail')?.value.trim();
+  const password = document.getElementById('cloudPwd')?.value;
+  if(!email || !password){ alert(t('cloud_need_credentials_short')); return; }
+  const { data, error } = await c.auth.signInWithPassword({ email, password });
+  if(error){ alert('❌ '+error.message); return; }
+  cloud.user = data.user;
+  cloudUpdateUI();
+  // Propose restore if remote snapshot exists and is newer than local last-save
   try{
-    let fileId = gdrive.fileId;
-    if(!fileId){
-      const found = await gdriveFindFile();
-      if(!found){ alert(t('drive_no_backup')); return; }
-      fileId = found.id; gdrive.fileId=fileId; await gdriveSaveKV('gdrive_fileId', fileId);
-    }
-    if(!confirm('⚠️ Restaurer depuis Drive remplacera toutes les données locales. Continuer ?')) return;
-    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
-      headers:{ Authorization:'Bearer '+gdrive.token.token }
-    });
-    if(!r.ok){
-      if(r.status===401){ gdrive.token=null; await gdriveSaveKV('gdrive_token',null); gdriveConnect(); return; }
-      throw new Error('download '+r.status);
-    }
-    const p = await r.json();
+    const { data:row } = await c.from('cloud_snapshots').select('updated_at').eq('user_id', cloud.user.id).maybeSingle();
+    if(row && confirm(t('cloud_exists_restore'))) await cloudRestore(true);
+    else cloudBackup(true);
+  }catch(e){}
+}
+
+async function cloudSignOut(){
+  const c = cloudClient(); if(!c) return;
+  await c.auth.signOut();
+  cloud.user = null;
+  cloudUpdateUI();
+}
+
+async function cloudBackup(silent){
+  const c = cloudClient(); if(!c || !cloud.user) return;
+  try{
+    const payload = cloudBuildPayload();
+    const { error } = await c.from('cloud_snapshots').upsert({
+      user_id: cloud.user.id, data: payload, updated_at: new Date().toISOString()
+    }, { onConflict:'user_id' });
+    if(error) throw error;
+    cloud.dirty = false; cloudUpdateUI();
+    if(!silent) alert(t('cloud_saved'));
+  }catch(e){
+    console.warn('cloudBackup', e);
+    if(!silent) alert(t('cloud_save_fail')+(e.message||e));
+  }
+}
+
+async function cloudRestore(skipConfirm){
+  const c = cloudClient(); if(!c || !cloud.user){ alert(t('cloud_signin_first')); return; }
+  try{
+    const { data:row, error } = await c.from('cloud_snapshots').select('data').eq('user_id', cloud.user.id).maybeSingle();
+    if(error) throw error;
+    if(!row){ alert(t('cloud_none_found')); return; }
+    if(!skipConfirm && !confirm(t('cloud_confirm_restore'))) return;
+    const p = row.data || {};
     for(const s of ['transactions','accounts','categories','goals','settings']) await dbClear(s);
-    for(const t of p.txs||[]) await dbPut('transactions',t);
-    for(const a of p.accs||[]) await dbPut('accounts',a);
-    for(const c of p.cats||[]) await dbPut('categories',c);
-    for(const g of p.goals||[]) await dbPut('goals',g);
-    for(const sset of p.settings||[]) await dbPut('settings',sset);
-    // Re-save drive identifiers (cleared above)
-    await gdriveSaveKV('gdrive_token', gdrive.token);
-    await gdriveSaveKV('gdrive_fileId', gdrive.fileId);
+    for(const tx of p.txs||[]) await dbPut('transactions', tx);
+    for(const a of p.accs||[]) await dbPut('accounts', a);
+    for(const cat of p.cats||[]) await dbPut('categories', cat);
+    for(const g of p.goals||[]) await dbPut('goals', g);
+    for(const sset of p.settings||[]) await dbPut('settings', sset);
     await loadAll(); await render();
-    alert('✅ Données restaurées depuis Google Drive.');
-  }catch(e){ console.warn('gdriveRestore',e); alert('❌ Échec restauration Drive.'); }
+    alert(t('cloud_restored'));
+  }catch(e){ console.warn('cloudRestore', e); alert(t('cloud_restore_fail')+(e.message||e)); }
 }
 
-function gdriveUpdateUI(){
-  const el = document.getElementById('driveStatus');
-  const btn = document.getElementById('driveConnectBtn');
-  const act = document.getElementById('driveActions');
-  if(!el || !btn || !act) return;
-  if(gdrive.token && gdrive.token.exp>Date.now()){
-    el.textContent = '✓ Connecté' + (gdrive.fileId?' · backup actif':'');
-    el.style.color = 'var(--grn)';
-    btn.style.display = 'none';
+function cloudUpdateUI(){
+  const st  = document.getElementById('cloudStatus');
+  const fm  = document.getElementById('cloudAuthForm');
+  const act = document.getElementById('cloudActions');
+  if(!st || !fm || !act) return;
+  if(cloud.user){
+    st.textContent = t('cloud_connected')+' · '+cloud.user.email;
+    st.style.color = 'var(--grn)';
+    fm.style.display = 'none';
     act.style.display = '';
   }else{
-    el.textContent = 'Non connecté';
-    el.style.color = 'var(--mut)';
-    btn.style.display = '';
+    st.textContent = t('cloud_disconnected');
+    st.style.color = 'var(--mut)';
+    fm.style.display = '';
     act.style.display = 'none';
   }
 }
 
-// Hook auto-backup into mutating writes
+// Hook auto-sync into mutating writes (debounced 3s)
 const _origDbPut = dbPut, _origDbDel = dbDel, _origDbClear = dbClear;
-function gdriveMarkDirty(){
-  gdrive.dirty = true;
-  if(navigator.onLine && gdrive.token && gdrive.token.exp>Date.now()){
-    clearTimeout(gdrive._t);
-    gdrive._t = setTimeout(()=>gdriveBackup(true), 3000);
+function cloudMarkDirty(){
+  cloud.dirty = true;
+  if(navigator.onLine && cloud.user){
+    clearTimeout(cloud._t);
+    cloud._t = setTimeout(()=>cloudBackup(true), 3000);
   }
 }
-dbPut = async function(s,d){ const r=await _origDbPut(s,d); if(s!=='settings' || (d && !/^gdrive_/.test(d.key))) gdriveMarkDirty(); return r; };
-dbDel = async function(s,id){ const r=await _origDbDel(s,id); gdriveMarkDirty(); return r; };
-dbClear = async function(s){ const r=await _origDbClear(s); gdriveMarkDirty(); return r; };
+dbPut   = async function(s,d){ const r=await _origDbPut(s,d); if(s!=='settings' || (d && !/^gdrive_|^cloud_/.test(d.key))) cloudMarkDirty(); return r; };
+dbDel   = async function(s,id){ const r=await _origDbDel(s,id); cloudMarkDirty(); return r; };
+dbClear = async function(s){ const r=await _origDbClear(s); cloudMarkDirty(); return r; };
 
-window.addEventListener('online', ()=>{ if(gdrive.dirty) gdriveBackup(true); });
+window.addEventListener('online', ()=>{ if(cloud.dirty) cloudBackup(true); });
+
+// Back-compat shims (in case old code paths call gdrive*)
+async function gdriveLoadState(){}
+function gdriveInit(){}
+function gdriveUpdateUI(){}
+function gdriveConnect(){ cloudSignIn(); }
+function gdriveDisconnect(){ cloudSignOut(); }
+function gdriveBackup(s){ cloudBackup(s); }
+function gdriveRestore(){ cloudRestore(); }
+
 
 
 
@@ -4281,7 +4750,7 @@ async function onbFinish(){
   // i18n — appliquer la langue dès le démarrage
   _lang=detectLang();
   document.getElementById('htmlRoot').lang=_lang;
-  try{await openDB()}catch(e){console.error('DB open failed',e);alert('IndexedDB indisponible. Active le stockage dans ton navigateur.')}
+  try{await openDB()}catch(e){console.error('DB open failed',e);alert(t('indexeddb_unavailable'))}
   try{await initData()}catch(e){console.warn('initData',e)}
   try{await loadAll()}catch(e){console.warn('loadAll',e)}
   // Langue depuis les settings DB (priorité sur localStorage)
@@ -4290,8 +4759,9 @@ async function onbFinish(){
   if(settings.currency){localStorage.setItem('app_currency',settings.currency);}
   try{await gdriveLoadState()}catch(e){}
   try{gdriveInit()}catch(e){}
+  try{await cloudInit()}catch(e){console.warn('cloudInit',e)}
   try{await render()}catch(e){console.error('initial render',e)}
-  setTimeout(()=>{try{gdriveUpdateUI()}catch(e){}}, 200);
+  setTimeout(()=>{try{cloudUpdateUI()}catch(e){}}, 200);
   if(onboardingNeeded()){ try{ showOnboarding(); }catch(e){console.warn('onboarding',e)} }
   try{updateOnlineStatus()}catch(e){}
   try{initNotifs()}catch(e){}

@@ -1891,6 +1891,25 @@ function detectCurrency(){
 }
 
 // Locale pour Intl.NumberFormat
+
+function getLocale(){
+  const map={'fr':'fr-FR','en':'en-US','es':'es-ES','pt':'pt-BR'};
+  return map[_lang]||'fr-FR';
+}
+
+function getLocaleForDates(){
+  // Retourne la locale correcte pour toLocaleDateString()
+  const map={
+    'fr':'fr-FR',
+    'en':'en-US',
+    'es':'es-ES',
+    'pt':'pt-BR'
+  };
+  const loc = map[_lang]||'fr-FR';
+  console.log('[i18n] getLocaleForDates:', _lang, '→', loc);
+  return loc;
+}
+
 function getLocale(){
   return navigator.language||'fr-FR';
 }
@@ -1991,7 +2010,7 @@ function ago(d){
   if(s<3600)return Math.floor(s/60)+t('ago_min');
   if(s<86400)return Math.floor(s/3600)+t('ago_h');
   if(s<604800)return Math.floor(s/86400)+t('ago_d');
-  return new Date(d).toLocaleDateString(getLocale(),{day:'numeric',month:'short'});
+  return new Date(d).toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short'});
 }
 function monthTxs(){
   const now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),1);
@@ -2758,7 +2777,7 @@ async function render(){
 function renderHome(){
   const kpi=computeKPIs(),risk=riskLevel(kpi),alerts=getAlerts(kpi);
   const now=new Date();
-  const mn=now.toLocaleDateString(getLocale(),{month:'long',year:'numeric'});
+  const mn=now.toLocaleDateString(getLocaleForDates(),{month:'long',year:'numeric'});
   const burnPct=kpi.income>0?Math.min(100,(kpi.expense/kpi.income)*100):0;
 
   return`
@@ -2861,7 +2880,7 @@ function renderHome(){
           ${enRetard?`<span style="color:var(--red)">⚠️ ${t('late_short')} ${joursNec-joursDeadline}j</span>`
             :joursNec?`<span style="color:var(--acc3)">~${joursNec}j</span>`:''}
         </div>
-        ${(()=>{const eta=goalETA(g);if(!eta||eta.done)return'';if(eta.impossible)return`<div style="font-size:10px;color:var(--red);margin-top:4px;font-weight:700">${t('goal_destiny_imp').replace('⛔ ','')}</div>`;const ds=eta.date.toLocaleDateString(getLocale(),{day:'numeric',month:'short',year:'numeric'});return`<div style="font-size:10px;color:var(--acc3);margin-top:4px;font-weight:700">${t('goal_destiny_reach').replace('🎯 ','')} <strong>${ds}</strong> (${eta.days}j)</div>`;})()}
+        ${(()=>{const eta=goalETA(g);if(!eta||eta.done)return'';if(eta.impossible)return`<div style="font-size:10px;color:var(--red);margin-top:4px;font-weight:700">${t('goal_destiny_imp').replace('⛔ ','')}</div>`;const ds=eta.date.toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short',year:'numeric'});return`<div style="font-size:10px;color:var(--acc3);margin-top:4px;font-weight:700">${t('goal_destiny_reach').replace('🎯 ','')} <strong>${ds}</strong> (${eta.days}j)</div>`;})()}
         ${(()=>{const m=goalMonthly(g);if(!m||m.done)return'';const c=m.pct>=100?'var(--grn)':m.pct>=50?'var(--ylw)':'var(--mut)';return`<div style="margin-top:6px;padding:6px 8px;background:var(--surf2);border-radius:8px"><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--mut);margin-bottom:3px"><span>${t('goal_milestone').replace('📅 ','')}</span><span style="color:${c}">${fmtFull(m.savedThisMonth)} / ${fmtFull(m.monthlyTarget)}</span></div><div style="height:3px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${m.pct}%;background:${c};transition:width .5s"></div></div></div>`;})()}
       </div>`;
     }).join('')}
@@ -2920,7 +2939,7 @@ function renderTxList(){
   // Group by date
   const groups={};
   filtered.forEach(t=>{
-    const d=new Date(t.date).toLocaleDateString(getLocale(),{weekday:'long',day:'numeric',month:'long'});
+    const d=new Date(t.date).toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long'});
     if(!groups[d])groups[d]=[];
     groups[d].push(t);
   });
@@ -3443,7 +3462,7 @@ function renderTrendChart(){
       <path class="area" d="${areaExp}"/>
       <path class="line" d="${lineExp}"/>
       <path d="${lineInc}" fill="none" stroke="var(--grn)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"/>
-      ${data.map((p,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(p.exp)}" r="2.5"><title>${p.d.toLocaleDateString(getLocale(),{day:'numeric',month:'short'})}: ${fmtFull(p.exp)} sorti, ${fmtFull(p.inc)} entré</title></circle>`).join('')}
+      ${data.map((p,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(p.exp)}" r="2.5"><title>${p.d.toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short'})}: ${fmtFull(p.exp)} sorti, ${fmtFull(p.inc)} entré</title></circle>`).join('')}
       <text class="lbl" x="${pad}" y="${H-6}">${data[0].d.getDate()}/${data[0].d.getMonth()+1}</text>
       <text class="lbl" x="${W-pad}" y="${H-6}" text-anchor="end">aujourd'hui</text>
     </svg>
@@ -3981,7 +4000,7 @@ function openTxDetailModal(id){
   const cat=catById(t.categoryId),acc=accById(t.accountId);
   const color=t.type==='expense'?'var(--red)':t.type==='transfer'?'var(--acc3)':'var(--grn)';
   const sign=t.type==='expense'?'-':t.type==='transfer'?'⇄':'+';
-  const ds=new Date(t.date).toLocaleDateString(getLocale(),{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const ds=new Date(t.date).toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   openModal(`
     <h3>${cat.icon} ${cat.name}</h3>
     <div style="font-size:30px;font-weight:800;font-family:var(--mono);color:${color};margin-bottom:14px">${sign}${fmtFull(t.amount)}</div>
@@ -4031,7 +4050,7 @@ function openDayModal(day,monthArg,yearArg){
   const dayTxs=txs.filter(t=>new Date(t.date).toDateString()===date.toDateString());
   const total=dayTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const inc=dayTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const label=date.toLocaleDateString(getLocale(),{weekday:'long',day:'numeric',month:'long'});
+  const label=date.toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long'});
   // Drill par heure
   const hours=new Array(24).fill(0);
   dayTxs.filter(t=>t.type==='expense').forEach(t=>hours[new Date(t.date).getHours()]+=t.amount);
@@ -4059,7 +4078,7 @@ function openHourModal(cell){
   const list=txs.filter(t=>new Date(t.date)>=s&&new Date(t.date)<e);
   const total=list.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   openModal(`
-    <h3>⏰ ${String(h).padStart(2,'0')}h — ${s.toLocaleDateString(getLocale(),{weekday:'short',day:'numeric',month:'short'})}</h3>
+    <h3>⏰ ${String(h).padStart(2,'0')}h — ${s.toLocaleDateString(getLocaleForDates(),{weekday:'short',day:'numeric',month:'short'})}</h3>
     <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--red);margin-bottom:10px">-${fmtFull(total)}</div>
     ${list.length?list.map(txItem).join(''):`<div class="tm">${t('no_tx_hour')}</div>`}
   `);
@@ -4448,7 +4467,7 @@ async function processImport(){
 }
 function exportCSV(){
   const rows=[['Date','Type','Montant','Catégorie','Compte','Note']];
-  txs.forEach(t=>{const cat=catById(t.categoryId),acc=accById(t.accountId);rows.push([new Date(t.date).toLocaleDateString(getLocale()),t.type,t.amount,cat.name,acc.name,t.note||''])});
+  txs.forEach(t=>{const cat=catById(t.categoryId),acc=accById(t.accountId);rows.push([new Date(t.date).toLocaleDateString(getLocaleForDates()),t.type,t.amount,cat.name,acc.name,t.note||''])});
   const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='transactions.csv';a.click();URL.revokeObjectURL(url);
 }

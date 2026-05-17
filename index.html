@@ -1820,7 +1820,7 @@ const LANG_OPTIONS=[
 // Résolution de la langue active
 function detectLang(){
   // 1. Préférence utilisateur sauvegardée
-  const saved=localStorage.getItem('app_lang');
+  const saved=safeStorage.getItem('app_lang');
   if(saved && I18N[saved]) return saved;
   // 2. Langue du navigateur/téléphone
   const nav=(navigator.language||navigator.userLanguage||'fr').slice(0,2).toLowerCase();
@@ -1861,7 +1861,7 @@ const t=key=>I18N[_lang]?.[key]||I18N['fr']?.[key]||key;
 function setLang(code){
   if(!I18N[code])return;
   _lang=code;
-  localStorage.setItem('app_lang',code);
+  safeStorage.setItem('app_lang',code);
   // Mettre à jour la balise html lang pour l'accessibilité
   document.documentElement.lang=code;
 }
@@ -1883,7 +1883,7 @@ const CURRENCY_MAP={
 };
 
 function detectCurrency(){
-  const saved=localStorage.getItem('app_currency');
+  const saved=safeStorage.getItem('app_currency');
   if(saved) return saved;
   const full=(navigator.language||'fr-FR');
   const short=full.slice(0,2).toLowerCase();
@@ -2201,14 +2201,101 @@ function updateOnlineStatus(){
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
 }
+
+// === v4.13 Fetch wrapper with error handling ===
+const safeFetch = async (url, options = {}) => {
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('[API] Fetch failed:', url, error.message);
+    
+    // Show user-friendly error
+    if (!navigator.onLine) {
+      showNotif('[OFFLINE] No internet connection', 'error');
+    } else {
+      showNotif('[API ERROR] ' + error.message, 'error');
+    }
+    
+    throw error;
+  }
+};
+
 // Haptic feedback helper (no-op on unsupported devices)
 function haptic(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||10); }catch(e){} }
 window.haptic = haptic;
+
+// === v4.13 Android back button handler ===
+function handleBackButton(){
+  if(screen === 'home') return;
+  
+  const prevScreen = safeStorage.getItem('lastScreen') || 'home';
+  screen = prevScreen;
+  safeStorage.setItem('lastScreen', 'home');
+  render();
+}
+
+// Android native bridge (Cordova/Capacitor)
+if(window.cordova){
+  document.addEventListener('backbutton', (e)=>{
+    e.preventDefault();
+    handleBackButton();
+  }, false);
+}
+
+// Web fallback (browser history)
+window.addEventListener('popstate', ()=>{
+  handleBackButton();
+});
+
 // Bind haptics to nav + primary buttons + FAB (delegated, structure unchanged)
 document.addEventListener('click', (e)=>{
   const el = e.target.closest('.ni, .btn, .aifab, .fab, .ftab');
   if(el) haptic(8);
 }, {passive:true});
+
+// === v4.13 Cleanup on unload ===
+window.addEventListener('beforeunload', async ()=>{
+  // Sync IndexedDB before leaving
+  try {
+    if(typeof cloudBackup === 'function' && navigator.onLine) {
+      await cloudBackup(true);
+    }
+  } catch(e) {
+    console.warn('[Unload] Backup failed:', e);
+  }
+});
+
+window.addEventListener('pagehide', ()=>{
+  console.log('[App] Page hidden - cleanup');
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') {
+    console.log('[App] App minimized');
+  } else if(document.visibilityState === 'visible') {
+    console.log('[App] App restored');
+    updateOnlineStatus();
+  }
+});
+
+
+// === v4.13 Global error handler ===
+window.addEventListener('error', (event) => {
+  console.error('[GLOBAL ERROR]', event.error);
+  // Don't show on every error, just log
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[UNHANDLED REJECTION]', event.reason);
+  event.preventDefault();
+});
+
 window.addEventListener('online',()=>{try{updateOnlineStatus();haptic(15);if(typeof maybeAutoInsight==='function')maybeAutoInsight()}catch(e){}});
 window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10])}catch(e){}});
 
@@ -2217,7 +2304,7 @@ window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10
 // ════════════════════════════════════════
 // Clé Groq dynamique (modifiable dans Config)
 function getGroqKey(){
-  return localStorage.getItem('groq_api_key')||'';
+  return safeStorage.getItem('groq_api_key')||'';
 }
 
 function buildCtx(){
@@ -2654,13 +2741,13 @@ function checkNotifs(){
   // ── 2. Réserve critique ──────────────────────────────────────
   if(kpi.safetyDays!==9999&&kpi.safetyDays<5&&h===8&&m<5){
     const k='safetyAlert'+today;
-    if(!localStorage.getItem(k)){sendNotif('🚨 Réserve critique',`${kpi.safetyDays} jours de réserve au rythme actuel.`,'safety');localStorage.setItem(k,'1')}
+    if(!safeStorage.getItem(k)){sendNotif('🚨 Réserve critique',`${kpi.safetyDays} jours de réserve au rythme actuel.`,'safety');safeStorage.setItem(k,'1')}
   }
 
   // ── 3. Surchauffe court terme ────────────────────────────────
   if(kpi.pressureIdx>35&&h===12&&m<5){
     const k='pressureAlert'+today;
-    if(!localStorage.getItem(k)){sendNotif('🔥 Surchauffe détectée',`Tes dépenses cette semaine sont +${kpi.pressureIdx}% vs ton habitude. Contrôle.`,'pressure');localStorage.setItem(k,'1')}
+    if(!safeStorage.getItem(k)){sendNotif('🔥 Surchauffe détectée',`Tes dépenses cette semaine sont +${kpi.pressureIdx}% vs ton habitude. Contrôle.`,'pressure');safeStorage.setItem(k,'1')}
   }
 
   // ── 4. Sentinelle "Fenêtre de risque" ────────────────────────
@@ -2674,7 +2761,7 @@ function checkNotifs(){
       const body=pg
         ? `Fenêtre de risque d'impulsion approche. Rappelle-toi : "${pg.name}" — il manque encore ${fmtFull(pg.target-pg.saved)}.`
         : `Tes dépenses nocturnes représentent ${kpi.nightPct}% de ton total. Reste vigilant ce soir.`;
-      if(!localStorage.getItem(k)){sendNotif('🌙 Fenêtre de risque',body,'riskWindow');localStorage.setItem(k,'1')}
+      if(!safeStorage.getItem(k)){sendNotif('🌙 Fenêtre de risque',body,'riskWindow');safeStorage.setItem(k,'1')}
     }
   }
 
@@ -2688,9 +2775,9 @@ function checkNotifs(){
       const joursNecessaires=dailySurplus>0?Math.ceil(gap/dailySurplus):null;
       if(joursNecessaires&&joursNecessaires>joursDeadline){
         const k='goalAlert'+today;
-        if(!localStorage.getItem(k)){
+        if(!safeStorage.getItem(k)){
           sendNotif(`⏳ "${pg.name}" en retard`,`Il te faut ${joursNecessaires}j au rythme actuel mais la deadline est dans ${joursDeadline}j.`,'goalAlert');
-          localStorage.setItem(k,'1');
+          safeStorage.setItem(k,'1');
         }
       }
     }
@@ -2707,9 +2794,9 @@ function checkNotifs(){
       if(todayDopamine>0){
         const days=opportunityCostDays(todayDopamine);
         const k='coherence'+today;
-        if(!localStorage.getItem(k)&&days&&days>=0.5){
+        if(!safeStorage.getItem(k)&&days&&days>=0.5){
           sendNotif('📊 Bilan du jour',`${fmtFull(todayDopamine)} en dépenses impulsion aujourd'hui = ${days}j de retard sur "${pg.name}".`,'coherence');
-          localStorage.setItem(k,'1');
+          safeStorage.setItem(k,'1');
         }
       }
     }
@@ -3374,13 +3461,13 @@ function renderCategoryBarsAdaptive(p,ptxs){
 function saveGroqKey(){
   const k = document.getElementById('new-groq-key')?.value.trim();
   if(!k || !k.startsWith('gsk_')){alert(t('groq_invalid_key'));return}
-  localStorage.setItem('groq_api_key', k);
+  safeStorage.setItem('groq_api_key', k);
   alert(t('groq_saved'));
   render();
 }
 function clearGroqKey(){
   if(!confirm(t('groq_delete_confirm')))return;
-  localStorage.removeItem('groq_api_key');
+  safeStorage.removeItem('groq_api_key');
   render();
 }
 async function testGroqKey(){
@@ -3673,7 +3760,7 @@ function renderSettings(){
     <div style="margin-bottom:8px">
       <div style="font-size:11px;color:var(--mut);font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">${t('cfg_groq_current')}</div>
       <div style="font-size:12px;color:var(--mut);word-break:break-all;padding:8px;background:var(--surf2);border-radius:8px;font-family:monospace">
-        ${localStorage.getItem('groq_api_key')?localStorage.getItem('groq_api_key').slice(0,16)+'...':t('groq_no_key')}
+        ${safeStorage.getItem('groq_api_key')?safeStorage.getItem('groq_api_key').slice(0,16)+'...':t('groq_no_key')}
       </div>
     </div>
     <input id="new-groq-key" class="fi" type="text" placeholder="${t('groq_key_ph')}" style="margin-bottom:8px">
@@ -4380,7 +4467,7 @@ function openCurrencyModal(){
 }
 async function saveCurrency(){
   const v=$('curInp')?.value.trim();if(!v)return;
-  localStorage.setItem('app_currency',v);
+  safeStorage.setItem('app_currency',v);
   await saveSet('currency',v);closeModal();await render();
 }
 
@@ -4692,6 +4779,44 @@ dbPut   = async function(s,d){ const r=await _origDbPut(s,d); if(s!=='settings' 
 dbDel   = async function(s,id){ const r=await _origDbDel(s,id); cloudMarkDirty(); return r; };
 dbClear = async function(s){ const r=await _origDbClear(s); cloudMarkDirty(); return r; };
 
+
+// === v4.13 Cleanup on unload ===
+window.addEventListener('beforeunload', async ()=>{
+  // Sync IndexedDB before leaving
+  try {
+    if(typeof cloudBackup === 'function' && navigator.onLine) {
+      await cloudBackup(true);
+    }
+  } catch(e) {
+    console.warn('[Unload] Backup failed:', e);
+  }
+});
+
+window.addEventListener('pagehide', ()=>{
+  console.log('[App] Page hidden - cleanup');
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') {
+    console.log('[App] App minimized');
+  } else if(document.visibilityState === 'visible') {
+    console.log('[App] App restored');
+    updateOnlineStatus();
+  }
+});
+
+
+// === v4.13 Global error handler ===
+window.addEventListener('error', (event) => {
+  console.error('[GLOBAL ERROR]', event.error);
+  // Don't show on every error, just log
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[UNHANDLED REJECTION]', event.reason);
+  event.preventDefault();
+});
+
 window.addEventListener('online', ()=>{ if(cloud.dirty) cloudBackup(true); });
 
 // Back-compat shims (in case old code paths call gdrive*)
@@ -4712,11 +4837,11 @@ function gdriveRestore(){ cloudRestore(); }
 const ONB_CURRENCIES=['XOF','XAF','EUR','USD','GBP','CAD','MAD','NGN'];
 let _onbLang=null,_onbCur=null;
 function onboardingNeeded(){
-  return !localStorage.getItem('app_onboarded');
+  return !safeStorage.getItem('app_onboarded');
 }
 function showOnboarding(){
-  _onbLang = localStorage.getItem('app_lang') || _lang || 'fr';
-  _onbCur  = localStorage.getItem('app_currency') || detectCurrency() || 'XOF';
+  _onbLang = safeStorage.getItem('app_lang') || _lang || 'fr';
+  _onbCur  = safeStorage.getItem('app_currency') || detectCurrency() || 'XOF';
   const ov=document.createElement('div');
   ov.id='onbOv';
   ov.innerHTML = onbHTML();
@@ -4754,10 +4879,10 @@ function onbCustomCur(v){
 async function onbFinish(){
   // Persist choices
   setLang(_onbLang);
-  localStorage.setItem('app_currency', _onbCur);
+  safeStorage.setItem('app_currency', _onbCur);
   try{ await dbPut('settings',{key:'lang', value:_onbLang}); }catch(e){}
   try{ await dbPut('settings',{key:'currency', value:_onbCur}); settings.currency=_onbCur; }catch(e){}
-  localStorage.setItem('app_onboarded','1');
+  safeStorage.setItem('app_onboarded','1');
   const ov=document.getElementById('onbOv'); if(ov) ov.remove();
   try{ await render(); }catch(e){}
 }
@@ -4773,9 +4898,9 @@ async function onbFinish(){
   try{await initData()}catch(e){console.warn('initData',e)}
   try{await loadAll()}catch(e){console.warn('loadAll',e)}
   // Langue depuis les settings DB (priorité sur localStorage)
-  if(settings.lang && I18N[settings.lang]){_lang=settings.lang;localStorage.setItem('app_lang',_lang);document.getElementById('htmlRoot').lang=_lang;}
+  if(settings.lang && I18N[settings.lang]){_lang=settings.lang;safeStorage.setItem('app_lang',_lang);document.getElementById('htmlRoot').lang=_lang;}
   // Devise depuis les settings DB
-  if(settings.currency){localStorage.setItem('app_currency',settings.currency);}
+  if(settings.currency){safeStorage.setItem('app_currency',settings.currency);}
   try{await gdriveLoadState()}catch(e){}
   try{gdriveInit()}catch(e){}
   try{await cloudInit()}catch(e){console.warn('cloudInit',e)}

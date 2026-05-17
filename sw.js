@@ -1,5 +1,5 @@
 // Finance AI Service Worker v4.12 — Stale-While-Revalidate + Offline Support
-const CACHE = 'finance-ai-v4.12';
+const CACHE = 'finance-ai-v4.12.2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-96.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

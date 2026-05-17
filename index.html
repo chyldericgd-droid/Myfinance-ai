@@ -180,34 +180,6 @@ select.fi{cursor:pointer}
 /* ONLINE BADGE - hidden (connectivity is now shown via background ambiance) */
 .online-badge{display:none !important}
 
-
-/* === v4.12 LED Background dynamique selon IA === */
-:root{
-  --led-status: var(--acc);
-  --led-health: var(--grn);
-}
-body{
-  --led-r: calc((100 - min(var(--led-health), 100)) * 2.55);
-  --led-g: calc(min(var(--led-health), 100) * 2.55);
-  transition: --led-r .8s, --led-g .8s;
-}
-body.critical{
-  background: radial-gradient(1400px 800px at 15% -5%, rgba(244,63,94,.22), transparent 65%),
-              radial-gradient(900px 600px at 100% 120%, rgba(139,92,246,.10), transparent 70%),
-              var(--bg);
-}
-body.warning{
-  background: radial-gradient(1200px 700px at 20% 0%, rgba(251,191,36,.16), transparent 60%),
-              radial-gradient(900px 600px at 95% 100%, rgba(124,58,237,.10), transparent 65%),
-              var(--bg);
-}
-body.healthy{
-  background: radial-gradient(1200px 700px at 12% -8%, rgba(139,92,246,.18), transparent 60%),
-              radial-gradient(900px 600px at 100% 110%, rgba(6,182,212,.14), transparent 65%),
-              radial-gradient(600px 400px at 50% 50%, rgba(167,139,250,.06), transparent 70%),
-              var(--bg);
-}
-
 /* DYNAMIC LED AMBIANCE — online = vibrant radial glow, offline = matte dark */
 body{transition:background .6s ease}
 body.online{
@@ -2198,7 +2170,13 @@ function riskLevel(kpi){
 // ════════════════════════════════════════
 // ONLINE STATUS
 // ════════════════════════════════════════
-
+function updateOnlineStatus(){
+  const on=navigator.onLine;
+  // Badge supprimé — la connectivité est portée par l'ambiance (background LED).
+  const fab=$('aiFab');
+  if(fab){
+    const hasKey=!!getGroqKey();
+    if(on && hasKey){fab.classList.remove('off');fab.title='IA active'}
     else{fab.classList.add('off');fab.title=on?'Pas de clé Groq':'Hors ligne'}
   }
   document.body.classList.toggle('online',on);
@@ -2212,39 +2190,6 @@ document.addEventListener('click', (e)=>{
   const el = e.target.closest('.ni, .btn, .aifab, .fab, .ftab');
   if(el) haptic(8);
 }, {passive:true});
-
-// === v4.12 Online/Offline detection améliorée ===
-let _onlineStatus = navigator.onLine;
-let _connectionType = 'unknown';
-
-function updateOnlineStatus(){
-  const wasOnline = _onlineStatus;
-  _onlineStatus = navigator.onLine;
-  _connectionType = navigator.connection?.effectiveType || 'unknown';
-  
-  const body = document.body;
-  if(_onlineStatus){
-    body.classList.add('online');
-    body.classList.remove('offline');
-    document.documentElement.style.setProperty('--led-status', 'var(--grn)');
-  } else {
-    body.classList.add('offline');
-    body.classList.remove('online');
-    document.documentElement.style.setProperty('--led-status', 'var(--red)');
-  }
-  
-  if(wasOnline !== _onlineStatus){
-    console.log(`[${new Date().toISOString()}] Network: ${_onlineStatus?'ONLINE':'OFFLINE'} (${_connectionType})`);
-    try { render(); } catch(e){}
-    haptic(50);
-  }
-}
-
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-navigator.connection?.addEventListener('change', updateOnlineStatus);
-setInterval(updateOnlineStatus, 30000);
-
 window.addEventListener('online',()=>{try{updateOnlineStatus();haptic(15);if(typeof maybeAutoInsight==='function')maybeAutoInsight()}catch(e){}});
 window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10])}catch(e){}});
 
@@ -2253,10 +2198,7 @@ window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10
 // ════════════════════════════════════════
 // Clé Groq dynamique (modifiable dans Config)
 function getGroqKey(){
-  const stored = localStorage.getItem('groq_key');
-  if(stored && stored.length > 10) return stored;
-  if(GROQ_KEY_AVAILABLE) return getEmbeddedGroqKey();
-  return null;
+  return localStorage.getItem('groq_api_key')||'';
 }
 
 function buildCtx(){
@@ -2404,8 +2346,7 @@ function buildCtx(){
       nbTransactions:txs.length,
       nbCategoriesUtilisees:Object.keys(catTotals).length,
       premiereTx:txs.length?new Date(txs[txs.length-1].date).toISOString().slice(0,10):'aucune',
-    ,
-    'alert_short_history':'📅 Tienes {days} días de datos. El análisis depende de esto—la comparación de presión necesita {remaining}j más.'},
+    },
   };
 
   return JSON.stringify(payload,null,0);
@@ -2521,14 +2462,7 @@ async function fetchHomeInsight(){
   // Cache 10 min
   if(_lastInsight && Date.now()-_lastInsightTime < 600000) return _lastInsight;
   try{
-    const sys = _lang==='fr' 
-    ? "Tu es Ivy, coach financier comportemental. En UNE phrase max 25 mots, dis la chose PLUS importante maintenant: impact sur l'objectif prioritaire ou comportement cérébral risqué (dopamine, fatigue, effet domino, effet fourmi). Si dataDays<14, NE COMPARE PAS sur 30j — parle uniquement des jours réels. Nombres précis, pas de jargon, pas de salutation."
-    : _lang==='es'
-    ? "Eres Ivy, coach financiero conductual. En UNA frase max 25 palabras, di lo MÁS importante ahora: impacto en objetivo o comportamiento cerebral riesgoso. Si dataDays<14, NO COMPARES con 30d — habla solo de días reales. Números precisos, sin jerga, sin saludo."
-    : _lang==='pt'
-    ? "Você é Ivy, coach financeiro comportamental. Em UMA frase max 25 palavras, diga o MAIS importante agora: impacto no objetivo ou comportamento cerebral arriscado. Se dataDays<14, NÃO COMPARE com 30d — fale apenas de dias reais. Números precisos, sem jargão, sem saudação."
-    : "You are Ivy, behavioral finance coach. In ONE sentence max 25 words, tell the most important thing: impact on goal or risky brain behavior (dopamine, fatigue, domino, ant effect). If dataDays<14, do NOT compare on 30d—talk only about actual days. Precise numbers, no jargon, no greeting.";
-const langInstrAddendum = langInstr();
+    const sys = "You are a financial coach speaking informally to a friend. In ONE sentence of max 25 words, tell them the most important thing right now: impact on their goal, or the riskiest brain behavior (dopamine, evening fatigue, domino effect, ant effect). If dataDays<14, do NOT compare on 30d — talk only about actual days available. Precise numbers, no jargon, no greeting. "+langInstr();
     const ctx = buildCtx();
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
@@ -2695,14 +2629,13 @@ function checkNotifs(){
   const rh=parseInt(settings.remindHour||20);
   if(h===rh&&m<5){
     const todayTxs=txs.filter(t=>new Date(t.date).toDateString()===today);
-    
-    if(!todayTxs.length)sendNotif(t('notif_daily_title'), t('notif_daily_body'),'daily');
+    if(!todayTxs.length)sendNotif('Finance AI OS',t('notif_daily'),'daily');
   }
 
   // ── 2. Réserve critique ──────────────────────────────────────
   if(kpi.safetyDays!==9999&&kpi.safetyDays<5&&h===8&&m<5){
     const k='safetyAlert'+today;
-    if(!localStorage.getItem(k)){sendNotif(t('notif_safety_title'), t('notif_safety_body').replace('{days}', kpi.safetyDays), 'safety');localStorage.setItem(k,'1')}
+    if(!localStorage.getItem(k)){sendNotif('🚨 Réserve critique',`${kpi.safetyDays} jours de réserve au rythme actuel.`,'safety');localStorage.setItem(k,'1')}
   }
 
   // ── 3. Surchauffe court terme ────────────────────────────────
@@ -4740,39 +4673,6 @@ dbPut   = async function(s,d){ const r=await _origDbPut(s,d); if(s!=='settings' 
 dbDel   = async function(s,id){ const r=await _origDbDel(s,id); cloudMarkDirty(); return r; };
 dbClear = async function(s){ const r=await _origDbClear(s); cloudMarkDirty(); return r; };
 
-
-// === v4.12 Online/Offline detection améliorée ===
-let _onlineStatus = navigator.onLine;
-let _connectionType = 'unknown';
-
-function updateOnlineStatus(){
-  const wasOnline = _onlineStatus;
-  _onlineStatus = navigator.onLine;
-  _connectionType = navigator.connection?.effectiveType || 'unknown';
-  
-  const body = document.body;
-  if(_onlineStatus){
-    body.classList.add('online');
-    body.classList.remove('offline');
-    document.documentElement.style.setProperty('--led-status', 'var(--grn)');
-  } else {
-    body.classList.add('offline');
-    body.classList.remove('online');
-    document.documentElement.style.setProperty('--led-status', 'var(--red)');
-  }
-  
-  if(wasOnline !== _onlineStatus){
-    console.log(`[${new Date().toISOString()}] Network: ${_onlineStatus?'ONLINE':'OFFLINE'} (${_connectionType})`);
-    try { render(); } catch(e){}
-    haptic(50);
-  }
-}
-
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-navigator.connection?.addEventListener('change', updateOnlineStatus);
-setInterval(updateOnlineStatus, 30000);
-
 window.addEventListener('online', ()=>{ if(cloud.dirty) cloudBackup(true); });
 
 // Back-compat shims (in case old code paths call gdrive*)
@@ -4868,6 +4768,211 @@ async function onbFinish(){
   // Background insight refresh every 10 min when online
   setInterval(()=>{if(navigator.onLine&&screen==='home'){_lastInsightTime=0;maybeAutoInsight()}},600000);
 })();
+</script>
+<script>
+// PATCH v4.12 v3 - ULTRA ROBUSTE avec logging complet
+console.log('[LOADER] Starting Finance AI loader v3');
+
+// Afficher le loader
+document.body.innerHTML = `
+<div style="
+  position: fixed;
+  inset: 0;
+  background: #09090f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  color: #f1f5f9;
+  font-family: Inter, sans-serif;
+" id="loadingScreen">
+  <div style="text-align: center">
+    <div style="font-size: 48px; margin-bottom: 20px">💰</div>
+    <div style="font-size: 14px; margin-bottom: 20px; color: #94a3b8">Finance AI OS</div>
+    <div style="
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(139,92,246,.2);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    "></div>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg) }
+      }
+    </style>
+  </div>
+</div>
+` + document.body.innerHTML;
+
+console.log('[LOADER] HTML injected');
+
+// Sauvegarder l'originalInit
+const originalInit = window.onload;
+console.log('[LOADER] originalInit saved:', typeof originalInit);
+
+// Fonction pour masquer le loader
+function hideLoader() {
+  try {
+    const loader = document.getElementById('loadingScreen');
+    if (loader) {
+      loader.style.opacity = '0';
+      loader.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => {
+        try { loader.remove(); } catch(e) {}
+      }, 500);
+      console.log('[LOADER] Loader hidden');
+    }
+  } catch(e) {
+    console.error('[LOADER] Error hiding loader:', e);
+  }
+}
+
+// Fonction pour afficher une erreur
+function showError(msg, details) {
+  console.error('[LOADER ERROR]', msg, details);
+  
+  const loader = document.getElementById('loadingScreen');
+  if (loader) {
+    loader.innerHTML = `
+      <div style="
+        background: rgba(244,63,94,.1);
+        border: 2px solid #f43f5e;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 380px;
+        text-align: center;
+        color: #f1f5f9;
+      ">
+        <div style="font-size: 40px; margin-bottom: 12px">⚠️</div>
+        <div style="font-weight: bold; margin-bottom: 12px; font-size: 16px">Erreur initialisation</div>
+        <div style="
+          font-size: 13px;
+          color: #cbd5e1;
+          margin-bottom: 16px;
+          line-height: 1.6;
+          text-align: left;
+          background: rgba(0,0,0,.3);
+          padding: 12px;
+          border-radius: 8px;
+          max-height: 150px;
+          overflow-y: auto;
+          font-family: 'Courier New', monospace;
+        ">
+          <div style="margin-bottom: 6px"><strong>❌ ${msg}</strong></div>
+          <div style="font-size: 11px; color: #94a3b8; word-break: break-all;">${details}</div>
+        </div>
+        <button onclick="location.reload()" style="
+          background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 12px 24px;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 14px;
+          width: 100%;
+          margin-bottom: 12px;
+        ">Réessayer (F5)</button>
+        <div style="font-size: 11px; color: #64748b; margin-top: 12px">
+          <div>Appuie F12 pour Debug Console</div>
+          <div style="margin-top: 6px; color: #475569">Regarde les logs [LOADER]</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// Initialisation principale
+window.onload = async function() {
+  console.log('[LOADER] window.onload called');
+  
+  try {
+    // Attendre DOM
+    if (document.readyState === 'loading') {
+      console.log('[LOADER] DOM still loading, waiting...');
+      await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+    }
+    console.log('[LOADER] DOM ready');
+    
+    // ATTENDRE LONGTEMPS pour que les scripts se chargent COMPLÈTEMENT
+    console.log('[LOADER] Waiting 2000ms for all scripts to execute...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('[LOADER] Wait complete');
+    
+    // Vérifier ce qui est disponible
+    console.log('[LOADER] Functions check:');
+    console.log('  - typeof render:', typeof render);
+    console.log('  - typeof originalInit:', typeof originalInit);
+    console.log('  - typeof openDB:', typeof openDB);
+    console.log('  - typeof loadAll:', typeof loadAll);
+    console.log('  - document.getElementById("root"):', document.getElementById("root") ? 'EXISTS' : 'MISSING');
+    
+    // Essayer l'initialisation
+    let initSuccessful = false;
+    
+    // Essai 1: originalInit
+    if (typeof originalInit === 'function') {
+      console.log('[LOADER] Trying originalInit()...');
+      try {
+        await originalInit();
+        console.log('[LOADER] ✅ originalInit completed successfully');
+        initSuccessful = true;
+      } catch(initErr) {
+        console.error('[LOADER] originalInit failed:', initErr.message);
+      }
+    }
+    
+    // Essai 2: render directement
+    if (!initSuccessful && typeof render === 'function') {
+      console.log('[LOADER] originalInit failed/missing, trying render()...');
+      try {
+        screen = 'home'; // Ensure we're on home screen
+        await render();
+        console.log('[LOADER] ✅ render() completed successfully');
+        initSuccessful = true;
+      } catch(renderErr) {
+        console.error('[LOADER] render failed:', renderErr.message);
+      }
+    }
+    
+    // Essai 3: Vérifier si le contenu s'est affiché
+    if (!initSuccessful) {
+      const root = document.getElementById("root");
+      if (root && root.innerHTML && root.innerHTML.length > 100) {
+        console.log('[LOADER] Content detected in #root, init probably OK');
+        initSuccessful = true;
+      }
+    }
+    
+    if (!initSuccessful) {
+      throw new Error('No initialization method worked (originalInit, render, or content in #root)');
+    }
+    
+    // Masquer le loader
+    hideLoader();
+    console.log('[LOADER] ✅ Finance AI initialized successfully');
+    
+  } catch (error) {
+    console.error('[LOADER] FATAL ERROR:', error.message);
+    console.error('[LOADER] Stack trace:', error.stack);
+    showError(error.message, error.stack);
+  }
+};
+
+// Force l'appel si page déjà chargée
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  console.log('[LOADER] Page already loaded, calling onload immediately');
+  setTimeout(() => {
+    console.log('[LOADER] Executing deferred window.onload');
+    window.onload();
+  }, 100);
+}
+
+console.log('[LOADER] Patch v3 loaded and ready');
+
 </script>
 </body>
 </html>

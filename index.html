@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script>
-// EARLY ERROR CAPTURE v4.12.2
+// EARLY ERROR CAPTURE v4.13.0
 (function(){
   window.__earlyErrors = [];
   window.addEventListener('error', function(e){
@@ -18,6 +18,10 @@
 <meta name="theme-color" content="#09090f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="msapplication-tap-highlight" content="no">
+<meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
@@ -435,6 +439,30 @@ body.offline .aifab{filter:grayscale(.6)}
 
 /* Onboarding overlay */
 #onbOv{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;align-items:flex-end;justify-content:center;animation:fi .3s ease}
+
+/* ── TUTORIAL OVERLAY ── */
+#tutOv{position:fixed;inset:0;z-index:9100;background:#09090f;display:flex;flex-direction:column;animation:fi .4s ease}
+#tutOv .tut-wrap{flex:1;overflow:hidden;position:relative}
+#tutOv .tut-slides{display:flex;height:100%;transition:transform .38s cubic-bezier(.4,0,.2,1)}
+#tutOv .tut-slide{min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 28px 0;text-align:center;gap:0}
+#tutOv .tut-icon{font-size:64px;margin-bottom:20px;filter:drop-shadow(0 0 24px rgba(139,92,246,.5))}
+#tutOv .tut-title{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:12px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.2}
+#tutOv .tut-body{font-size:14px;color:var(--txt2);line-height:1.65;max-width:340px}
+#tutOv .tut-body strong{color:var(--txt)}
+#tutOv .tut-steps{margin-top:18px;text-align:left;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);border-radius:16px;padding:14px 16px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:9px}
+#tutOv .tut-step{font-size:13px;color:var(--txt2);line-height:1.5}
+#tutOv .tut-step strong{color:var(--acc3)}
+#tutOv .tut-step em{color:var(--txt2)}
+#tutOv .tut-key-input-wrap{margin-top:14px;width:100%;max-width:340px;display:flex;gap:8px}
+#tutOv .tut-key-input-wrap input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(139,92,246,.35);border-radius:14px;padding:12px 14px;color:var(--txt);font-size:13px;font-family:var(--mono);outline:none}
+#tutOv .tut-key-input-wrap button{background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:14px;padding:12px 16px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+#tutOv .tut-footer{padding:16px 24px max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:12px;background:transparent}
+#tutOv .tut-dots{display:flex;gap:8px;align-items:center}
+#tutOv .tut-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2);transition:all .3s}
+#tutOv .tut-dot.active{width:22px;border-radius:4px;background:var(--acc)}
+#tutOv .tut-btns{display:flex;width:100%;gap:10px;max-width:400px}
+#tutOv .tut-btn-skip{flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:13px 18px;color:var(--mut);font-size:14px;cursor:pointer;font-family:var(--font)}
+#tutOv .tut-btn-next{flex:1;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:16px;padding:15px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;font-family:var(--font);box-shadow:0 6px 20px -4px var(--acc-glow)}
 #onbBox{
   width:100%;max-width:600px;
   background:linear-gradient(180deg,var(--surf2),var(--surf));
@@ -708,9 +736,52 @@ const I18N={
     ai_assistant:"Assistant IA",
     ai_tap_chat:"tap pour discuter",
     ai_loading:"Analyse en cours...",
-    no_tx_first:"📝 Aucune transaction encore. Tape le <strong>+</strong> pour saisir ta première — sans données je peux rien analyser.",
+    no_tx_first:"📝 Aucune transaction encore. Tape le <strong>+</strong> pour saisir ta première — sans données je ne peux rien analyser.",
     all_good:"✅ Rien d'urgent. Burn rate {br}/j, safety {sd}j. Profites-en pour avancer ton objectif.",
     home_quick_q:"Questions rapides",
+    quick_ai_title:"✨ Assistant IA Rapide",
+    quick_ai_sub:"Pose ta question — réponse instantanée basée sur tes données.",
+    quick_ai_wait:"En attente de ta question...",
+    quick_ai_risk_btn:"Risque ce mois ?",
+    quick_ai_top_btn:"Top dépense ?",
+    quick_ai_advice_btn:"Conseil principal ?",
+    quick_ai_save_btn:"Puis-je épargner +?",
+    quick_ai_ask_btn:"Demander",
+    alert_short_history:"📅 Tu as {n} jour{s} de données. Les analyses s'y basent — la pression vs habitude attendra {r}j de plus pour être significative.",
+    alert_safety_low:"🚨 {n} jour{s} d'argent actif si rien n'entre.{ext} Tu brûles {br}/j. Coupe une dépense aujourd'hui.",
+    alert_safety_ext:" Avec ton épargne tu montes à <strong>{n}j</strong>.",
+    alert_pressure_high:"🔥 +{n}% cette semaine vs ton habitude. Effet \"spirale\" — ton cerveau s'habitue. Pause de 24h sur le non essentiel.",
+    alert_end_month:"🌒 Mode fin de mois actif. La fatigue de décision s'accumule — tes prochains achats coûtent plus cher au cerveau qu'en début de mois.",
+    alert_pressure_mid:"⚠️ +{n}% de dépenses cette semaine vs habitude. Pas grave si prévu — sinon, freine doucement.",
+    alert_weekly_deficit:"📉 Cette semaine: {exp} sortis vs {inc} entrés. Tu vis sur la réserve.",
+    alert_evaporation:"💸 {n}% de chaque revenu disparaît en 48h. Astuce : vire 20% en épargne dès l'entrée.",
+    alert_night:"🌙 {n}% de tes dépenses après 21h. Cortex fatigué = oui facile. Délai de 12h sur les achats tard.",
+    alert_dopamine:"🎯 {n}% de tes dépenses = plaisir immédiat. Seulement {inv}% vers le futur. L'équilibre 50/50 dure plus longtemps.",
+    alert_ant:"🐜 Effet Fourmi : {count} petites dépenses (≤{thr}) = <strong>{total}</strong> sur {days}j. Invisible à l'œil, lourd au cumul.",
+    alert_retention:"✅ Tu gardes {n}% de ce qui entre. {safety}.",
+    alert_retention_safety_inf:"Tu tiens très longtemps",
+    alert_retention_safety_days:"Tu tiens {n}j",
+    alert_pressure_low:"📉 Dépenses {n}% sous ta moyenne cette semaine. Profite — c'est le moment où le cerveau accepte une nouvelle automatisation d'épargne.",
+    alert_moral_license:"🪞 Tu as bien tenu cette semaine. Aujourd'hui : {exp} sortis ({x}× ta moyenne). C'est la \"licence morale\" — quand on se récompense d'avoir été sage.",
+    local_no_top_cat:"Aucune dépense ce mois pour le moment. Note la première dès que tu en fais une — ton cerveau oublie 60% des achats en 3 jours.",
+    local_risk_good:"tu finiras le mois en positif",
+    local_risk_bad:"tu finiras le mois dans le rouge",
+    local_risk_msg:"🧭 Risque: {level}.\nÀ ce rythme, {sens} ({delta}).\nTu dépenses en moyenne {br}/j. Avec ce que tu as, tu tiens {safe} sans nouveau revenu.\n💡 Ton cerveau sous-estime les petites dépenses répétées (biais de fragmentation). Cumulées, elles font le trou.",
+    local_safe_inf:"illimité",
+    local_safe_days:"{n} jours",
+    local_exp_msg:"💸 Ta plus grosse catégorie ce mois: {icon} {name}.\nTotal dépensé: {total} ({br}/j en moyenne).\n💡 C'est là où ton cerveau cherche du plaisir rapide (dopamine). Réduire de 10% ici libère {save} sans douleur.",
+    local_balance_msg:"💰 Tu as {active} disponibles + {savings} en épargne verrouillée.\nCe mois: {inc} entrés, {exp} sortis.\nTu peux tenir {safe} sans rentrée d'argent.\n💡 L'épargne verrouillée est invisible pour ton cerveau, c'est volontaire — ça t'évite de la dépenser sur un coup de tête.",
+    local_disc_low:"Ton cerveau a besoin de routines. Note tes dépenses chaque soir — 30 secondes. C'est ce qui crée le contrôle.",
+    local_disc_ok:"Bon rythme. Continuer à noter renforce l'habitude (~21 jours pour automatiser).",
+    local_disc_msg:"🎯 Discipline: {score}/100.\nStabilité revenus: {stab}/100.\n💡 {tip}",
+    local_issue_burnrate:"tu brûles {br}/j, plus rapide que tes revenus",
+    local_issue_deficit:"un déficit de {v} arrive en fin de mois",
+    local_issue_disc:"tu notes tes dépenses de façon irrégulière",
+    local_issue_dopamine:"{n}% de tes dépenses sont du plaisir immédiat (dopamine)",
+    local_issue_night:"{n}% de tes dépenses sont la nuit (fatigue décisionnelle)",
+    local_advice_ok:"✅ Tout va bien. Tu brûles {br}/j, c'est sous contrôle.\n💡 Profites-en pour augmenter ton épargne automatique de 5%. Ton cerveau ne sentira pas la différence.",
+    local_advice_issues:"👀 Points à regarder:\n• {issues}\n💡 Choisis-en UN seul à corriger cette semaine. Le cerveau ne change qu'une habitude à la fois — sinon il abandonne tout.",
+    local_default:"📊 État rapide:\n• Disponible: {active}\n• Dépensé ce mois: {exp}\n• Discipline: {disc}/100\n💡 Pose une question précise (risque, dépenses, conseil, solde, discipline) pour une analyse détaillée.",
     // Nav
     nav_home:'Home',nav_txns:'Txns',nav_analyse:'Analyse',nav_ia:'IA',nav_config:'Config',
     // Hero
@@ -834,6 +905,13 @@ const I18N={
     onb_lang:'Langue',onb_currency:'Devise',onb_currency_other:'Autre devise (ex: GBP)',onb_start:'Démarrer',
     cfg_cat_hint2:'Clique sur une catégorie pour la modifier ou la supprimer.',
     cfg_groq_step1:'1. Va sur',cfg_groq_step2:'2. Crée un compte → API Keys → Create API Key',cfg_groq_step3:'3. Colle la clé ci-dessous',
+    tut_skip:'Passer',tut_next:'Suivant →',tut_start:'C\'est parti ! 🚀',
+    tut_s1_icon:'💸',tut_s1_title:'Enregistre chaque mouvement',tut_s1_body:'Tape <strong>+</strong> pour ajouter une dépense ou un revenu. Précise l\'heure, l\'humeur, une note — l\'IA utilise tout ça pour analyser ton comportement.',
+    tut_s2_icon:'📊',tut_s2_title:'Lis tes vrais chiffres',tut_s2_body:'L\'onglet <strong>Analyse</strong> révèle ton Burn Rate, tes jours de sécurité, tes dépenses nocturnes et ton score de discipline. Tout change en temps réel.',
+    tut_s3_icon:'🤖',tut_s3_title:'IVY — ton coach brutal',tut_s3_body:'IVY n\'est pas un assistant poli. Elle nomme tes biais (dopamine, fatigue décisionnelle, effet domino) et te donne UN ordre concret. Tape ✨ pour lui parler.',
+    tut_s4_icon:'⚡',tut_s4_title:'Active l\'IA complète — gratuit',tut_s4_body:'Sans clé, IVY fonctionne en mode local. <strong>Avec une clé Groq gratuite</strong> (14 400 req/jour, sans carte bancaire), elle se connecte à un vrai LLM et devient 10× plus précise.',
+    tut_s4_step1:'① Va sur <strong>console.groq.com</strong>',tut_s4_step2:'② Crée un compte → API Keys → <em>Create</em>',tut_s4_step3:'③ Colle la clé dans <strong>Config → Clé Groq</strong>',
+    tut_s4_later:'Je ferai ça plus tard',
     cfg_groq_test_btn:'🧪 Tester',cfg_groq_del_btn:'🗑️ Supprimer',cfg_groq_current:'Clé actuelle',
     cfg_life:'Vie & prévisions',cfg_life_desc:"Deux chiffres qui changent comment l'app pense.",
     cfg_inc7:'Revenus attendus 7j',cfg_inc7_help:"Argent que tu sais que tu vas recevoir cette semaine. Recalcule le Safety Days et l'IA arrête de paniquer.",
@@ -1058,6 +1136,49 @@ const I18N={
     no_tx_first:"📝 No transactions yet. Tap <strong>+</strong> to add your first — without data I cannot analyze anything.",
     all_good:"✅ Nothing urgent. Burn rate {br}/d, safety {sd}d. Use this time to push your goal.",
     home_quick_q:"Quick questions",
+    quick_ai_title:"✨ Quick AI Assistant",
+    quick_ai_sub:"Ask a question — instant answer based on your data.",
+    quick_ai_wait:"Waiting for your question...",
+    quick_ai_risk_btn:"Risk this month?",
+    quick_ai_top_btn:"Top expense?",
+    quick_ai_advice_btn:"Main advice?",
+    quick_ai_save_btn:"Can I save more?",
+    quick_ai_ask_btn:"Ask",
+    alert_short_history:"📅 You have {n} day{s} of data. Analyses are based on this — pressure vs habit needs {r} more days to be meaningful.",
+    alert_safety_low:"🚨 {n} day{s} of active cash left at current pace.{ext} You burn {br}/d. Cut one expense today.",
+    alert_safety_ext:" Your savings extend this to <strong>{n}d</strong>.",
+    alert_pressure_high:"🔥 +{n}% spending this week vs your habit. \"Spiral\" effect — your brain adapts upward. Take a 24h pause on non-essentials.",
+    alert_end_month:"🌒 End-of-month mode active. Decision fatigue is peaking — your next purchases cost your brain more than at the start of the month.",
+    alert_pressure_mid:"⚠️ +{n}% spending this week vs habit. Fine if planned — otherwise, slow down gently.",
+    alert_weekly_deficit:"📉 This week: {exp} out vs {inc} in. You're spending your reserves.",
+    alert_evaporation:"💸 {n}% of each income vanishes within 48h. Tip: transfer 20% to savings the moment it arrives.",
+    alert_night:"🌙 {n}% of your spending after 9pm. Tired brain = easy yes. Add a 12h delay on late-night purchases.",
+    alert_dopamine:"🎯 {n}% of your spending = immediate pleasure. Only {inv}% goes to your future. The 50/50 balance lasts longer.",
+    alert_ant:"🐜 Ant Effect: {count} small expenses (≤{thr}) = <strong>{total}</strong> over {days}d. Invisible alone, heavy combined.",
+    alert_retention:"✅ You keep {n}% of what comes in. {safety}.",
+    alert_retention_safety_inf:"You can last a very long time",
+    alert_retention_safety_days:"You can last {n}d",
+    alert_pressure_low:"📉 Spending {n}% under your weekly average. Good moment — your brain is open to a new savings automation.",
+    alert_moral_license:"🪞 Great week of control. Today: {exp} spent ({x}× your average). That's \"moral licensing\" — rewarding yourself for being disciplined.",
+    local_no_top_cat:"No expenses this month yet. Log the first one as it happens — your brain forgets 60% of purchases within 3 days.",
+    local_risk_good:"you'll end the month positive",
+    local_risk_bad:"you'll end the month in the red",
+    local_risk_msg:"🧭 Risk: {level}.\nAt this pace, {sens} ({delta}).\nAverage spend: {br}/d. At this rate you last {safe} without new income.\n💡 Your brain underestimates repeated small expenses (fragmentation bias). They add up.",
+    local_safe_inf:"indefinitely",
+    local_safe_days:"{n} days",
+    local_exp_msg:"💸 Top category this month: {icon} {name}.\nTotal spent: {total} ({br}/d avg).\n💡 This is where your brain seeks quick pleasure (dopamine). Cutting 10% here frees {save} painlessly.",
+    local_balance_msg:"💰 You have {active} available + {savings} in locked savings.\nThis month: {inc} in, {exp} out.\nYou can last {safe} without new income.\n💡 Locked savings are invisible to your brain by design — it prevents impulsive spending.",
+    local_disc_low:"Your brain needs routines. Log expenses every evening — 30 seconds. That's what builds control, not the numbers.",
+    local_disc_ok:"Good pace. Keep logging — it reinforces the habit (~21 days to automate).",
+    local_disc_msg:"🎯 Discipline: {score}/100.\nIncome stability: {stab}/100.\n💡 {tip}",
+    local_issue_burnrate:"burning {br}/d, faster than your income",
+    local_issue_deficit:"a deficit of {v} arriving end of month",
+    local_issue_disc:"logging expenses irregularly",
+    local_issue_dopamine:"{n}% of your spending is immediate pleasure (dopamine)",
+    local_issue_night:"{n}% of your spending at night (decision fatigue)",
+    local_advice_ok:"✅ All good. Burning {br}/d, under control.\n💡 Great time to bump your automatic savings by 5%. Your brain won't feel the difference.",
+    local_advice_issues:"👀 Points to address:\n• {issues}\n💡 Pick ONE to fix this week. The brain only changes one habit at a time — otherwise it drops everything.",
+    local_default:"📊 Quick status:\n• Available: {active}\n• Spent this month: {exp}\n• Discipline: {disc}/100\n💡 Ask a specific question (risk, expenses, advice, balance, discipline) for a detailed analysis.",
     nav_home:'Home',nav_txns:'Txns',nav_analyse:'Analyse',nav_ia:'AI',nav_config:'Config',
     capital:'Available Balance',savings_locked:'in savings',revenues:'Income',expenses:'Expenses',
     burn_rate:'Burn Rate',burn_sub:'per day · 30d avg',safety_days:'Safety Days',safety_sub:'days · at current pace',
@@ -1163,6 +1284,13 @@ const I18N={
     onb_lang:'Language',onb_currency:'Currency',onb_currency_other:'Other currency (e.g. GBP)',onb_start:'Start',
     cfg_cat_hint2:'Tap a category to edit or delete it.',
     cfg_groq_step1:'1. Go to',cfg_groq_step2:'2. Create account → API Keys → Create API Key',cfg_groq_step3:'3. Paste the key below',
+    tut_skip:'Skip',tut_next:'Next →',tut_start:'Let\'s go! 🚀',
+    tut_s1_icon:'💸',tut_s1_title:'Log every move',tut_s1_body:'Tap <strong>+</strong> to add an expense or income. Add time, mood, a note — the AI uses all of it to analyze your behavior.',
+    tut_s2_icon:'📊',tut_s2_title:'Read your real numbers',tut_s2_body:'The <strong>Analysis</strong> tab reveals your Burn Rate, safety days, night spending, and discipline score. Everything updates in real time.',
+    tut_s3_icon:'🤖',tut_s3_title:'IVY — your brutal coach',tut_s3_body:'IVY is not a polite assistant. She names your biases (dopamine, decision fatigue, domino effect) and gives you ONE concrete order. Tap ✨ to talk to her.',
+    tut_s4_icon:'⚡',tut_s4_title:'Unlock full AI — free',tut_s4_body:'Without a key, IVY runs in local mode. <strong>With a free Groq key</strong> (14,400 req/day, no credit card), she connects to a real LLM and becomes 10× more precise.',
+    tut_s4_step1:'① Go to <strong>console.groq.com</strong>',tut_s4_step2:'② Create account → API Keys → <em>Create</em>',tut_s4_step3:'③ Paste the key in <strong>Config → Groq Key</strong>',
+    tut_s4_later:'I\'ll do this later',
     cfg_groq_test_btn:'🧪 Test',cfg_groq_del_btn:'🗑️ Delete',cfg_groq_current:'Current key',
     cfg_life:'Life & forecasts',cfg_life_desc:'Two numbers that change how the app thinks.',
     cfg_inc7:'Expected income (7d)',cfg_inc7_help:'Money you know is coming this week. Recomputes Safety Days so the AI stops panicking.',
@@ -1395,6 +1523,49 @@ const I18N={
     no_tx_first:"📝 Aún no hay transacciones. Pulsa <strong>+</strong> para añadir la primera — sin datos no puedo analizar.",
     all_good:"✅ Nada urgente. Burn rate {br}/d, seguridad {sd}d. Aprovecha para avanzar en tu objetivo.",
     home_quick_q:"Preguntas rápidas",
+    quick_ai_title:"✨ Asistente IA Rápido",
+    quick_ai_sub:"Haz una pregunta — respuesta instantánea basada en tus datos.",
+    quick_ai_wait:"Esperando tu pregunta...",
+    quick_ai_risk_btn:"¿Riesgo este mes?",
+    quick_ai_top_btn:"¿Top gasto?",
+    quick_ai_advice_btn:"¿Consejo principal?",
+    quick_ai_save_btn:"¿Puedo ahorrar más?",
+    quick_ai_ask_btn:"Preguntar",
+    alert_short_history:"📅 Tienes {n} día{s} de datos. Los análisis se basan en esto — la presión vs hábito necesita {r} días más para tener sentido.",
+    alert_safety_low:"🚨 {n} día{s} de efectivo activo si no entra nada.{ext} Gastas {br}/d. Recorta un gasto hoy.",
+    alert_safety_ext:" Con tu ahorro subes a <strong>{n}d</strong>.",
+    alert_pressure_high:"🔥 +{n}% de gastos esta semana vs tu hábito. Efecto \"espiral\" — tu cerebro se adapta. Pausa de 24h en lo no esencial.",
+    alert_end_month:"🌒 Modo fin de mes activo. La fatiga de decisión se acumula — tus próximas compras le cuestan más al cerebro.",
+    alert_pressure_mid:"⚠️ +{n}% de gastos esta semana vs hábito. Sin problema si era previsto — si no, frena con suavidad.",
+    alert_weekly_deficit:"📉 Esta semana: {exp} salidos vs {inc} entrados. Estás viviendo de tus reservas.",
+    alert_evaporation:"💸 {n}% de cada ingreso desaparece en 48h. Truco: transfiere el 20% al ahorro en cuanto llegue.",
+    alert_night:"🌙 {n}% de tus gastos después de las 21h. Cerebro cansado = fácil decir sí. Espera 12h antes de comprar tarde.",
+    alert_dopamine:"🎯 {n}% de tus gastos = placer inmediato. Solo {inv}% va al futuro. El equilibrio 50/50 dura más.",
+    alert_ant:"🐜 Efecto Hormiga: {count} gastos pequeños (≤{thr}) = <strong>{total}</strong> en {days}d. Invisible solo, pesado acumulado.",
+    alert_retention:"✅ Guardas {n}% de lo que entra. {safety}.",
+    alert_retention_safety_inf:"Puedes aguantar mucho tiempo",
+    alert_retention_safety_days:"Aguantas {n}d",
+    alert_pressure_low:"📉 Gastos {n}% bajo tu media semanal. Aprovecha — tu cerebro acepta mejor una nueva automatización de ahorro.",
+    alert_moral_license:"🪞 Gran semana de control. Hoy: {exp} gastados ({x}× tu media). Es la \"licencia moral\" — recompensarse por haber sido disciplinado.",
+    local_no_top_cat:"Sin gastos este mes todavía. Anota el primero cuando ocurra — el cerebro olvida el 60% de las compras en 3 días.",
+    local_risk_good:"terminarás el mes en positivo",
+    local_risk_bad:"terminarás el mes en negativo",
+    local_risk_msg:"🧭 Riesgo: {level}.\nA este ritmo, {sens} ({delta}).\nGasto medio: {br}/d. Con esto aguantas {safe} sin nuevos ingresos.\n💡 El cerebro subestima los gastos pequeños repetidos (sesgo de fragmentación). Acumulados, hacen el agujero.",
+    local_safe_inf:"indefinidamente",
+    local_safe_days:"{n} días",
+    local_exp_msg:"💸 Top categoría este mes: {icon} {name}.\nTotal gastado: {total} ({br}/d de media).\n💡 Es donde el cerebro busca placer rápido (dopamina). Reducir un 10% aquí libera {save} sin dolor.",
+    local_balance_msg:"💰 Tienes {active} disponibles + {savings} en ahorro bloqueado.\nEste mes: {inc} entrados, {exp} salidos.\nPuedes aguantar {safe} sin nuevos ingresos.\n💡 El ahorro bloqueado es invisible para tu cerebro a propósito — evita gastos impulsivos.",
+    local_disc_low:"Tu cerebro necesita rutinas. Anota gastos cada noche — 30 segundos. Eso crea el control, no los números.",
+    local_disc_ok:"Buen ritmo. Seguir anotando refuerza el hábito (~21 días para automatizarlo).",
+    local_disc_msg:"🎯 Disciplina: {score}/100.\nEstabilidad ingresos: {stab}/100.\n💡 {tip}",
+    local_issue_burnrate:"quemas {br}/d, más rápido que tus ingresos",
+    local_issue_deficit:"un déficit de {v} llega a fin de mes",
+    local_issue_disc:"registras gastos de forma irregular",
+    local_issue_dopamine:"{n}% de tus gastos es placer inmediato (dopamina)",
+    local_issue_night:"{n}% de tus gastos por la noche (fatiga decisional)",
+    local_advice_ok:"✅ Todo bien. Quemas {br}/d, bajo control.\n💡 Buen momento para aumentar tu ahorro automático un 5%. Tu cerebro no lo notará.",
+    local_advice_issues:"👀 Puntos a revisar:\n• {issues}\n💡 Elige UNO para corregir esta semana. El cerebro solo cambia un hábito a la vez — si no, abandona todo.",
+    local_default:"📊 Estado rápido:\n• Disponible: {active}\n• Gastado este mes: {exp}\n• Disciplina: {disc}/100\n💡 Haz una pregunta específica (riesgo, gastos, consejo, saldo, disciplina) para un análisis detallado.",
     nav_home:'Inicio',nav_txns:'Txns',nav_analyse:'Análisis',nav_ia:'IA',nav_config:'Config',
     capital:'Capital disponible',savings_locked:'en ahorro',revenues:'Ingresos',expenses:'Gastos',
     burn_rate:'Burn Rate',burn_sub:'por día · prom. 30d',safety_days:'Días de seguridad',safety_sub:'días · al ritmo actual',
@@ -1491,6 +1662,13 @@ const I18N={
     onb_lang:'Idioma',onb_currency:'Moneda',onb_currency_other:'Otra moneda (ej: GBP)',onb_start:'Empezar',
     cfg_cat_hint2:'Toca una categoría para editar o eliminar.',
     cfg_groq_step1:'1. Ve a',cfg_groq_step2:'2. Crea cuenta → API Keys → Create API Key',cfg_groq_step3:'3. Pega la clave abajo',
+    tut_skip:'Omitir',tut_next:'Siguiente →',tut_start:'¡Vamos! 🚀',
+    tut_s1_icon:'💸',tut_s1_title:'Registra cada movimiento',tut_s1_body:'Pulsa <strong>+</strong> para añadir un gasto o ingreso. Añade hora, estado de ánimo, nota — la IA usa todo eso para analizar tu comportamiento.',
+    tut_s2_icon:'📊',tut_s2_title:'Lee tus cifras reales',tut_s2_body:'La pestaña <strong>Análisis</strong> muestra tu Burn Rate, días de seguridad, gastos nocturnos y puntuación de disciplina. Todo se actualiza en tiempo real.',
+    tut_s3_icon:'🤖',tut_s3_title:'IVY — tu coach brutal',tut_s3_body:'IVY no es una asistente amable. Nombra tus sesgos (dopamina, fatiga decisional, efecto dominó) y te da UNA orden concreta. Pulsa ✨ para hablar con ella.',
+    tut_s4_icon:'⚡',tut_s4_title:'Activa la IA completa — gratis',tut_s4_body:'Sin clave, IVY funciona en modo local. <strong>Con una clave Groq gratuita</strong> (14.400 req/día, sin tarjeta), se conecta a un LLM real y es 10× más precisa.',
+    tut_s4_step1:'① Ve a <strong>console.groq.com</strong>',tut_s4_step2:'② Crea cuenta → API Keys → <em>Create</em>',tut_s4_step3:'③ Pega la clave en <strong>Config → Clave Groq</strong>',
+    tut_s4_later:'Lo haré más tarde',
     cfg_groq_test_btn:'🧪 Probar',cfg_groq_del_btn:'🗑️ Eliminar',cfg_groq_current:'Clave actual',
     cfg_life:'Vida & previsiones',cfg_life_desc:'Dos cifras que cambian cómo piensa la app.',
     cfg_inc7:'Ingresos esperados (7d)',cfg_inc7_help:'Dinero que sabes que entrará esta semana.',
@@ -1723,6 +1901,49 @@ const I18N={
     no_tx_first:"📝 Ainda sem transações. Toca em <strong>+</strong> para registar a primeira — sem dados não posso analisar.",
     all_good:"✅ Nada urgente. Burn rate {br}/d, segurança {sd}d. Aproveita para avançar no teu objetivo.",
     home_quick_q:"Perguntas rápidas",
+    quick_ai_title:"✨ Assistente IA Rápido",
+    quick_ai_sub:"Faz uma pergunta — resposta instantânea com base nos teus dados.",
+    quick_ai_wait:"À espera da tua pergunta...",
+    quick_ai_risk_btn:"Risco este mês?",
+    quick_ai_top_btn:"Top despesa?",
+    quick_ai_advice_btn:"Conselho principal?",
+    quick_ai_save_btn:"Posso poupar mais?",
+    quick_ai_ask_btn:"Perguntar",
+    alert_short_history:"📅 Tens {n} dia{s} de dados. As análises baseiam-se nisso — a pressão vs hábito precisa de mais {r} dias para ter sentido.",
+    alert_safety_low:"🚨 {n} dia{s} de dinheiro ativo se nada entrar.{ext} Gastas {br}/d. Corta uma despesa hoje.",
+    alert_safety_ext:" Com a tua poupança sobem para <strong>{n}d</strong>.",
+    alert_pressure_high:"🔥 +{n}% de gastos esta semana vs o teu hábito. Efeito \"espiral\" — o cérebro habitua-se. Pausa de 24h no não essencial.",
+    alert_end_month:"🌒 Modo fim de mês ativo. A fadiga de decisão acumula — as tuas próximas compras custam mais ao cérebro do que no início do mês.",
+    alert_pressure_mid:"⚠️ +{n}% de gastos esta semana vs hábito. Sem problema se estava previsto — caso contrário, trava suavemente.",
+    alert_weekly_deficit:"📉 Esta semana: {exp} saídos vs {inc} entrados. Estás a viver das reservas.",
+    alert_evaporation:"💸 {n}% de cada receita desaparece em 48h. Dica: transfere 20% para poupança assim que chegar.",
+    alert_night:"🌙 {n}% das tuas despesas depois das 21h. Cérebro cansado = sim fácil. Espera 12h antes de comprar tarde.",
+    alert_dopamine:"🎯 {n}% das tuas despesas = prazer imediato. Só {inv}% vai para o futuro. O equilíbrio 50/50 dura mais.",
+    alert_ant:"🐜 Efeito Formiga: {count} pequenas despesas (≤{thr}) = <strong>{total}</strong> em {days}d. Invisível sozinho, pesado acumulado.",
+    alert_retention:"✅ Guardas {n}% do que entra. {safety}.",
+    alert_retention_safety_inf:"Consegues aguentar muito tempo",
+    alert_retention_safety_days:"Aguentas {n}d",
+    alert_pressure_low:"📉 Gastos {n}% abaixo da tua média semanal. Aproveita — o cérebro aceita melhor uma nova automatização de poupança.",
+    alert_moral_license:"🪞 Ótima semana de controlo. Hoje: {exp} gastos ({x}× a tua média). É a \"licença moral\" — recompensar-se por ter sido disciplinado.",
+    local_no_top_cat:"Sem despesas este mês ainda. Regista a primeira quando acontecer — o cérebro esquece 60% das compras em 3 dias.",
+    local_risk_good:"vais terminar o mês em positivo",
+    local_risk_bad:"vais terminar o mês no vermelho",
+    local_risk_msg:"🧭 Risco: {level}.\nA este ritmo, {sens} ({delta}).\nGasto médio: {br}/d. Com isto aguentas {safe} sem novos rendimentos.\n💡 O cérebro subestima as pequenas despesas repetidas (viés de fragmentação). Acumuladas, fazem o buraco.",
+    local_safe_inf:"indefinidamente",
+    local_safe_days:"{n} dias",
+    local_exp_msg:"💸 Top categoria este mês: {icon} {name}.\nTotal gasto: {total} ({br}/d em média).\n💡 É onde o cérebro procura prazer rápido (dopamina). Reduzir 10% aqui liberta {save} sem dor.",
+    local_balance_msg:"💰 Tens {active} disponíveis + {savings} em poupança bloqueada.\nEste mês: {inc} entrados, {exp} saídos.\nPodes aguentar {safe} sem novos rendimentos.\n💡 A poupança bloqueada é invisível para o cérebro intencionalmente — evita gastos impulsivos.",
+    local_disc_low:"O teu cérebro precisa de rotinas. Regista despesas cada noite — 30 segundos. É isso que cria controlo, não os números.",
+    local_disc_ok:"Bom ritmo. Continuar a registar reforça o hábito (~21 dias para automatizar).",
+    local_disc_msg:"🎯 Disciplina: {score}/100.\nEstabilidade rendimentos: {stab}/100.\n💡 {tip}",
+    local_issue_burnrate:"gastas {br}/d, mais rápido do que os teus rendimentos",
+    local_issue_deficit:"um défice de {v} chega ao fim do mês",
+    local_issue_disc:"registas despesas de forma irregular",
+    local_issue_dopamine:"{n}% das tuas despesas é prazer imediato (dopamina)",
+    local_issue_night:"{n}% das tuas despesas à noite (fadiga decisional)",
+    local_advice_ok:"✅ Tudo bem. Gastas {br}/d, sob controlo.\n💡 Ótima altura para aumentar a poupança automática em 5%. O teu cérebro não vai sentir a diferença.",
+    local_advice_issues:"👀 Pontos a rever:\n• {issues}\n💡 Escolhe UM para corrigir esta semana. O cérebro só muda um hábito de cada vez — caso contrário, abandona tudo.",
+    local_default:"📊 Estado rápido:\n• Disponível: {active}\n• Gasto este mês: {exp}\n• Disciplina: {disc}/100\n💡 Faz uma pergunta específica (risco, despesas, conselho, saldo, disciplina) para uma análise detalhada.",
     nav_home:'Início',nav_txns:'Txns',nav_analyse:'Análise',nav_ia:'IA',nav_config:'Config',
     capital:'Capital Disponível',savings_locked:'em poupança',revenues:'Receitas',expenses:'Despesas',
     burn_rate:'Burn Rate',burn_sub:'por dia · média 30d',safety_days:'Dias de Segurança',safety_sub:'dias · no ritmo atual',
@@ -1819,6 +2040,13 @@ const I18N={
     onb_lang:'Idioma',onb_currency:'Moeda',onb_currency_other:'Outra moeda (ex: GBP)',onb_start:'Começar',
     cfg_cat_hint2:'Toca numa categoria para editar ou eliminar.',
     cfg_groq_step1:'1. Vai a',cfg_groq_step2:'2. Cria conta → API Keys → Create API Key',cfg_groq_step3:'3. Cola a chave abaixo',
+    tut_skip:'Saltar',tut_next:'Seguinte →',tut_start:'Vamos! 🚀',
+    tut_s1_icon:'💸',tut_s1_title:'Regista cada movimento',tut_s1_body:'Toca em <strong>+</strong> para adicionar uma despesa ou receita. Adiciona hora, humor, nota — a IA usa tudo isso para analisar o teu comportamento.',
+    tut_s2_icon:'📊',tut_s2_title:'Lê os teus números reais',tut_s2_body:'O separador <strong>Análise</strong> revela o teu Burn Rate, dias de segurança, despesas noturnas e pontuação de disciplina. Tudo atualiza em tempo real.',
+    tut_s3_icon:'🤖',tut_s3_title:'IVY — a tua coach brutal',tut_s3_body:'IVY não é uma assistente educada. Nomeia os teus vieses (dopamina, fadiga decisional, efeito dominó) e dá-te UMA ordem concreta. Toca em ✨ para falar com ela.',
+    tut_s4_icon:'⚡',tut_s4_title:'Ativa a IA completa — grátis',tut_s4_body:'Sem chave, IVY funciona em modo local. <strong>Com uma chave Groq gratuita</strong> (14.400 req/dia, sem cartão), liga-se a um LLM real e torna-se 10× mais precisa.',
+    tut_s4_step1:'① Vai a <strong>console.groq.com</strong>',tut_s4_step2:'② Cria conta → API Keys → <em>Create</em>',tut_s4_step3:'③ Cola a chave em <strong>Config → Chave Groq</strong>',
+    tut_s4_later:'Faço isso mais tarde',
     cfg_groq_test_btn:'🧪 Testar',cfg_groq_del_btn:'🗑️ Apagar',cfg_groq_current:'Chave atual',
     cfg_life:'Vida & previsões',cfg_life_desc:'Dois números que mudam como a app pensa.',
     cfg_inc7:'Rendimento esperado (7d)',cfg_inc7_help:'Dinheiro que sabes que vai entrar esta semana.',
@@ -2236,12 +2464,11 @@ function riskLevel(kpi){
 // ════════════════════════════════════════
 function updateOnlineStatus(){
   const on=navigator.onLine;
-  // Badge supprimé — la connectivité est portée par l'ambiance (background LED).
   const fab=$('aiFab');
   if(fab){
     const hasKey=!!getGroqKey();
-    if(on && hasKey){fab.classList.remove('off');fab.title='IA active'}
-    else{fab.classList.add('off');fab.title=on?'Pas de clé Groq':'Hors ligne'}
+    if(on && hasKey){fab.classList.remove('off');fab.title=t('ai_online')}
+    else{fab.classList.add('off');fab.title=on?t('ai_nokey')||t('ai_offline'):t('ai_offline')}
   }
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
@@ -2467,28 +2694,28 @@ function buildCtx(){
       epargne:k.savingsBalance,
       patrimoineTotal:(k.activeBalance||0)+(k.savingsBalance||0),
       joursDeDonneesDisponibles:k.dataDays,
-      historiqueCourtAttention:k.isShortHistory?'Oui — moins de 14j de données, n\'utilise PAS de comparaison sur 30j':'Non',
-      safetyDays:k.safetyDays===9999?'infini':k.safetyDays,
-      safetyDaysAvecEpargneEtRevenusAttendus:k.safetyDaysWithSavings===9999?'infini':k.safetyDaysWithSavings,
+      historiqueCourtAttention:k.isShortHistory?'YES — less than 14d of data, do NOT compare to 30d':'No',
+      safetyDays:k.safetyDays===9999?'infinite':k.safetyDays,
+      safetyDaysAvecEpargneEtRevenusAttendus:k.safetyDaysWithSavings===9999?'infinite':k.safetyDaysWithSavings,
       revenusAttendus7j:k.expectedIncome7d||0,
-      modeFinDeMois:k.isEndOfMonth?'ACTIF — fatigue de décision élevée':'Non',
+      modeFinDeMois:k.isEndOfMonth?'ACTIVE — high decision fatigue':'No',
       effetFourmi:`${k.antCount} tx ≤${k.antThreshold} = ${k.antTotal} ${cur()}`,
       burnRateLisse30j:Math.round(k.burnRate),
       tauxRetention30j:k.retention!==null?`${k.retention}%`:'N/A',
-      indicePression7j:k.pressureIdx>0?`+${k.pressureIdx}% vs habitude`:`${k.pressureIdx}% vs habitude`,
-      evaporationPost_revenu:`${k.evaporationRate}% dépensé dans les 48h après entrée`,
-      dopamineIndex:`${k.dopamineIdx}% des dépenses = impulsion/plaisir immédiat`,
-      investissementIndex:`${k.investIdx}% des dépenses = valeur future`,
-      depensesNocturnes:`${k.nightPct}% du total (${Math.round(k.nightSpend)} ${cur()})`,
+      indicePression7j:k.pressureIdx>0?`+${k.pressureIdx}% vs habit`:`${k.pressureIdx}% vs habit`,
+      evaporationPost_revenu:`${k.evaporationRate}% spent within 48h of income`,
+      dopamineIndex:`${k.dopamineIdx}% of spending = impulse/immediate pleasure`,
+      investissementIndex:`${k.investIdx}% of spending = future value`,
+      depensesNocturnes:`${k.nightPct}% of total (${Math.round(k.nightSpend)} ${cur()})`,
       disciplineScore:k.discipline+'/100',
-      scoreDeFriction:k.frictionScore+'/100 (cohérence actes vs objectif prioritaire)',
+      scoreDeFriction:k.frictionScore+'/100 (consistency between actions and priority goal)',
     },
     topCategoriesDuMois:topCategories,
     repartitionChronologique:{
-      matin_6h_12h:`${bucketSum(hourBuckets.matin)} ${cur()} (${hourBuckets.matin.length} tx)`,
-      apresmidi_12h_18h:`${bucketSum(hourBuckets.apresmidi)} ${cur()} (${hourBuckets.apresmidi.length} tx)`,
-      soir_18h_21h:`${bucketSum(hourBuckets.soir)} ${cur()} (${hourBuckets.soir.length} tx)`,
-      nuit_fatigue_21h_6h:`${bucketSum(hourBuckets.nuit)} ${cur()} (${hourBuckets.nuit.length} tx)`,
+      morning_6h_12h:`${bucketSum(hourBuckets.matin)} ${cur()} (${hourBuckets.matin.length} tx)`,
+      afternoon_12h_18h:`${bucketSum(hourBuckets.apresmidi)} ${cur()} (${hourBuckets.apresmidi.length} tx)`,
+      evening_18h_21h:`${bucketSum(hourBuckets.soir)} ${cur()} (${hourBuckets.soir.length} tx)`,
+      night_fatigue_21h_6h:`${bucketSum(hourBuckets.nuit)} ${cur()} (${hourBuckets.nuit.length} tx)`,
     },
     effetDomino:dominoEvents.length?dominoEvents:[],
     motsClesNotes:topKeywords.length?topKeywords:[],
@@ -2496,7 +2723,7 @@ function buildCtx(){
     statsTotales:{
       nbTransactions:txs.length,
       nbCategoriesUtilisees:Object.keys(catTotals).length,
-      premiereTx:txs.length?new Date(txs[txs.length-1].date).toISOString().slice(0,10):'aucune',
+      premiereTx:txs.length?new Date(txs[txs.length-1].date).toISOString().slice(0,10):'none',
     },
   };
 
@@ -2531,7 +2758,7 @@ ABSOLUTE RULES:
 
 You are the voice that prevents this person from dying mediocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
-      const prompt = 'DONNÉES COMPORTEMENTALES:\n'+buildCtx()+'\n\nQuestion: '+userMsg;
+      const prompt = 'BEHAVIORAL DATA:\n'+buildCtx()+'\n\nQuestion: '+userMsg;
       const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
@@ -2571,35 +2798,44 @@ You are the voice that prevents this person from dying mediocre.`;
 
 function localAI(q){
   const k=computeKPIs();const ql=q.toLowerCase();
-  // Mini coach hors-ligne — français simple + explication "pourquoi"
-  if(ql.includes('risque')||ql.includes('projection')||ql.includes('fin de mois')){
+  // Multilingual offline coach — uses i18n keys, responds in user's language
+  const riskKw=  _lang==='pt'?['risco','projeção','fim do mês']:_lang==='es'?['riesgo','proyección','fin de mes']:_lang==='en'?['risk','projection','end of month']:['risque','projection','fin de mois'];
+  const expKw=   _lang==='pt'?['despesa','categoria']:_lang==='es'?['gasto','categoría']:_lang==='en'?['expense','category','spending']:['dépense','catégorie'];
+  const balKw=   _lang==='pt'?['saldo','patrimônio','dinheiro']:_lang==='es'?['saldo','patrimonio','dinero']:_lang==='en'?['balance','wealth','money','net worth']:['solde','patrimoine','argent'];
+  const discKw=  _lang==='pt'?['disciplina','score','pontuação']:_lang==='es'?['disciplina','score','puntuación']:_lang==='en'?['discipline','score']:['discipline','score'];
+  const advKw=   _lang==='pt'?['conselho','melhorar','ajuda']:_lang==='es'?['consejo','mejorar','ayuda']:_lang==='en'?['advice','improve','help','tip']:['conseil','améliorer','aide'];
+
+  if(riskKw.some(w=>ql.includes(w))){
     const r=riskLevel(k);
-    const safe=k.safetyDays===9999?'illimité':k.safetyDays+' jours';
-    const sens=k.projDelta>=0?'tu finiras le mois en positif':'tu finiras le mois dans le rouge';
-    return`🧭 Risque: ${r.l}.\nÀ ce rythme, ${sens} (${k.projDelta>=0?'+':''}${fmtFull(k.projDelta)}).\nTu dépenses en moyenne ${fmtFull(k.burnRate)} par jour. Avec ce que tu as, tu tiens ${safe} sans nouveau revenu.\n💡 Pourquoi ça compte: ton cerveau sous-estime les petites dépenses répétées (biais de fragmentation). Cumulées, elles font le trou.`;
+    const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
+    const sens=k.projDelta>=0?t('local_risk_good'):t('local_risk_bad');
+    const delta=(k.projDelta>=0?'+':'')+fmtFull(k.projDelta);
+    return t('local_risk_msg').replace('{level}',r.l).replace('{sens}',sens).replace('{delta}',delta).replace('{br}',fmtFull(k.burnRate)).replace('{safe}',safe);
   }
-  if(ql.includes('dépense')||ql.includes('catégorie')){
-    if(!k.topCat)return'Aucune dépense ce mois pour le moment. Note la première dès que tu en fais une — ton cerveau oublie 60% des achats en 3 jours.';
-    return`💸 Ta plus grosse catégorie ce mois: ${k.topCat.icon} ${k.topCat.name}.\nTotal dépensé: ${fmtFull(k.expense)} (${fmtFull(k.burnRate)}/jour en moyenne).\n💡 Pourquoi cette catégorie domine: c'est souvent là où ton cerveau cherche du plaisir rapide (dopamine). Réduire de 10% ici libère ${fmtFull(k.expense*0.1)} sans douleur.`;
+  if(expKw.some(w=>ql.includes(w))){
+    if(!k.topCat) return t('local_no_top_cat');
+    const save=fmtFull(k.expense*0.1);
+    return t('local_exp_msg').replace('{icon}',k.topCat.icon).replace('{name}',k.topCat.name).replace('{total}',fmtFull(k.expense)).replace('{br}',fmtFull(k.burnRate)).replace('{save}',save);
   }
-  if(ql.includes('solde')||ql.includes('patrimoine')||ql.includes('argent')){
-    return`💰 Tu as ${fmtFull(k.activeBalance||k.balance)} disponibles + ${fmtFull(k.savingsBalance||0)} en épargne verrouillée.\nCe mois: ${fmtFull(k.income)} entrés, ${fmtFull(k.expense)} sortis.\nTu peux tenir ${k.safetyDays===9999?'longtemps':k.safetyDays+' jours'} sans rentrée d'argent.\n💡 L'épargne verrouillée est invisible pour ton cerveau, c'est volontaire — ça t'évite de la dépenser sur un coup de tête.`;
+  if(balKw.some(w=>ql.includes(w))){
+    const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
+    return t('local_balance_msg').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{savings}',fmtFull(k.savingsBalance||0)).replace('{inc}',fmtFull(k.income)).replace('{exp}',fmtFull(k.expense)).replace('{safe}',safe);
   }
-  if(ql.includes('discipline')||ql.includes('score')){
-    const txt=k.discipline<60?'Ton cerveau a besoin de routines. Note tes dépenses chaque soir — 30 secondes suffisent. C\'est ce qui crée le contrôle, pas les chiffres.':'Bon rythme. Continuer à noter, c\'est ce qui rend la suite automatique (les neurones renforcent l\'habitude après ~21 jours).';
-    return`🎯 Discipline: ${k.discipline}/100.\nStabilité de tes revenus: ${Math.round(k.stability)}/100.\n💡 ${txt}`;
+  if(discKw.some(w=>ql.includes(w))){
+    const tip=k.discipline<60?t('local_disc_low'):t('local_disc_ok');
+    return t('local_disc_msg').replace('{score}',k.discipline).replace('{stab}',Math.round(k.stability)).replace('{tip}',tip);
   }
-  if(ql.includes('conseil')||ql.includes('améliorer')||ql.includes('aide')){
+  if(advKw.some(w=>ql.includes(w))){
     const issues=[];
-    if(k.burnRate>k.income/25)issues.push(`tu brûles ${fmtFull(k.burnRate)}/j, plus rapide que tes revenus`);
-    if(k.projDelta<0)issues.push(`un déficit de ${fmtFull(Math.abs(k.projDelta))} arrive en fin de mois`);
-    if(k.discipline<60)issues.push('tu notes tes dépenses de façon irrégulière');
-    if(k.dopamineIdx>50)issues.push(`${k.dopamineIdx}% de tes dépenses sont du plaisir immédiat (dopamine)`);
-    if(k.nightPct>15)issues.push(`${k.nightPct}% de tes dépenses sont la nuit (fatigue décisionnelle)`);
-    if(!issues.length)return`✅ Tout va bien. Tu brûles ${fmtFull(k.burnRate)}/j, c'est sous contrôle.\n💡 Conseil: profite-en pour augmenter ton épargne automatique de 5%. Ton cerveau ne sentira pas la différence.`;
-    return`👀 Points à regarder:\n• ${issues.join('\n• ')}\n💡 Choisis-en UN seul à corriger cette semaine. Le cerveau ne change qu'une habitude à la fois — sinon il abandonne tout.`;
+    if(k.burnRate>k.income/25) issues.push(t('local_issue_burnrate').replace('{br}',fmtFull(k.burnRate)));
+    if(k.projDelta<0) issues.push(t('local_issue_deficit').replace('{v}',fmtFull(Math.abs(k.projDelta))));
+    if(k.discipline<60) issues.push(t('local_issue_disc'));
+    if(k.dopamineIdx>50) issues.push(t('local_issue_dopamine').replace('{n}',k.dopamineIdx));
+    if(k.nightPct>15) issues.push(t('local_issue_night').replace('{n}',k.nightPct));
+    if(!issues.length) return t('local_advice_ok').replace('{br}',fmtFull(k.burnRate));
+    return t('local_advice_issues').replace('{issues}',issues.join('\n• '));
   }
-  return`📊 État rapide:\n• Disponible: ${fmtFull(k.activeBalance||k.balance)}\n• Dépensé ce mois: ${fmtFull(k.expense)}\n• Discipline: ${k.discipline}/100\n💡 Pose une question précise (risque, dépenses, conseil, solde, discipline) — je t'expliquerai aussi le "pourquoi".`;
+  return t('local_default').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{exp}',fmtFull(k.expense)).replace('{disc}',k.discipline);
 }
 
 
@@ -2610,6 +2846,8 @@ let _lastInsight = '';
 let _lastInsightTime = 0;
 async function fetchHomeInsight(){
   if(!navigator.onLine || !getGroqKey()) return null;
+  // No data yet — don't call API, show prompt to add first transaction
+  if(!txs.length) return null;
   // Cache 10 min
   if(_lastInsight && Date.now()-_lastInsightTime < 600000) return _lastInsight;
   try{
@@ -2622,7 +2860,7 @@ async function fetchHomeInsight(){
         model:'llama-3.1-8b-instant',
         max_tokens:60,
         temperature:0.4,
-        messages:[{role:'system',content:sys},{role:'user',content:ctx+'\n\nDonne UN insight ciblé.'}]
+        messages:[{role:'system',content:sys},{role:'user',content:ctx+'\n\nGive ONE targeted insight based on the data above.'}]
       })
     });
     if(!resp.ok) return null;
@@ -2636,6 +2874,11 @@ async function maybeAutoInsight(){
   if(screen!=='home') return;
   const el = $('aiInsightBody');
   if(!el) return;
+  // No data yet: show prompt instead of calling API
+  if(!txs.length){
+    el.innerHTML = t('no_tx_first');
+    return;
+  }
   const txt = await fetchHomeInsight();
   if(txt && el && screen==='home'){
     el.innerHTML = '💡 '+txt;
@@ -2651,17 +2894,17 @@ function openAIQuick(){
     return;
   }
   openModal(`
-    <h3>✨ Assistant IA Rapide</h3>
-    <div style="font-size:11px;color:var(--mut);margin-bottom:10px">Pose ta question — réponse instantanée basée sur tes données.</div>
-    <div id="quickAIArea" style="min-height:80px;padding:12px;background:var(--surf2);border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.55"><div style="color:var(--mut);font-size:12px">En attente de ta question...</div></div>
+    <h3>${t('quick_ai_title')}</h3>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:10px">${t('quick_ai_sub')}</div>
+    <div id="quickAIArea" style="min-height:80px;padding:12px;background:var(--surf2);border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.55"><div style="color:var(--mut);font-size:12px">${t('quick_ai_wait')}</div></div>
     <input id="quickAIInput" class="fi" placeholder="${t('quick_ai_ph')}" autocomplete="off">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk('Risque ce mois ?')">Risque ?</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk('Top dépense ?')">Top dépense ?</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk('Conseil principal ?')">Conseil ?</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk('Puis-je épargner +?')">Épargne ?</button>
+      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_risk_btn'))">${t('quick_ai_risk_btn')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_top_btn'))">${t('quick_ai_top_btn')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_advice_btn'))">${t('quick_ai_advice_btn')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_save_btn'))">${t('quick_ai_save_btn')}</button>
     </div>
-    <button class="btn" onclick="quickAISubmit()">Demander</button>
+    <button class="btn" onclick="quickAISubmit()">${t('quick_ai_ask_btn')}</button>
   `);
   setTimeout(()=>{const i=$('quickAIInput');if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')quickAISubmit()}}},80);
 }
@@ -2681,55 +2924,51 @@ function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()
 // pas sur le calendrier mensuel.
 // ════════════════════════════════════════
 function getAlerts(kpi){
-  // Pool large d'alertes possibles — on en montre 2-3 max, rotation journalière
   const pool=[];
-
-  // — Critiques (toujours prioritaires, jamais en rotation) —
   const critical=[];
   if(!txs.length){
     return [{t:'i',m:t('no_tx_first')}];
   }
   if(kpi.isShortHistory){
-    pool.push({t:'i',m:`📅 Tu as ${kpi.dataDays} jour${kpi.dataDays>1?'s':''} de données. Les analyses se calent là-dessus — la pression vs habitude attendra ${14-kpi.dataDays}j de plus pour avoir du sens.`,prio:1});
+    const s=kpi.dataDays>1?'s':'';
+    pool.push({t:'i',m:t('alert_short_history').replace('{n}',kpi.dataDays).replace('{s}',s).replace('{r}',14-kpi.dataDays),prio:1});
   }
   if(kpi.safetyDays!==9999&&kpi.safetyDays<7){
-    const ext=kpi.safetyDaysWithSavings>kpi.safetyDays?` Avec ton épargne tu montes à <strong>${kpi.safetyDaysWithSavings}j</strong>.`:'';
-    critical.push({t:'d',m:`🚨 ${kpi.safetyDays} jour${kpi.safetyDays>1?'s':''} d'argent actif si rien n'entre.${ext} Tu brûles ${fmtFull(kpi.burnRate)}/j. Coupe une dépense aujourd'hui.`});
+    const s=kpi.safetyDays>1?'s':'';
+    const extStr=kpi.safetyDaysWithSavings>kpi.safetyDays?' '+t('alert_safety_ext').replace('{n}',kpi.safetyDaysWithSavings):'';
+    critical.push({t:'d',m:t('alert_safety_low').replace('{n}',kpi.safetyDays).replace('{s}',s).replace('{ext}',extStr).replace('{br}',fmtFull(kpi.burnRate))});
   }
   if(!kpi.isShortHistory && kpi.pressureIdx>40)
-    critical.push({t:'d',m:`🔥 +${kpi.pressureIdx}% cette semaine vs ton habitude. Effet "spirale" — ton cerveau s'habitue. Pause de 24h sur le non essentiel.`});
+    critical.push({t:'d',m:t('alert_pressure_high').replace('{n}',kpi.pressureIdx)});
   if(kpi.isEndOfMonth)
-    critical.push({t:'w',m:`🌒 Mode fin de mois actif. La fatigue de décision s'accumule — tes prochains achats coûtent plus cher au cerveau qu'en début de mois.`});
+    critical.push({t:'w',m:t('alert_end_month')});
 
-  // — Pool rotatif (chacune éligible si condition remplie) —
   if(!kpi.isShortHistory && kpi.pressureIdx>20 && kpi.pressureIdx<=40)
-    pool.push({t:'w',m:`⚠️ +${kpi.pressureIdx}% de dépenses cette semaine vs habitude. Pas grave si prévu — sinon, freine doucement.`,prio:2});
+    pool.push({t:'w',m:t('alert_pressure_mid').replace('{n}',kpi.pressureIdx),prio:2});
   if(kpi.exp7>kpi.inc7 && kpi.inc7>0)
-    pool.push({t:'w',m:`📉 Cette semaine: ${fmtFull(kpi.exp7)} sortis vs ${fmtFull(kpi.inc7)} entrés. Tu vis sur la réserve.`,prio:2});
+    pool.push({t:'w',m:t('alert_weekly_deficit').replace('{exp}',fmtFull(kpi.exp7)).replace('{inc}',fmtFull(kpi.inc7)),prio:2});
   if(kpi.evaporationRate>50)
-    pool.push({t:'w',m:`💸 ${kpi.evaporationRate}% de chaque revenu disparaît en 48h. Astuce : vire 20% en épargne dès l'entrée.`,prio:3});
+    pool.push({t:'w',m:t('alert_evaporation').replace('{n}',kpi.evaporationRate),prio:3});
   if(kpi.nightPct>20)
-    pool.push({t:'w',m:`🌙 ${kpi.nightPct}% de tes dépenses après 21h. Cortex fatigué = oui facile. Délai de 12h sur les achats tard.`,prio:3});
+    pool.push({t:'w',m:t('alert_night').replace('{n}',kpi.nightPct),prio:3});
   if(kpi.dopamineIdx>60)
-    pool.push({t:'w',m:`🎯 ${kpi.dopamineIdx}% de tes dépenses = plaisir immédiat. Seulement ${kpi.investIdx}% vers le futur. L'équilibre 50/50 dure plus longtemps.`,prio:3});
+    pool.push({t:'w',m:t('alert_dopamine').replace('{n}',kpi.dopamineIdx).replace('{inv}',kpi.investIdx),prio:3});
   if(kpi.antCount>=10 && kpi.antTotal>=kpi.antThreshold*5)
-    pool.push({t:'i',m:`🐜 Effet Fourmi : ${kpi.antCount} petites dépenses (≤${fmtFull(kpi.antThreshold)}) = <strong>${fmtFull(kpi.antTotal)}</strong> sur ${kpi.dataDays}j. Invisible à l'œil, lourd au cumul.`,prio:3});
-  if(kpi.retention!==null && kpi.retention>=25 && kpi.pressureIdx<=10)
-    pool.push({t:'g',m:`✅ Tu gardes ${kpi.retention}% de ce qui entre. ${kpi.safetyDays===9999?'Tu tiens très longtemps':'Tu tiens '+kpi.safetyDays+'j'} sans nouveau revenu.`,prio:3});
+    pool.push({t:'i',m:t('alert_ant').replace('{count}',kpi.antCount).replace('{thr}',fmtFull(kpi.antThreshold)).replace('{total}',fmtFull(kpi.antTotal)).replace('{days}',kpi.dataDays),prio:3});
+  if(kpi.retention!==null && kpi.retention>=25 && kpi.pressureIdx<=10){
+    const safetyStr=kpi.safetyDays===9999?t('alert_retention_safety_inf'):t('alert_retention_safety_days').replace('{n}',kpi.safetyDays);
+    pool.push({t:'g',m:t('alert_retention').replace('{n}',kpi.retention).replace('{safety}',safetyStr),prio:3});
+  }
   if(!kpi.isShortHistory && kpi.pressureIdx<=-15)
-    pool.push({t:'g',m:`📉 Dépenses ${Math.abs(kpi.pressureIdx)}% sous ta moyenne cette semaine. Profite — c'est le moment où le cerveau accepte une nouvelle automatisation d'épargne.`,prio:3});
-  // Détection licence morale : 7j de bonne rétention puis aujourd'hui ça dérape
+    pool.push({t:'g',m:t('alert_pressure_low').replace('{n}',Math.abs(kpi.pressureIdx)),prio:3});
   if(kpi.retention!==null && kpi.retention>=70 && kpi.exp7>0){
-    const todayExp=txs.filter(t=>t.type==='expense'&&new Date(t.date).toDateString()===new Date().toDateString()).reduce((s,t)=>s+t.amount,0);
+    const todayExp=txs.filter(tx=>tx.type==='expense'&&new Date(tx.date).toDateString()===new Date().toDateString()).reduce((s,tx)=>s+tx.amount,0);
     if(todayExp>kpi.burnRate*1.5)
-      pool.push({t:'w',m:`🪞 Tu as bien tenu cette semaine. Aujourd'hui : ${fmtFull(todayExp)} sortis (${Math.round(todayExp/kpi.burnRate)}× ta moyenne). C'est la "licence morale" — quand on se récompense d'avoir été sage.`,prio:1});
+      pool.push({t:'w',m:t('alert_moral_license').replace('{exp}',fmtFull(todayExp)).replace('{x}',Math.round(todayExp/kpi.burnRate)),prio:1});
   }
 
-  // Rotation : seed = jour de l'année → ordre stable dans la journée mais change demain
   const seed=Math.floor(Date.now()/86400000);
   const shuffled=pool.map((a,i)=>({a,r:((seed+i*31)%97)})).sort((x,y)=>x.a.prio-y.a.prio||x.r-y.r).map(x=>x.a);
-
-  // Max 3 alertes : critiques d'abord, puis 1-2 du pool rotatif
   const out=[...critical];
   for(const a of shuffled){
     if(out.length>=3) break;
@@ -4933,6 +5172,117 @@ async function onbFinish(){
 }
 
 // ════════════════════════════════════════
+// TUTORIAL (first-open walkthrough)
+// ════════════════════════════════════════
+let _tutStep = 0;
+const TUT_STEPS = 4;
+
+function tutNeeded(){
+  return !safeStorage.getItem('app_tutorial_done');
+}
+
+function showTutorial(){
+  _tutStep = 0;
+  const ov = document.createElement('div');
+  ov.id = 'tutOv';
+  ov.innerHTML = tutHTML();
+  document.body.appendChild(ov);
+}
+
+function tutHTML(){
+  const slides = [
+    {icon:t('tut_s1_icon'),title:t('tut_s1_title'),body:t('tut_s1_body'),extra:''},
+    {icon:t('tut_s2_icon'),title:t('tut_s2_title'),body:t('tut_s2_body'),extra:''},
+    {icon:t('tut_s3_icon'),title:t('tut_s3_title'),body:t('tut_s3_body'),extra:''},
+    {icon:t('tut_s4_icon'),title:t('tut_s4_title'),body:t('tut_s4_body'),extra:`
+      <div class="tut-steps">
+        <div class="tut-step">${t('tut_s4_step1')}</div>
+        <div class="tut-step">${t('tut_s4_step2')}</div>
+        <div class="tut-step">${t('tut_s4_step3')}</div>
+      </div>
+      <div class="tut-key-input-wrap">
+        <input id="tutGroqInput" type="text" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+        <button onclick="tutSaveKey()">OK</button>
+      </div>`},
+  ];
+  const slidesHTML = slides.map((s,i)=>`
+    <div class="tut-slide">
+      <div class="tut-icon">${s.icon}</div>
+      <div class="tut-title">${s.title}</div>
+      <div class="tut-body">${s.body}</div>
+      ${s.extra}
+    </div>`).join('');
+  const dots = Array.from({length:TUT_STEPS},(_,i)=>
+    `<div class="tut-dot${i===_tutStep?' active':''}"></div>`).join('');
+  const isLast = _tutStep === TUT_STEPS - 1;
+  const btnNext = isLast
+    ? `<button class="tut-btn-next" onclick="tutFinish()">${t('tut_start')}</button>`
+    : `<button class="tut-btn-next" onclick="tutGoTo(${_tutStep+1})">${t('tut_next')}</button>`;
+  const btnSkip = isLast
+    ? `<button class="tut-btn-skip" onclick="tutFinish()" style="color:var(--mut);font-size:12px">${t('tut_s4_later')}</button>`
+    : `<button class="tut-btn-skip" onclick="tutFinish()">${t('tut_skip')}</button>`;
+  return `
+    <div class="tut-wrap">
+      <div class="tut-slides" id="tutSlides" style="transform:translateX(-${_tutStep*100}%)">
+        ${slidesHTML}
+      </div>
+    </div>
+    <div class="tut-footer">
+      <div class="tut-dots">${dots}</div>
+      <div class="tut-btns">
+        ${btnSkip}
+        ${btnNext}
+      </div>
+    </div>`;
+}
+
+function tutGoTo(step){
+  _tutStep = Math.max(0, Math.min(TUT_STEPS-1, step));
+  const ov = document.getElementById('tutOv');
+  if(!ov) return;
+  ov.innerHTML = tutHTML();
+  // Re-attach swipe listeners
+  tutAttachSwipe();
+}
+
+function tutSaveKey(){
+  const inp = document.getElementById('tutGroqInput');
+  const val = (inp ? inp.value : '').trim();
+  if(val.startsWith('gsk_') && val.length > 20){
+    safeStorage.setItem('groq_api_key', val);
+    try{ dbPut('settings',{key:'groq_api_key',value:val}); }catch(e){}
+    haptic(30);
+    if(inp){ inp.style.border='1px solid var(--grn)'; inp.value=''; inp.placeholder='✅ '+t('groq_saved').replace(/[✅!]/g,'').trim(); }
+    setTimeout(()=>tutFinish(), 900);
+  } else {
+    haptic([20,40,20]);
+    if(inp){ inp.style.border='1px solid var(--red)'; inp.style.animation='shake .3s ease'; }
+  }
+}
+
+function tutFinish(){
+  safeStorage.setItem('app_tutorial_done','1');
+  const ov = document.getElementById('tutOv');
+  if(ov){ ov.style.animation='fo .35s ease forwards'; setTimeout(()=>ov.remove(),340); }
+  try{ updateOnlineStatus(); }catch(e){}
+}
+
+function tutAttachSwipe(){
+  const wrap = document.getElementById('tutOv');
+  if(!wrap) return;
+  let sx=0, sy=0;
+  wrap.addEventListener('touchstart', e=>{sx=e.touches[0].clientX; sy=e.touches[0].clientY;},{passive:true,once:true});
+  wrap.addEventListener('touchend', e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    const dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>40){
+      if(dx<0 && _tutStep<TUT_STEPS-1) tutGoTo(_tutStep+1);
+      else if(dx>0 && _tutStep>0) tutGoTo(_tutStep-1);
+    }
+  },{passive:true,once:true});
+}
+
+// ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
 (async()=>{
@@ -4951,18 +5301,46 @@ async function onbFinish(){
   try{await cloudInit()}catch(e){console.warn('cloudInit',e)}
   try{await render()}catch(e){console.error('initial render',e)}
   setTimeout(()=>{try{cloudUpdateUI()}catch(e){}}, 200);
-  if(onboardingNeeded()){ try{ showOnboarding(); }catch(e){console.warn('onboarding',e)} }
+  // Onboarding langue+devise — priorité 1
+  if(onboardingNeeded()){
+    try{ showOnboarding(); }catch(e){console.warn('onboarding',e)}
+  } else if(tutNeeded()){
+    // Tutorial first-open — shown once after onboarding
+    try{ showTutorial(); tutAttachSwipe(); }catch(e){console.warn('tutorial',e)}
+  }
+  // Online/offline — robuste PWA + APK (WebView)
   try{updateOnlineStatus()}catch(e){}
+  window.addEventListener('online',()=>{
+    try{updateOnlineStatus();haptic(15);}catch(e){}
+    try{if(typeof maybeAutoInsight==='function')maybeAutoInsight();}catch(e){}
+  });
+  window.addEventListener('offline',()=>{
+    try{updateOnlineStatus();haptic([10,40,10]);}catch(e){}
+  });
+  // APK background restore — visibilitychange & pageshow
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){
+      try{updateOnlineStatus();}catch(e){}
+      if(navigator.onLine&&screen==='home'){
+        _lastInsightTime=0;
+        try{maybeAutoInsight();}catch(e){}
+      }
+    }
+  });
+  window.addEventListener('pageshow',e=>{
+    if(e.persisted){try{updateOnlineStatus();}catch(e2){}}
+  });
+  // Notifications
   try{initNotifs()}catch(e){}
   // Background insight refresh every 10 min when online
-  setInterval(()=>{if(navigator.onLine&&screen==='home'){_lastInsightTime=0;maybeAutoInsight()}},600000);
+  setInterval(()=>{if(navigator.onLine&&screen==='home'){_lastInsightTime=0;try{maybeAutoInsight()}catch(e){}}},600000);
 })();
 </script>
 <script>
-// PATCH v4.12.2 — Loader natif APK/PWA, multilingue, polling robuste
+// PATCH v4.13.0 — Loader natif APK/PWA, multilingue, polling robuste
 (function(){
   'use strict';
-  console.log('[LOADER v4.12.2] init');
+  console.log('[LOADER v4.13.0] init');
 
   var L = (function(){
     var raw = '';
@@ -5073,7 +5451,7 @@ async function onbFinish(){
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
-  console.log('[LOADER v4.12.2] armed — lang='+L);
+  console.log('[LOADER v4.13.0] armed — lang='+L);
 })();
 </script>
 </body>

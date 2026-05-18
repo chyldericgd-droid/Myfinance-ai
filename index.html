@@ -463,6 +463,7 @@ body.offline .aifab{filter:grayscale(.6)}
 #tutOv .tut-btns{display:flex;width:100%;gap:10px;max-width:400px}
 #tutOv .tut-btn-skip{flex:0 0 auto;background:none;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:13px 18px;color:var(--mut);font-size:14px;cursor:pointer;font-family:var(--font)}
 #tutOv .tut-btn-next{flex:1;background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:16px;padding:15px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;font-family:var(--font);box-shadow:0 6px 20px -4px var(--acc-glow)}
+#tutOv .tut-label{font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px}
 #onbBox{
   width:100%;max-width:600px;
   background:linear-gradient(180deg,var(--surf2),var(--surf));
@@ -5118,79 +5119,57 @@ function gdriveRestore(){ cloudRestore(); }
 // ════════════════════════════════════════
 // FIRST-LAUNCH ONBOARDING (lang + currency)
 // ════════════════════════════════════════
+// WELCOME FLOW — onboarding + tutorial fusionnés
+// Slide 0 : Langue + Devise
+// Slides 1-4 : Tutorial dans la langue choisie
+// ════════════════════════════════════════
 const ONB_CURRENCIES=['XOF','XAF','EUR','USD','GBP','CAD','MAD','NGN'];
 let _onbLang=null,_onbCur=null;
+let _wStep=0;
+const W_STEPS=5; // 0=lang/cur, 1-4=tutorial
+
 function onboardingNeeded(){
   return !safeStorage.getItem('app_onboarded');
 }
-function showOnboarding(){
-  _onbLang = safeStorage.getItem('app_lang') || _lang || 'fr';
-  _onbCur  = safeStorage.getItem('app_currency') || detectCurrency() || 'XOF';
-  const ov=document.createElement('div');
-  ov.id='onbOv';
-  ov.innerHTML = onbHTML();
-  document.body.appendChild(ov);
-  ov.addEventListener('click', e=>{ if(e.target===ov){} });
-}
-function onbHTML(){
-  const langBtns = LANG_OPTIONS.map(l=>`<button class="opt ${_onbLang===l.code?'sel':''}" onclick="onbPickLang('${l.code}')">${l.label}</button>`).join('');
-  const curBtns  = ONB_CURRENCIES.map(c=>`<button class="curOpt ${_onbCur===c?'sel':''}" onclick="onbPickCur('${c}')">${c}</button>`).join('');
-  return `<div id="onbBox" role="dialog" aria-modal="true">
-    <h2>${t('onb_title')}</h2>
-    <div class="sub">${t('onb_sub')}</div>
-    <div class="label">${t('onb_lang')}</div>
-    <div class="opts">${langBtns}</div>
-    <div class="label">${t('onb_choose_cur')}</div>
-    <div class="curRow">${curBtns}</div>
-    <input class="fi curInp" id="onbCurInp" placeholder="${t('onb_currency_other')}" value="${ONB_CURRENCIES.includes(_onbCur)?'':_onbCur}" oninput="onbCustomCur(this.value)">
-    <button class="btn startBtn" onclick="onbFinish()">${t('onb_start')} →</button>
-  </div>`;
-}
-function onbRender(){
-  const ov=document.getElementById('onbOv');
-  if(ov) ov.innerHTML=onbHTML();
-}
-function onbPickLang(c){
-  _onbLang=c;
-  setLang(c);
-  onbRender();
-}
-function onbPickCur(c){ _onbCur=c; onbRender(); }
-function onbCustomCur(v){
-  v=(v||'').trim().toUpperCase();
-  if(v) _onbCur=v;
-}
-async function onbFinish(){
-  // Persist choices
-  setLang(_onbLang);
-  safeStorage.setItem('app_currency', _onbCur);
-  try{ await dbPut('settings',{key:'lang', value:_onbLang}); }catch(e){}
-  try{ await dbPut('settings',{key:'currency', value:_onbCur}); settings.currency=_onbCur; }catch(e){}
-  safeStorage.setItem('app_onboarded','1');
-  const ov=document.getElementById('onbOv'); if(ov) ov.remove();
-  try{ await render(); }catch(e){}
-}
-
-// ════════════════════════════════════════
-// TUTORIAL (first-open walkthrough)
-// ════════════════════════════════════════
-let _tutStep = 0;
-const TUT_STEPS = 4;
-
 function tutNeeded(){
   return !safeStorage.getItem('app_tutorial_done');
 }
-
-function showTutorial(){
-  _tutStep = 0;
-  const ov = document.createElement('div');
-  ov.id = 'tutOv';
-  ov.innerHTML = tutHTML();
-  document.body.appendChild(ov);
+function welcomeNeeded(){
+  return onboardingNeeded() || tutNeeded();
 }
 
-function tutHTML(){
-  const slides = [
+function showWelcome(){
+  _onbLang = safeStorage.getItem('app_lang') || _lang || 'fr';
+  _onbCur  = safeStorage.getItem('app_currency') || detectCurrency() || 'XOF';
+  // Si onboarding déjà fait, sauter directement slide 1
+  _wStep = onboardingNeeded() ? 0 : 1;
+  const ov = document.createElement('div');
+  ov.id = 'tutOv';
+  ov.innerHTML = welcomeHTML();
+  document.body.appendChild(ov);
+  wAttachSwipe();
+}
+
+function welcomeHTML(){
+  // Slide 0 : Langue + Devise
+  const langBtns = LANG_OPTIONS.map(l=>`<button class="opt ${_onbLang===l.code?'sel':''}" onclick="wPickLang('${l.code}')">${l.label}</button>`).join('');
+  const curBtns  = ONB_CURRENCIES.map(c=>`<button class="curOpt ${_onbCur===c?'sel':''}" onclick="wPickCur('${c}')">${c}</button>`).join('');
+  const slide0 = `
+    <div class="tut-slide" style="justify-content:flex-start;padding-top:max(48px,env(safe-area-inset-top,20px))">
+      <div class="tut-icon">👋</div>
+      <div class="tut-title">${t('onb_title')}</div>
+      <div class="tut-body" style="margin-bottom:0">${t('onb_sub')}</div>
+      <div style="width:100%;max-width:340px;text-align:left">
+        <div class="tut-label">${t('onb_lang')}</div>
+        <div class="opts">${langBtns}</div>
+        <div class="tut-label" style="margin-top:16px">${t('onb_choose_cur')}</div>
+        <div class="curRow">${curBtns}</div>
+        <input class="fi" id="wCurInp" placeholder="${t('onb_currency_other')}" value="${ONB_CURRENCIES.includes(_onbCur)?'':_onbCur}" oninput="wCustomCur(this.value)" style="margin-top:8px">
+      </div>
+    </div>`;
+
+  // Slides 1-4 : tutorial
+  const tutSlides = [
     {icon:t('tut_s1_icon'),title:t('tut_s1_title'),body:t('tut_s1_body'),extra:''},
     {icon:t('tut_s2_icon'),title:t('tut_s2_title'),body:t('tut_s2_body'),extra:''},
     {icon:t('tut_s3_icon'),title:t('tut_s3_title'),body:t('tut_s3_body'),extra:''},
@@ -5205,44 +5184,82 @@ function tutHTML(){
         <button onclick="tutSaveKey()">OK</button>
       </div>`},
   ];
-  const slidesHTML = slides.map((s,i)=>`
+  const tutHTML = tutSlides.map(s=>`
     <div class="tut-slide">
       <div class="tut-icon">${s.icon}</div>
       <div class="tut-title">${s.title}</div>
       <div class="tut-body">${s.body}</div>
       ${s.extra}
     </div>`).join('');
-  const dots = Array.from({length:TUT_STEPS},(_,i)=>
-    `<div class="tut-dot${i===_tutStep?' active':''}"></div>`).join('');
-  const isLast = _tutStep === TUT_STEPS - 1;
-  const btnNext = isLast
-    ? `<button class="tut-btn-next" onclick="tutFinish()">${t('tut_start')}</button>`
-    : `<button class="tut-btn-next" onclick="tutGoTo(${_tutStep+1})">${t('tut_next')}</button>`;
-  const btnSkip = isLast
-    ? `<button class="tut-btn-skip" onclick="tutFinish()" style="color:var(--mut);font-size:12px">${t('tut_s4_later')}</button>`
-    : `<button class="tut-btn-skip" onclick="tutFinish()">${t('tut_skip')}</button>`;
+
+  const allSlides = slide0 + tutHTML;
+  const offset = _wStep * 100;
+
+  // Dots — only tutorial slides (1-4) show dots, slide 0 hides them
+  const showDots = _wStep > 0;
+  const dots = showDots
+    ? Array.from({length:4},(_,i)=>`<div class="tut-dot${i===(_wStep-1)?' active':''}"></div>`).join('')
+    : '';
+
+  const isFirst = _wStep === 0;
+  const isLast  = _wStep === W_STEPS - 1;
+
+  let btnNext, btnSkip;
+  if(isFirst){
+    btnNext = `<button class="tut-btn-next" onclick="wNext()">${t('onb_start')} →</button>`;
+    btnSkip = ''; // pas de skip sur slide langue/devise
+  } else if(isLast){
+    btnNext = `<button class="tut-btn-next" onclick="wFinish()">${t('tut_start')}</button>`;
+    btnSkip = `<button class="tut-btn-skip" onclick="wFinish()" style="font-size:12px">${t('tut_s4_later')}</button>`;
+  } else {
+    btnNext = `<button class="tut-btn-next" onclick="wNext()">${t('tut_next')}</button>`;
+    btnSkip = `<button class="tut-btn-skip" onclick="wFinish()">${t('tut_skip')}</button>`;
+  }
+
   return `
     <div class="tut-wrap">
-      <div class="tut-slides" id="tutSlides" style="transform:translateX(-${_tutStep*100}%)">
-        ${slidesHTML}
+      <div class="tut-slides" id="wSlides" style="transform:translateX(-${offset}%)">
+        ${allSlides}
       </div>
     </div>
     <div class="tut-footer">
       <div class="tut-dots">${dots}</div>
-      <div class="tut-btns">
+      <div class="tut-btns" style="${isFirst?'justify-content:center':''}">
         ${btnSkip}
         ${btnNext}
       </div>
     </div>`;
 }
 
-function tutGoTo(step){
-  _tutStep = Math.max(0, Math.min(TUT_STEPS-1, step));
-  const ov = document.getElementById('tutOv');
-  if(!ov) return;
-  ov.innerHTML = tutHTML();
-  // Re-attach swipe listeners
-  tutAttachSwipe();
+function wPickLang(c){
+  _onbLang=c;
+  setLang(c);
+  const ov=document.getElementById('tutOv');
+  if(ov){ ov.innerHTML=welcomeHTML(); wAttachSwipe(); }
+}
+function wPickCur(c){
+  _onbCur=c;
+  const ov=document.getElementById('tutOv');
+  if(ov){ ov.innerHTML=welcomeHTML(); wAttachSwipe(); }
+}
+function wCustomCur(v){
+  v=(v||'').trim().toUpperCase();
+  if(v) _onbCur=v;
+}
+
+async function wNext(){
+  // Si on quitte le slide 0, persister langue+devise
+  if(_wStep===0){
+    setLang(_onbLang);
+    safeStorage.setItem('app_currency',_onbCur);
+    try{ await dbPut('settings',{key:'lang',value:_onbLang}); }catch(e){}
+    try{ await dbPut('settings',{key:'currency',value:_onbCur}); settings.currency=_onbCur; }catch(e){}
+    safeStorage.setItem('app_onboarded','1');
+    try{ await render(); }catch(e){}
+  }
+  _wStep = Math.min(W_STEPS-1, _wStep+1);
+  const ov=document.getElementById('tutOv');
+  if(ov){ ov.innerHTML=welcomeHTML(); wAttachSwipe(); }
 }
 
 function tutSaveKey(){
@@ -5253,21 +5270,29 @@ function tutSaveKey(){
     try{ dbPut('settings',{key:'groq_api_key',value:val}); }catch(e){}
     haptic(30);
     if(inp){ inp.style.border='1px solid var(--grn)'; inp.value=''; inp.placeholder='✅ '+t('groq_saved').replace(/[✅!]/g,'').trim(); }
-    setTimeout(()=>tutFinish(), 900);
+    setTimeout(()=>wFinish(), 900);
   } else {
     haptic([20,40,20]);
-    if(inp){ inp.style.border='1px solid var(--red)'; inp.style.animation='shake .3s ease'; }
+    if(inp){ inp.style.border='1px solid var(--red)'; }
   }
 }
 
-function tutFinish(){
+async function wFinish(){
+  safeStorage.setItem('app_onboarded','1');
   safeStorage.setItem('app_tutorial_done','1');
-  const ov = document.getElementById('tutOv');
+  const ov=document.getElementById('tutOv');
   if(ov){ ov.style.animation='fo .35s ease forwards'; setTimeout(()=>ov.remove(),340); }
   try{ updateOnlineStatus(); }catch(e){}
+  try{ await render(); }catch(e){}
 }
 
-function tutAttachSwipe(){
+// Legacy aliases (au cas où appelés ailleurs)
+function showOnboarding(){ showWelcome(); }
+function showTutorial(){ showWelcome(); }
+async function onbFinish(){ await wFinish(); }
+function tutFinish(){ wFinish(); }
+
+function wAttachSwipe(){
   const wrap = document.getElementById('tutOv');
   if(!wrap) return;
   let sx=0, sy=0;
@@ -5276,11 +5301,14 @@ function tutAttachSwipe(){
     const dx=e.changedTouches[0].clientX-sx;
     const dy=e.changedTouches[0].clientY-sy;
     if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>40){
-      if(dx<0 && _tutStep<TUT_STEPS-1) tutGoTo(_tutStep+1);
-      else if(dx>0 && _tutStep>0) tutGoTo(_tutStep-1);
+      if(dx<0 && _wStep<W_STEPS-1) wNext();
+      else if(dx>0 && _wStep>0){ _wStep--; const ov=document.getElementById('tutOv'); if(ov){ov.innerHTML=welcomeHTML();wAttachSwipe();} }
     }
   },{passive:true,once:true});
 }
+
+// Alias swipe pour rétrocompat
+function tutAttachSwipe(){ wAttachSwipe(); }
 
 // ════════════════════════════════════════
 // INIT
@@ -5301,12 +5329,9 @@ function tutAttachSwipe(){
   try{await cloudInit()}catch(e){console.warn('cloudInit',e)}
   try{await render()}catch(e){console.error('initial render',e)}
   setTimeout(()=>{try{cloudUpdateUI()}catch(e){}}, 200);
-  // Onboarding langue+devise — priorité 1
-  if(onboardingNeeded()){
-    try{ showOnboarding(); }catch(e){console.warn('onboarding',e)}
-  } else if(tutNeeded()){
-    // Tutorial first-open — shown once after onboarding
-    try{ showTutorial(); tutAttachSwipe(); }catch(e){console.warn('tutorial',e)}
+  // Onboarding + Tutorial fusionnés — un seul flow
+  if(welcomeNeeded()){
+    try{ showWelcome(); wAttachSwipe(); }catch(e){console.warn('welcome',e)}
   }
   // Online/offline — robuste PWA + APK (WebView)
   try{updateOnlineStatus()}catch(e){}

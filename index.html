@@ -728,9 +728,9 @@ const I18N={
     add_save:"+ Épargner",
     late_short:"retard",
     no_goals_msg:"Aucun objectif.",
-    goal_destiny_imp:"${t('goal_destiny_imp').replace('⛔ ','')}",
-    goal_destiny_reach:"${t('goal_destiny_reach').replace('🎯 ','')}",
-    goal_milestone:"${t('goal_milestone').replace('📅 ','')}",
+    goal_destiny_imp:"⛔ Compteur Destin : impossible au rythme actuel — burn rate > revenus",
+    goal_destiny_reach:"🎯 Compteur Destin : atteint le",
+    goal_milestone:"📅 Jalon mensuel",
     goal_late_full:"⚠️ En retard — il te faut {n}j au rythme actuel",
     goal_track_full:"✅ Sur la trajectoire — objectif dans ~{n}j",
     deadline:"deadline",
@@ -739,6 +739,8 @@ const I18N={
     ai_loading:"Analyse en cours...",
     no_tx_first:"📝 Aucune transaction encore. Tape le <strong>+</strong> pour saisir ta première — sans données je ne peux rien analyser.",
     all_good:"✅ Rien d'urgent. Burn rate {br}/j, safety {sd}j. Profites-en pour avancer ton objectif.",
+    alert_silence_body:"🤫 Silence depuis {n} jours. Pas de données = pas d'analyse possible. C'est souvent le signe d'une dépense qu'on préfère ne pas voir. Reprends la saisie aujourd'hui.",
+    alert_silence_savings:"🛡️ Ton épargne couvre ~{n}j au rythme passé ({br}/j). Elle ne doit pas devenir ton excuse pour ne plus saisir.",
     home_quick_q:"Questions rapides",
     quick_ai_title:"✨ Assistant IA Rapide",
     quick_ai_sub:"Pose ta question — réponse instantanée basée sur tes données.",
@@ -886,11 +888,29 @@ const I18N={
     tx_filter_all:'Tout',tx_filter_inc:'Revenus',tx_filter_exp:'Dépenses',tx_filter_tr:'Transferts',
     no_tx_day:'Aucune transaction ce jour.',no_tx_hour:'Aucune transaction sur cette tranche.',
     no_data_period:'Aucune donnée pour cette période. Saisis tes mouvements.',
+    analyse_silence:'🤫 Données en pause depuis {n} jours. L\'analyse comportementale est suspendue. Reprends la saisie pour réactiver les indicateurs.',
+    analyse_exp_up:'🔥 Dépenses en hausse de <strong>+{pct}%</strong> vs {prev}. Le cerveau s\'habitue à dépenser plus — c\'est l\'effet d\'inertie.',
+    analyse_exp_down:'✅ Dépenses en baisse de <strong>{pct}%</strong> vs {prev}. Bonne maîtrise.',
+    analyse_exp_stable:'Rythme stable vs {prev} ({pct}%).',
+    analyse_exp_only:'{amt} dépensés {p}.',
+    analyse_top_cat:'Top catégorie : {icon} <strong>{name}</strong> ({amt}).',
     an_no_cat:'Aucune dépense cette période.',
     an_pic:'Pic',an_solde:'Solde',an_comparison:'Comparaison',
     groq_no_key:'⚠️ Aucune clé — IA désactivée',groq_step3:'3. Colle la clé ci-dessous',
     groq_key_ph:'gsk_...',groq_delete_confirm:'Supprimer la clé Groq?',
     notif_daily:'✋ Aucune transaction aujourd\'hui. Mets à jour.',
+    notif_silence_title:'🤫 Finance AI — Silence détecté',
+    notif_silence_body:'Aucune saisie depuis {n}j. Le silence masque souvent une dépense qu\'on évite de voir. Reprends le suivi.',
+    notif_safety_title:'🚨 Réserve critique',
+    notif_safety_body:'{n} jours de réserve au rythme passé. Agis maintenant.',
+    notif_pressure_title:'🔥 Surchauffe détectée',
+    notif_pressure_body:'Dépenses cette semaine +{n}% vs habitude. Contrôle immédiat.',
+    notif_risk_title:'🌙 Fenêtre de risque',
+    notif_risk_goal:'Zone de risque approche. Rappelle-toi "{g}" — il manque {amt}.',
+    notif_risk_body:'Dépenses nocturnes = {n}% du total. Reste vigilant ce soir.',
+    notif_goal_late:'Il te faut {need}j au rythme actuel mais la deadline est dans {dl}j.',
+    notif_coherence_title:'📊 Bilan du jour',
+    notif_coherence_body:'{amt} en impulsions aujourd\'hui = {d}j de retard sur "{g}".',
     quick_ai_ph:"Ex: J'ai trop dépensé ?",chat_ph:'Analyse mes dépenses...',
     err_back:'Retour accueil',inc_exp_ph:'ex: 5000',hourly_ph:'ex: 500',ant_ph:'défaut 200',
     drive_no_backup:'Aucune sauvegarde trouvée sur Drive.',
@@ -1136,6 +1156,8 @@ const I18N={
     ai_loading:"Analyzing...",
     no_tx_first:"📝 No transactions yet. Tap <strong>+</strong> to add your first — without data I cannot analyze anything.",
     all_good:"✅ Nothing urgent. Burn rate {br}/d, safety {sd}d. Use this time to push your goal.",
+    alert_silence_body:"🤫 Silence for {n} days. No data = no analysis possible. This often signals a spend you'd rather not see. Log something today.",
+    alert_silence_savings:"🛡️ Your savings cover ~{n}d at your past pace ({br}/d). Don't let this become an excuse to stop tracking.",
     home_quick_q:"Quick questions",
     quick_ai_title:"✨ Quick AI Assistant",
     quick_ai_sub:"Ask a question — instant answer based on your data.",
@@ -1267,11 +1289,29 @@ const I18N={
     tx_filter_all:'All',tx_filter_inc:'Income',tx_filter_exp:'Expenses',tx_filter_tr:'Transfers',
     no_tx_day:'No transactions this day.',no_tx_hour:'No transactions in this range.',
     no_data_period:'No data for this period. Add your transactions.',
+    analyse_silence:'🤫 Data on pause for {n} days. Behavioral analysis is suspended. Log something to reactivate indicators.',
+    analyse_exp_up:'🔥 Expenses up <strong>+{pct}%</strong> vs {prev}. The brain normalizes higher spending — inertia effect.',
+    analyse_exp_down:'✅ Expenses down <strong>{pct}%</strong> vs {prev}. Good control.',
+    analyse_exp_stable:'Stable pace vs {prev} ({pct}%).',
+    analyse_exp_only:'{amt} spent {p}.',
+    analyse_top_cat:'Top category: {icon} <strong>{name}</strong> ({amt}).',
     an_no_cat:'No expenses this period.',
     an_pic:'Peak',an_solde:'Balance',an_comparison:'Comparison',
     groq_no_key:'⚠️ No key — AI disabled',groq_step3:'3. Paste the key below',
     groq_key_ph:'gsk_...',groq_delete_confirm:'Delete Groq key?',
     notif_daily:'✋ No transaction today. Update now.',
+    notif_silence_title:'🤫 Finance AI — Silence detected',
+    notif_silence_body:'No entry for {n}d. Silence often hides a spend you\'d rather not see. Log something.',
+    notif_safety_title:'🚨 Critical reserve',
+    notif_safety_body:'{n} days of reserve at past pace. Act now.',
+    notif_pressure_title:'🔥 Overheat detected',
+    notif_pressure_body:'Spending this week +{n}% vs habit. Control it now.',
+    notif_risk_title:'🌙 Risk window',
+    notif_risk_goal:'Risk zone approaching. Remember "{g}" — {amt} still missing.',
+    notif_risk_body:'Night spending = {n}% of total. Stay vigilant tonight.',
+    notif_goal_late:'You need {need}d at current pace but deadline is in {dl}d.',
+    notif_coherence_title:'📊 Daily debrief',
+    notif_coherence_body:'{amt} in impulse buys = {d}d delay on "{g}".',
     quick_ai_ph:'e.g. Did I overspend?',chat_ph:'Analyze my spending...',
     err_back:'Back home',inc_exp_ph:'e.g. 5000',hourly_ph:'e.g. 500',ant_ph:'default 200',
     drive_no_backup:'No backup found on Drive.',
@@ -1523,6 +1563,8 @@ const I18N={
     ai_loading:"Analizando...",
     no_tx_first:"📝 Aún no hay transacciones. Pulsa <strong>+</strong> para añadir la primera — sin datos no puedo analizar.",
     all_good:"✅ Nada urgente. Burn rate {br}/d, seguridad {sd}d. Aprovecha para avanzar en tu objetivo.",
+    alert_silence_body:"🤫 Silencio desde hace {n} días. Sin datos = sin análisis posible. Suele señalar un gasto que prefieres no ver. Registra algo hoy.",
+    alert_silence_savings:"🛡️ Tus ahorros cubren ~{n}d al ritmo pasado ({br}/d). No lo uses como excusa para dejar de registrar.",
     home_quick_q:"Preguntas rápidas",
     quick_ai_title:"✨ Asistente IA Rápido",
     quick_ai_sub:"Haz una pregunta — respuesta instantánea basada en tus datos.",
@@ -1650,10 +1692,28 @@ const I18N={
     tx_filter_all:'Todo',tx_filter_inc:'Ingresos',tx_filter_exp:'Gastos',tx_filter_tr:'Transferencias',
     no_tx_day:'Sin transacciones este día.',no_tx_hour:'Sin transacciones en este rango.',
     no_data_period:'Sin datos para este período.',
+    analyse_silence:'🤫 Datos en pausa desde hace {n} días. El análisis conductual está suspendido. Registra algo para reactivar los indicadores.',
+    analyse_exp_up:'🔥 Gastos +<strong>{pct}%</strong> vs {prev}. El cerebro normaliza gastar más — efecto inercia.',
+    analyse_exp_down:'✅ Gastos <strong>{pct}%</strong> menos vs {prev}. Buen control.',
+    analyse_exp_stable:'Ritmo estable vs {prev} ({pct}%).',
+    analyse_exp_only:'{amt} gastados {p}.',
+    analyse_top_cat:'Top categoría: {icon} <strong>{name}</strong> ({amt}).',
     an_no_cat:'Sin gastos este período.',an_pic:'Pico',an_solde:'Saldo',an_comparison:'Comparación',
     groq_no_key:'⚠️ Sin clave — IA desactivada',groq_step3:'3. Pega la clave abajo',
     groq_key_ph:'gsk_...',groq_delete_confirm:'¿Eliminar clave Groq?',
     notif_daily:'✋ Sin transacciones hoy. Actualiza.',
+    notif_silence_title:'🤫 Finance AI — Silencio detectado',
+    notif_silence_body:'Sin registro hace {n}d. El silencio suele ocultar un gasto que evitas ver. Registra algo.',
+    notif_safety_title:'🚨 Reserva crítica',
+    notif_safety_body:'{n} días de reserva al ritmo pasado. Actúa ahora.',
+    notif_pressure_title:'🔥 Sobrecalentamiento',
+    notif_pressure_body:'Gastos esta semana +{n}% vs hábito. Control inmediato.',
+    notif_risk_title:'🌙 Ventana de riesgo',
+    notif_risk_goal:'Zona de riesgo próxima. Recuerda "{g}" — faltan {amt}.',
+    notif_risk_body:'Gastos nocturnos = {n}% del total. Mantente alerta esta noche.',
+    notif_goal_late:'Necesitas {need}d al ritmo actual pero la fecha límite es en {dl}d.',
+    notif_coherence_title:'📊 Balance del día',
+    notif_coherence_body:'{amt} en impulsos = {d}d de retraso en "{g}".',
     quick_ai_ph:'ej: ¿Gasté demasiado?',chat_ph:'Analiza mis gastos...',
     err_back:'Volver',inc_exp_ph:'ej: 5000',hourly_ph:'ej: 500',ant_ph:'por defecto 200',
     drive_no_backup:'Sin respaldo en Drive.',delete_key_label:'Eliminar clave',
@@ -1901,6 +1961,8 @@ const I18N={
     ai_loading:"A analisar...",
     no_tx_first:"📝 Ainda sem transações. Toca em <strong>+</strong> para registar a primeira — sem dados não posso analisar.",
     all_good:"✅ Nada urgente. Burn rate {br}/d, segurança {sd}d. Aproveita para avançar no teu objetivo.",
+    alert_silence_body:"🤫 Silêncio há {n} dias. Sem dados = sem análise possível. Costuma sinalizar uma despesa que preferes não ver. Regista algo hoje.",
+    alert_silence_savings:"🛡️ A tua poupança cobre ~{n}d ao ritmo passado ({br}/d). Não uses isso como desculpa para parar de registar.",
     home_quick_q:"Perguntas rápidas",
     quick_ai_title:"✨ Assistente IA Rápido",
     quick_ai_sub:"Faz uma pergunta — resposta instantânea com base nos teus dados.",
@@ -2028,10 +2090,28 @@ const I18N={
     tx_filter_all:'Tudo',tx_filter_inc:'Receitas',tx_filter_exp:'Despesas',tx_filter_tr:'Transferências',
     no_tx_day:'Sem transações neste dia.',no_tx_hour:'Sem transações neste intervalo.',
     no_data_period:'Sem dados para este período.',
+    analyse_silence:'🤫 Dados em pausa há {n} dias. A análise comportamental está suspensa. Regista algo para reativar os indicadores.',
+    analyse_exp_up:'🔥 Despesas +<strong>{pct}%</strong> vs {prev}. O cérebro normaliza gastar mais — efeito inércia.',
+    analyse_exp_down:'✅ Despesas <strong>{pct}%</strong> abaixo vs {prev}. Bom controlo.',
+    analyse_exp_stable:'Ritmo estável vs {prev} ({pct}%).',
+    analyse_exp_only:'{amt} gastos {p}.',
+    analyse_top_cat:'Top categoria: {icon} <strong>{name}</strong> ({amt}).',
     an_no_cat:'Sem despesas neste período.',an_pic:'Pico',an_solde:'Saldo',an_comparison:'Comparação',
     groq_no_key:'⚠️ Sem chave — IA desativada',groq_step3:'3. Cola a chave abaixo',
     groq_key_ph:'gsk_...',groq_delete_confirm:'Eliminar chave Groq?',
     notif_daily:'✋ Sem transações hoje. Atualiza.',
+    notif_silence_title:'🤫 Finance AI — Silêncio detetado',
+    notif_silence_body:'Sem registo há {n}d. O silêncio esconde muitas vezes uma despesa que preferes não ver. Regista algo.',
+    notif_safety_title:'🚨 Reserva crítica',
+    notif_safety_body:'{n} dias de reserva ao ritmo passado. Age já.',
+    notif_pressure_title:'🔥 Sobreaquecimento',
+    notif_pressure_body:'Despesas esta semana +{n}% vs hábito. Controla já.',
+    notif_risk_title:'🌙 Janela de risco',
+    notif_risk_goal:'Zona de risco próxima. Lembra-te de "{g}" — faltam {amt}.',
+    notif_risk_body:'Despesas noturnas = {n}% do total. Mantém-te alerta esta noite.',
+    notif_goal_late:'Precisas de {need}d ao ritmo atual mas o prazo é em {dl}d.',
+    notif_coherence_title:'📊 Balanço do dia',
+    notif_coherence_body:'{amt} em impulsos = {d}d de atraso em "{g}".',
     quick_ai_ph:'ex: Gastei demais?',chat_ph:'Analisa os meus gastos...',
     err_back:'Voltar',inc_exp_ph:'ex: 5000',hourly_ph:'ex: 500',ant_ph:'padrão 200',
     drive_no_backup:'Sem backup no Drive.',delete_key_label:'Eliminar chave',
@@ -2312,6 +2392,14 @@ function computeKPIs(){
   const isShortHistory=dataDays<14;
   const win30=isShortHistory?dataDays:30;
   const win7 =Math.min(7,dataDays);
+
+  // ── DÉTECTION DU SILENCE ─────────────────────────────────────────────────
+  const sortedAll=[...txs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const derniereTx=sortedAll.length?new Date(sortedAll[0].date):null;
+  const joursSansSaisie=derniereTx?Math.floor((now-derniereTx)/86400000):null;
+  // Silence = aucune saisie depuis 4j ou plus (comportement d'évitement probable)
+  const isSilent=txs.length>0 && joursSansSaisie!==null && joursSansSaisie>=4;
+
   // ── Fenêtres glissantes ──────────────────
   const w7 =txsInWindow(win7);
   const w30=txsInWindow(win30);
@@ -2326,27 +2414,38 @@ function computeKPIs(){
   const savingsBalance=accs.filter(a=>a.type==='savings').reduce((s,a)=>s+a.balance,0);
   const balance=activeBalance;
 
-  // ── Burn rate lissé — fenêtre adaptative ─────────────
-  // "Si rien n'entre demain, tu tiens X jours."
-  const burnRate=exp30/win30;   // moyenne journalière sur la fenêtre disponible
+  // ── Burn rate lissé — ADAPTATIF au silence ──────────────────────────────
+  // Si silence prolongé (≥4j), le burn rate est mis à 0 : l'utilisateur ne saisit plus,
+  // on ne peut pas extrapoler une consommation journalière fictive.
+  // On conserve le burnRateHistorique pour les Safety Days "avec épargne".
+  const burnRateHistorique=win30>0&&exp30>0?exp30/win30:0;
+  const burnRate=isSilent?0:burnRateHistorique;
+
   // ── Revenus attendus (Cushion prévisionnel) ─────────
   const expectedIncome7d=parseFloat(settings.expectedIncome7d)||0;
-  const safetyDays=burnRate>0?Math.floor(balance/burnRate):9999;
-  const safetyDaysWithSavings=burnRate>0?Math.floor((balance+savingsBalance+expectedIncome7d)/burnRate):9999;
+  // Safety days : si burnRate=0 (silence) et capital>0, on affiche ∞ pour le capital
+  // mais on utilise burnRateHistorique pour calculer les jours avec épargne
+  const safetyDays=burnRate>0?Math.floor(balance/burnRate):(balance>0?9999:0);
+  const safetyDaysWithSavings=burnRateHistorique>0
+    ?Math.floor((balance+savingsBalance+expectedIncome7d)/burnRateHistorique)
+    :(balance+savingsBalance>0?9999:0);
 
   // ── Taux de Rétention — fenêtre adaptative ──
   const retention=inc30>0?Math.max(0,Math.round(((inc30-exp30)/inc30)*100)):null;
 
-  // ── Indice de Pression — désactivé si historique court ────
+  // ── Indice de Pression — désactivé si historique court OU silence ──────
+  // En silence, afficher -100% (0 dépenses / habitude normale) est trompeur.
+  // On le passe en mode "données insuffisantes" = null.
   let pressureIdx=0;
-  if(!isShortHistory){
+  let pressureDataOK=false;
+  if(!isShortHistory && !isSilent){
     const dailyAvg30=exp30/win30;
     const dailyAvg7 =exp7/win7;
     pressureIdx=dailyAvg30>0?Math.round(((dailyAvg7-dailyAvg30)/dailyAvg30)*100):0;
+    pressureDataOK=true;
   }
 
   // ── Vélocité post-revenu ─────────────────
-  // Dans les 48h après une entrée d'argent, combien est déjà parti ?
   let evaporationRate=0;
   const incomeEvents=txs.filter(t=>t.type==='income').slice(0,5);
   if(incomeEvents.length){
@@ -2359,8 +2458,6 @@ function computeKPIs(){
   }
 
   // ── Dopamine Index ───────────────────────
-  // Ratio dépenses impulsion (loisirs/resto/imprévus/vêtements) vs investissement (tech/études)
-  // 'food' retiré du défaut — manger n'est pas une impulsion sauf snack/livraison
   const IMPULSE_CATS=['leisure','clothes','unforeseen','other_exp'];
   const FOOD_IMPULSE_KEYWORDS=/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon/i;
   const isFoodImpulse=t=>t.categoryId==='food' && t.note && FOOD_IMPULSE_KEYWORDS.test(t.note);
@@ -2369,7 +2466,7 @@ function computeKPIs(){
   const investSpend=w30.filter(t=>t.type==='expense'&&INVEST_CATS.includes(t.categoryId)).reduce((s,t)=>s+t.amount,0);
   const dopamineIdx=exp30>0?Math.round((impulseSpend/exp30)*100):0;
   const investIdx  =exp30>0?Math.round((investSpend/exp30)*100):0;
-  // ── Effet Fourmi — petites tx <200 cumulées 30j ──
+  // ── Effet Fourmi — petites tx <seuil cumulées 30j ──
   const ANT_THRESHOLD=parseFloat(settings.antThreshold)||200;
   const antTotal=w30.filter(t=>t.type==='expense'&&t.amount<=ANT_THRESHOLD).reduce((s,t)=>s+t.amount,0);
   const antCount=w30.filter(t=>t.type==='expense'&&t.amount<=ANT_THRESHOLD).length;
@@ -2378,7 +2475,6 @@ function computeKPIs(){
   const isEndOfMonth=(dim-now.getDate())<=4;
 
   // ── Empreinte chrono (dépenses nocturnes) ─
-  // Transactions entre 21h et 5h = fatigue cognitive / compensation
   const nightTxs=w30.filter(t=>{const h=new Date(t.date).getHours();return t.type==='expense'&&(h>=21||h<5)});
   const nightSpend=nightTxs.reduce((s,t)=>s+t.amount,0);
   const nightPct=exp30>0?Math.round((nightSpend/exp30)*100):0;
@@ -2389,64 +2485,61 @@ function computeKPIs(){
   const topCatId=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a])[0];
   const topCat=topCatId?catById(topCatId):null;
 
-  // ── Compatibilité rétrograde (écrans qui lisent income/expense/discipline) ──
+  // ── Compatibilité rétrograde ──
   const mt=monthTxs();
   const income=mt.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense=mt.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const daysPassed=Math.max(1,now.getDate());
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   const daysLeft=daysInMonth-daysPassed;
-  const projExp=burnRate*daysInMonth;
+  const projExp=burnRateHistorique*daysInMonth;
   const projDelta=income-projExp;
-  // Discipline = Rétention sur 30j (ou score basique si pas de revenu)
-  const discipline=retention!==null?Math.min(100,Math.max(0,30+retention)):50;
-  const stability=50; // gardé pour compatibilité, non utilisé dans les nouvelles alertes
+  // Discipline: en silence, on ne récompense pas l'absence de saisie
+  const discipline=isSilent?Math.max(10,retention!==null?Math.min(60,retention):30)
+    :retention!==null?Math.min(100,Math.max(0,30+retention)):50;
+  const stability=50;
 
   // ── SCORE DE FRICTION (Ivy) ──────────────
-  // Mesure la cohérence entre tes dépenses et ton OBJECTIF prioritaire.
-  // 100 = en ligne avec ton rêve. 0 = tu trahis ta trajectoire.
-  // Composantes : (a) marge vs surplus requis, (b) dopamine, (c) nuit, (d) pression 7j
-  let frictionScore=70; // neutre par défaut
+  // En silence, le score reflète l'incohérence comportementale (pas de saisie = dérive)
+  let frictionScore=70;
   try{
-    const pg=(typeof getPriorityGoal==='function')?getPriorityGoal():null;
-    let alignment=70;
-    if(pg && pg.deadline){
-      const gap=pg.target-pg.saved;
-      const joursDeadline=Math.max(1,Math.ceil((new Date(pg.deadline)-Date.now())/86400000));
-      const surplusRequis=gap/joursDeadline;
-      const surplusReel=Math.max(0,(inc30/30)-burnRate);
-      // ratio >=1 = tu tiens le cap ; <1 = tu dérives
-      const ratio=surplusRequis>0?surplusReel/surplusRequis:1;
-      alignment=Math.max(0,Math.min(100,Math.round(ratio*70)));
+    if(isSilent){
+      // Silence prolongé = dérive garantie, score pénalisé selon durée
+      frictionScore=Math.max(0,Math.min(55,60-(joursSansSaisie*3)));
+    } else {
+      const pg=(typeof getPriorityGoal==='function')?getPriorityGoal():null;
+      let alignment=70;
+      if(pg && pg.deadline){
+        const gap=pg.target-pg.saved;
+        const joursDeadline=Math.max(1,Math.ceil((new Date(pg.deadline)-Date.now())/86400000));
+        const surplusRequis=gap/joursDeadline;
+        const surplusReel=Math.max(0,(inc30/30)-burnRate);
+        const ratio=surplusRequis>0?surplusReel/surplusRequis:1;
+        alignment=Math.max(0,Math.min(100,Math.round(ratio*70)));
+      }
+      const penDopamine=Math.max(0,(dopamineIdx-40))*0.4;
+      const penNight   =Math.max(0,(nightPct  -15))*0.6;
+      const penPressure=pressureDataOK?Math.max(0,pressureIdx)*0.3:0;
+      frictionScore=Math.max(0,Math.min(100,Math.round(alignment - penDopamine - penNight - penPressure)));
     }
-    // Pénalités comportementales (cerveau dérapant)
-    const penDopamine=Math.max(0,(dopamineIdx-40))*0.4;   // au-delà de 40% ça pique
-    const penNight   =Math.max(0,(nightPct  -15))*0.6;    // au-delà de 15% nuit
-    const penPressure=Math.max(0,pressureIdx)*0.3;        // accélération récente
-    frictionScore=Math.max(0,Math.min(100,Math.round(alignment - penDopamine - penNight - penPressure)));
   }catch(e){}
 
   return{
-    // Comptes + flux prévu
     balance,activeBalance,savingsBalance,expectedIncome7d,
-    // Méta historique
     dataDays,isShortHistory,isEndOfMonth,
-    // Effet Fourmi
     antTotal,antCount,antThreshold:ANT_THRESHOLD,
     safetyDaysWithSavings,
-    // Rolling
     inc7,exp7,inc30,exp30,
-    // Core KPIs dynamiques
-    burnRate,safetyDays,
-    retention,pressureIdx,evaporationRate,
+    burnRate,burnRateHistorique,safetyDays,
+    retention,pressureIdx,pressureDataOK,evaporationRate,
     dopamineIdx,investIdx,
     nightSpend,nightPct,
-    // Catégories
     catSpend,topCat,
-    // Rétrocompat écrans existants
     income,expense,discipline,stability,
     projDelta,projExp,daysLeft,daysInMonth,daysPassed,
-    frictionScore
+    frictionScore,
+    // Silence
+    isSilent,joursSansSaisie,
   };
 }
 
@@ -3027,24 +3120,48 @@ function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()
 function getAlerts(kpi){
   const pool=[];
   const critical=[];
+
+  // ── CAS 0 : Aucune donnée ──────────────────────────────────────────────
   if(!txs.length){
     return [{t:'i',m:t('no_tx_first')}];
   }
+
+  // ── CAS 1 : SILENCE — priorité absolue ────────────────────────────────
+  // Si l'utilisateur n'a rien saisi depuis ≥4 jours, on ne génère PAS d'alertes
+  // sur des données stales. On brise le silence d'abord.
+  if(kpi.isSilent){
+    const j=kpi.joursSansSaisie;
+    critical.push({t:'d',m:t('alert_silence_body').replace('{n}',j)});
+    // Si l'épargne peut couvrir la période silencieuse, on rassure
+    if(kpi.savingsBalance>0 && kpi.burnRateHistorique>0){
+      const couverture=Math.floor(kpi.savingsBalance/kpi.burnRateHistorique);
+      pool.push({t:'i',m:t('alert_silence_savings').replace('{n}',couverture).replace('{br}',fmtFull(kpi.burnRateHistorique)),prio:1});
+    }
+    // Pas d'autres alertes en silence — les données sont obsolètes
+    const out=[...critical,...pool.slice(0,2)];
+    return out.length?out:[{t:'i',m:t('alert_silence_body').replace('{n}',j)}];
+  }
+
+  // ── CAS 2 : HISTORIQUE COURT ───────────────────────────────────────────
   if(kpi.isShortHistory){
     const s=kpi.dataDays>1?'s':'';
     pool.push({t:'i',m:t('alert_short_history').replace('{n}',kpi.dataDays).replace('{s}',s).replace('{r}',14-kpi.dataDays),prio:1});
   }
+
+  // ── ALERTES CRITIQUES ─────────────────────────────────────────────────
   if(kpi.safetyDays!==9999&&kpi.safetyDays<7){
     const s=kpi.safetyDays>1?'s':'';
     const extStr=kpi.safetyDaysWithSavings>kpi.safetyDays?' '+t('alert_safety_ext').replace('{n}',kpi.safetyDaysWithSavings):'';
-    critical.push({t:'d',m:t('alert_safety_low').replace('{n}',kpi.safetyDays).replace('{s}',s).replace('{ext}',extStr).replace('{br}',fmtFull(kpi.burnRate))});
+    critical.push({t:'d',m:t('alert_safety_low').replace('{n}',kpi.safetyDays).replace('{s}',s).replace('{ext}',extStr).replace('{br}',fmtFull(kpi.burnRate||kpi.burnRateHistorique))});
   }
-  if(!kpi.isShortHistory && kpi.pressureIdx>40)
+  // Pression uniquement si les données sont fiables (pressureDataOK)
+  if(kpi.pressureDataOK && kpi.pressureIdx>40)
     critical.push({t:'d',m:t('alert_pressure_high').replace('{n}',kpi.pressureIdx)});
   if(kpi.isEndOfMonth)
     critical.push({t:'w',m:t('alert_end_month')});
 
-  if(!kpi.isShortHistory && kpi.pressureIdx>20 && kpi.pressureIdx<=40)
+  // ── ALERTES MODÉRÉES ─────────────────────────────────────────────────
+  if(kpi.pressureDataOK && kpi.pressureIdx>20 && kpi.pressureIdx<=40)
     pool.push({t:'w',m:t('alert_pressure_mid').replace('{n}',kpi.pressureIdx),prio:2});
   if(kpi.exp7>kpi.inc7 && kpi.inc7>0)
     pool.push({t:'w',m:t('alert_weekly_deficit').replace('{exp}',fmtFull(kpi.exp7)).replace('{inc}',fmtFull(kpi.inc7)),prio:2});
@@ -3056,11 +3173,11 @@ function getAlerts(kpi){
     pool.push({t:'w',m:t('alert_dopamine').replace('{n}',kpi.dopamineIdx).replace('{inv}',kpi.investIdx),prio:3});
   if(kpi.antCount>=10 && kpi.antTotal>=kpi.antThreshold*5)
     pool.push({t:'i',m:t('alert_ant').replace('{count}',kpi.antCount).replace('{thr}',fmtFull(kpi.antThreshold)).replace('{total}',fmtFull(kpi.antTotal)).replace('{days}',kpi.dataDays),prio:3});
-  if(kpi.retention!==null && kpi.retention>=25 && kpi.pressureIdx<=10){
+  if(kpi.retention!==null && kpi.retention>=25 && (!kpi.pressureDataOK||kpi.pressureIdx<=10)){
     const safetyStr=kpi.safetyDays===9999?t('alert_retention_safety_inf'):t('alert_retention_safety_days').replace('{n}',kpi.safetyDays);
     pool.push({t:'g',m:t('alert_retention').replace('{n}',kpi.retention).replace('{safety}',safetyStr),prio:3});
   }
-  if(!kpi.isShortHistory && kpi.pressureIdx<=-15)
+  if(kpi.pressureDataOK && kpi.pressureIdx<=-15)
     pool.push({t:'g',m:t('alert_pressure_low').replace('{n}',Math.abs(kpi.pressureIdx)),prio:3});
   if(kpi.retention!==null && kpi.retention>=70 && kpi.exp7>0){
     const todayExp=txs.filter(tx=>tx.type==='expense'&&new Date(tx.date).toDateString()===new Date().toDateString()).reduce((s,tx)=>s+tx.amount,0);
@@ -3075,7 +3192,7 @@ function getAlerts(kpi){
     if(out.length>=3) break;
     out.push(a);
   }
-  return out.length?out:[{t:'g',m:t('all_good').replace('{br}',fmtFull(kpi.burnRate)).replace('{sd}',kpi.safetyDays===9999?'∞':kpi.safetyDays)}];
+  return out.length?out:[{t:'g',m:t('all_good').replace('{br}',fmtFull(kpi.burnRate||kpi.burnRateHistorique)).replace('{sd}',kpi.safetyDays===9999?'∞':kpi.safetyDays)}];
 }
 
 // ════════════════════════════════════════
@@ -3116,6 +3233,20 @@ function checkNotifs(){
   const now=new Date(),h=now.getHours(),m=now.getMinutes(),today=now.toDateString();
   const kpi=computeKPIs();
 
+  // ── 0. Alerte silence (priorité maximale — journalière) ──────────────
+  if(kpi.isSilent && h===9&&m<5){
+    const k='silenceAlert'+today;
+    if(!safeStorage.getItem(k)){
+      sendNotif(
+        t('notif_silence_title')||'Finance AI OS',
+        (t('notif_silence_body')||'Aucune saisie depuis {n}j. Reprends le suivi.').replace('{n}',kpi.joursSansSaisie),
+        'silence'
+      );
+      safeStorage.setItem(k,'1');
+    }
+    return; // On n'envoie pas d'autres notifs si en silence
+  }
+
   // ── 1. Rappel saisie journalière ─────────────────────────────
   const rh=parseInt(settings.remindHour||20);
   if(h===rh&&m<5){
@@ -3124,34 +3255,37 @@ function checkNotifs(){
   }
 
   // ── 2. Réserve critique ──────────────────────────────────────
-  if(kpi.safetyDays!==9999&&kpi.safetyDays<5&&h===8&&m<5){
+  if(!kpi.isSilent&&kpi.safetyDays!==9999&&kpi.safetyDays<5&&h===8&&m<5){
     const k='safetyAlert'+today;
-    if(!safeStorage.getItem(k)){sendNotif('🚨 Réserve critique',`${kpi.safetyDays} jours de réserve au rythme actuel.`,'safety');safeStorage.setItem(k,'1')}
-  }
-
-  // ── 3. Surchauffe court terme ────────────────────────────────
-  if(kpi.pressureIdx>35&&h===12&&m<5){
-    const k='pressureAlert'+today;
-    if(!safeStorage.getItem(k)){sendNotif('🔥 Surchauffe détectée',`Tes dépenses cette semaine sont +${kpi.pressureIdx}% vs ton habitude. Contrôle.`,'pressure');safeStorage.setItem(k,'1')}
-  }
-
-  // ── 4. Sentinelle "Fenêtre de risque" ────────────────────────
-  // Basée sur les patterns horaires réels (nightPct élevé = risque le soir)
-  // On prévient 1h avant la zone à risque détectée
-  if(kpi.nightPct>20){
-    // L'utilisateur dépense souvent après 21h → alerte à 20h
-    if(h===20&&m<5){
-      const k='riskWindow'+today;
-      const pg=getPriorityGoal();
-      const body=pg
-        ? `Fenêtre de risque d'impulsion approche. Rappelle-toi : "${pg.name}" — il manque encore ${fmtFull(pg.target-pg.saved)}.`
-        : `Tes dépenses nocturnes représentent ${kpi.nightPct}% de ton total. Reste vigilant ce soir.`;
-      if(!safeStorage.getItem(k)){sendNotif('🌙 Fenêtre de risque',body,'riskWindow');safeStorage.setItem(k,'1')}
+    if(!safeStorage.getItem(k)){
+      const msg=(t('notif_safety_body')||'{n} jours de réserve au rythme actuel.').replace('{n}',kpi.safetyDays);
+      sendNotif(t('notif_safety_title')||'🚨 Réserve critique',msg,'safety');
+      safeStorage.setItem(k,'1');
     }
   }
 
+  // ── 3. Surchauffe court terme ────────────────────────────────
+  if(!kpi.isSilent&&kpi.pressureDataOK&&kpi.pressureIdx>35&&h===12&&m<5){
+    const k='pressureAlert'+today;
+    if(!safeStorage.getItem(k)){
+      const msg=(t('notif_pressure_body')||'Tes dépenses cette semaine sont +{n}% vs ton habitude.').replace('{n}',kpi.pressureIdx);
+      sendNotif(t('notif_pressure_title')||'🔥 Surchauffe détectée',msg,'pressure');
+      safeStorage.setItem(k,'1');
+    }
+  }
+
+  // ── 4. Sentinelle "Fenêtre de risque" ────────────────────────
+  if(!kpi.isSilent&&kpi.nightPct>20&&h===20&&m<5){
+    const k='riskWindow'+today;
+    const pg=getPriorityGoal();
+    const body=pg
+      ? (t('notif_risk_goal')||'Zone de risque proche. Rappelle-toi ton objectif "{g}" — il manque {amt}.').replace('{g}',pg.name).replace('{amt}',fmtFull(pg.target-pg.saved))
+      : (t('notif_risk_body')||'Tes dépenses nocturnes = {n}% du total. Reste vigilant.').replace('{n}',kpi.nightPct);
+    if(!safeStorage.getItem(k)){sendNotif(t('notif_risk_title')||'🌙 Fenêtre de risque',body,'riskWindow');safeStorage.setItem(k,'1')}
+  }
+
   // ── 5. Objectif en retard — alerte matinale ──────────────────
-  if(h===7&&m<5){
+  if(!kpi.isSilent&&h===7&&m<5){
     const pg=getPriorityGoal();
     if(pg&&pg.deadline){
       const joursDeadline=Math.ceil((new Date(pg.deadline)-Date.now())/86400000);
@@ -3161,7 +3295,8 @@ function checkNotifs(){
       if(joursNecessaires&&joursNecessaires>joursDeadline){
         const k='goalAlert'+today;
         if(!safeStorage.getItem(k)){
-          sendNotif(`⏳ "${pg.name}" en retard`,`Il te faut ${joursNecessaires}j au rythme actuel mais la deadline est dans ${joursDeadline}j.`,'goalAlert');
+          const msg=(t('notif_goal_late')||'Il te faut {need}j mais la deadline est dans {dl}j.').replace('{need}',joursNecessaires).replace('{dl}',joursDeadline);
+          sendNotif(`⏳ "${pg.name}"`,msg,'goalAlert');
           safeStorage.setItem(k,'1');
         }
       }
@@ -3169,7 +3304,7 @@ function checkNotifs(){
   }
 
   // ── 6. Bilan de cohérence du soir ───────────────────────────
-  if(h===22&&m<5){
+  if(!kpi.isSilent&&h===22&&m<5){
     const pg=getPriorityGoal();
     if(pg){
       const todayDopamine=txs.filter(t=>{
@@ -3180,7 +3315,8 @@ function checkNotifs(){
         const days=opportunityCostDays(todayDopamine);
         const k='coherence'+today;
         if(!safeStorage.getItem(k)&&days&&days>=0.5){
-          sendNotif('📊 Bilan du jour',`${fmtFull(todayDopamine)} en dépenses impulsion aujourd'hui = ${days}j de retard sur "${pg.name}".`,'coherence');
+          const msg=(t('notif_coherence_body')||'{amt} en impulsions = {d}j de retard sur "{g}".').replace('{amt}',fmtFull(todayDopamine)).replace('{d}',days).replace('{g}',pg.name);
+          sendNotif(t('notif_coherence_title')||'📊 Bilan du jour',msg,'coherence');
           safeStorage.setItem(k,'1');
         }
       }
@@ -3702,25 +3838,41 @@ function renderAnalytics(){
 
 function localPeriodComment(p,d){
   const lbl=periodLabel(p),prev=periodPrevLabel(p);
+  const kpi=computeKPIs();
+
+  // ── Silence : on ne commente pas des données stales ─────────────────
+  if(kpi.isSilent){
+    return t('analyse_silence').replace('{n}',kpi.joursSansSaisie);
+  }
+
   if(d.curExp===0&&d.curInc===0) return t('no_data_period').replace('{p}',lbl);
   const parts=[];
   if(d.curExp>0&&d.prevExp>0){
-    if(d.expDpct>30) parts.push(`🔥 Dépenses en hausse de <strong>+${d.expDpct}%</strong> vs ${prev}. Le cerveau s'habitue à dépenser plus — c'est l'effet d'inertie.`);
-    else if(d.expDpct<-20) parts.push(`✅ Dépenses en baisse de <strong>${d.expDpct}%</strong> vs ${prev}. Bonne maîtrise.`);
-    else parts.push(`Rythme stable vs ${prev} (${d.expDpct>=0?'+':''}${d.expDpct}%).`);
+    if(d.expDpct>30) parts.push(t('analyse_exp_up').replace('{pct}',d.expDpct).replace('{prev}',prev));
+    else if(d.expDpct<-20) parts.push(t('analyse_exp_down').replace('{pct}',Math.abs(d.expDpct)).replace('{prev}',prev));
+    else parts.push(t('analyse_exp_stable').replace('{pct}',d.expDpct>=0?'+'+d.expDpct:d.expDpct).replace('{prev}',prev));
   } else if(d.curExp>0){
-    parts.push(`${fmtFull(d.curExp)} dépensés ${lbl}.`);
+    parts.push(t('analyse_exp_only').replace('{amt}',fmtFull(d.curExp)).replace('{p}',lbl));
   }
   if(d.curInc>0&&d.curExp>d.curInc) parts.push(`⚠️ ${t('over_budget')} ${lbl}. ${t('over_budget_neg')}: ${fmtFull(d.curInc-d.curExp)}.`);
-  if(d.topCat) parts.push(`Top catégorie: ${catById(d.topCat[0]).icon} <strong>${catById(d.topCat[0]).name}</strong> (${fmtFull(d.topCat[1])}).`);
+  if(d.topCat) parts.push(t('analyse_top_cat').replace('{icon}',catById(d.topCat[0]).icon).replace('{name}',catById(d.topCat[0]).name).replace('{amt}',fmtFull(d.topCat[1])));
   return parts.join(' ');
 }
 
 async function fetchPeriodInsight(p){
   if(!navigator.onLine||!getGroqKey()) return;
+  const kpi=computeKPIs();
   const elId='periodInsight_'+p;
   const el=document.getElementById(elId);if(!el) return;
   const status=document.getElementById(elId+'_status');
+
+  // ── Silence : pas d'appel API sur des données obsolètes ─────────────
+  if(kpi.isSilent){
+    if(el) el.innerHTML='🤫 '+t('analyse_silence').replace('{n}',kpi.joursSansSaisie);
+    if(status) status.textContent=t('ia_local');
+    return;
+  }
+
   if(status) status.textContent='Groq…';
   const ptxs=getPeriodTxs(p);
   const prevTxs=getPrevPeriodTxs(p);
@@ -3729,12 +3881,12 @@ async function fetchPeriodInsight(p){
   const prevExp=prevTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const catSpendP={};ptxs.filter(t=>t.type==='expense').forEach(t=>{catSpendP[t.categoryId]=(catSpendP[t.categoryId]||0)+t.amount});
   const top=Object.entries(catSpendP).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([id,v])=>catById(id).name+':'+Math.round(v));
-  const prompt=`Tu es Ivy, coach financier neuro. Analyse en français, 2-3 phrases max, ton brutal mais utile.
-Période: ${periodLabel(p)}. Devise: ${cur()}.
-Dépenses ${periodLabel(p)}: ${Math.round(curExp)} | ${periodPrevLabel(p)}: ${Math.round(prevExp)}.
-Revenus ${periodLabel(p)}: ${Math.round(curInc)}.
-Top dépenses: ${top.join(', ')||'aucune'}.
-Donne UNE observation neuro/comportementale + UNE action concrète.`;
+  const prompt=`You are Ivy, neuro financial coach. Analyse in 2-3 sentences max, blunt but useful. ${langInstr()}
+Period: ${periodLabel(p)}. Currency: ${cur()}.
+Expenses ${periodLabel(p)}: ${Math.round(curExp)} | ${periodPrevLabel(p)}: ${Math.round(prevExp)}.
+Income ${periodLabel(p)}: ${Math.round(curInc)}.
+Top expenses: ${top.join(', ')||'none'}.
+Give ONE neuro/behavioral observation + ONE concrete action. No jargon.`;
   try{
     const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
@@ -3743,7 +3895,7 @@ Donne UNE observation neuro/comportementale + UNE action concrète.`;
     const j=await r.json();
     const txt=j.choices?.[0]?.message?.content;
     if(txt&&el){el.innerHTML='💡 '+txt.trim();if(status)status.textContent='Groq';}
-  }catch(e){if(status)status.textContent='IA locale (offline)';}
+  }catch(e){if(status)status.textContent=t('ia_local');}
 }
 
 function renderTrendChartAdaptive(p,ptxs){

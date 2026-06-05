@@ -196,8 +196,10 @@ select.fi{cursor:pointer}
 /* ONLINE BADGE - hidden (connectivity is now shown via background ambiance) */
 .online-badge{display:none !important}
 
-/* DYNAMIC LED AMBIANCE — online = vibrant radial glow, offline = matte dark */
-body{transition:background .6s ease}
+/* DYNAMIC LED AMBIANCE — financial state + connectivity */
+body{transition:background .8s ease,filter .6s ease}
+
+/* Connectivity layer */
 body.online{
   background:
     radial-gradient(1200px 700px at 12% -8%, rgba(139,92,246,.18), transparent 60%),
@@ -210,6 +212,41 @@ body.offline{
   filter:saturate(.85);
 }
 body.offline .aifab{filter:grayscale(.6)}
+
+/* Financial State Ambiance Layer */
+body.state-critical{
+  background:
+    radial-gradient(900px 600px at 50% 0%, rgba(244,63,94,.22), transparent 60%),
+    radial-gradient(600px 400px at 100% 100%, rgba(190,24,93,.12), transparent 65%),
+    var(--bg) !important;
+  animation:criticalPulse 3s ease-in-out infinite;
+}
+@keyframes criticalPulse{0%,100%{filter:saturate(1)}50%{filter:saturate(1.15)}}
+body.state-high{
+  background:
+    radial-gradient(900px 500px at 20% 0%, rgba(249,115,22,.16), transparent 60%),
+    radial-gradient(600px 400px at 90% 100%, rgba(251,191,36,.08), transparent 65%),
+    var(--bg) !important;
+}
+body.state-moderate{
+  background:
+    radial-gradient(1000px 600px at 12% -8%, rgba(251,191,36,.12), transparent 60%),
+    radial-gradient(700px 500px at 100% 110%, rgba(249,115,22,.08), transparent 65%),
+    var(--bg) !important;
+}
+body.state-stable{
+  background:
+    radial-gradient(1200px 700px at 12% -8%, rgba(16,185,129,.14), transparent 60%),
+    radial-gradient(900px 600px at 100% 110%, rgba(6,182,212,.10), transparent 65%),
+    radial-gradient(600px 400px at 50% 50%, rgba(167,139,250,.04), transparent 70%),
+    var(--bg) !important;
+}
+body.state-zero{
+  background:
+    radial-gradient(800px 500px at 50% 30%, rgba(139,92,246,.10), transparent 65%),
+    var(--bg) !important;
+  filter:saturate(.9);
+}
 
 
 /* AI FLOAT */
@@ -2554,6 +2591,209 @@ function riskLevel(kpi){
 }
 
 // ════════════════════════════════════════
+// DYNAMIC FINANCIAL AMBIANCE v4.14
+// Background shifts based on financial state
+// ════════════════════════════════════════
+function updateFinancialAmbiance(){
+  try{
+    const kpi=computeKPIs();
+    const risk=riskLevel(kpi);
+    const body=document.body;
+    // Remove existing state classes
+    body.classList.remove('state-critical','state-high','state-moderate','state-stable','state-zero');
+    if(!txs.length){
+      body.classList.add('state-zero');
+    } else if(kpi.safetyDays<7||kpi.projDelta<-kpi.income*.3){
+      body.classList.add('state-critical');
+    } else if(kpi.safetyDays<15||kpi.projDelta<0){
+      body.classList.add('state-high');
+    } else if(kpi.safetyDays<30){
+      body.classList.add('state-moderate');
+    } else {
+      body.classList.add('state-stable');
+    }
+  }catch(e){}
+}
+
+// ════════════════════════════════════════
+// MÉDIANE MOBILE — Moteur anti-panique v4.14
+// Évite que les pics de revenus ou dépenses
+// faussent les calculs comportementaux
+// ════════════════════════════════════════
+function calculerMediane(valeurs){
+  if(!valeurs||!valeurs.length) return 0;
+  const s=[...valeurs].sort((a,b)=>a-b);
+  const m=Math.floor(s.length/2);
+  return s.length%2!==0?s[m]:(s[m-1]+s[m])/2;
+}
+
+function getRevenuHebdoMedian(){
+  // Calcule le revenu médian des 4 dernières semaines (semaines glissantes)
+  const semaines=[];
+  for(let i=0;i<4;i++){
+    const debut=new Date(Date.now()-(i+1)*7*86400000);
+    const fin=new Date(Date.now()-i*7*86400000);
+    const rev=txs.filter(tx=>tx.type==='income'&&new Date(tx.date)>=debut&&new Date(tx.date)<fin).reduce((s,tx)=>s+tx.amount,0);
+    semaines.push(rev);
+  }
+  return calculerMediane(semaines);
+}
+
+function getDepenseHebdoMediane(){
+  const semaines=[];
+  for(let i=0;i<4;i++){
+    const debut=new Date(Date.now()-(i+1)*7*86400000);
+    const fin=new Date(Date.now()-i*7*86400000);
+    const dep=txs.filter(tx=>tx.type==='expense'&&new Date(tx.date)>=debut&&new Date(tx.date)<fin).reduce((s,tx)=>s+tx.amount,0);
+    semaines.push(dep);
+  }
+  return calculerMediane(semaines);
+}
+
+// ════════════════════════════════════════
+// ANALYSEUR COMPORTEMENTAL POLYVALENT v4.14
+// Détecte: revenu exceptionnel, restriction,
+// pic dopamine — adapte le rythme sans paniquer
+// ════════════════════════════════════════
+function analyserComportementFinancier(){
+  const kpi=computeKPIs();
+  const medRev=getRevenuHebdoMedian();
+  const medDep=getDepenseHebdoMediane();
+
+  // Fenêtre 7j courante
+  const dep7=kpi.exp7;
+  const rev7=kpi.inc7;
+
+  // Catégoriser les dépenses 7j
+  const RIGIDE_CATS=['food','transport','housing','health','bills'];
+  const ELASTIQUE_CATS=['leisure','clothes','unforeseen','other_exp'];
+  const w7txs=txsInWindow(7);
+  const dep7Rigides=w7txs.filter(tx=>tx.type==='expense'&&RIGIDE_CATS.includes(tx.categoryId)).reduce((s,tx)=>s+tx.amount,0);
+  const dep7Elastiques=w7txs.filter(tx=>tx.type==='expense'&&ELASTIQUE_CATS.includes(tx.categoryId)).reduce((s,tx)=>s+tx.amount,0);
+
+  let profilEtat='NORMAL';
+  let rythmeAutorise=medDep||kpi.burnRate*7;
+  let messageContextuel='';
+  let tamponAmortissement=0;
+
+  // Scénario A: Rentrée exceptionnelle
+  if(medRev>0&&rev7>medRev*2.5){
+    profilEtat='EXCEPTIONAL_INCOME';
+    tamponAmortissement=rev7-medRev;
+    rythmeAutorise=medDep;
+    messageContextuel=`Rentrée majeure de ${fmtFull(rev7)} détectée (${Math.round(rev7/medRev*10)/10}× ta médiane). Placée en tampon de sécurité. Ton rythme reste calibré sur tes habitudes réelles.`;
+  }
+  // Scénario B: Restriction alimentaire/essentielle
+  else if(medDep>0&&dep7Rigides>0&&dep7Rigides<medDep*0.4){
+    profilEtat='USER_RESTRICTION';
+    rythmeAutorise=dep7;
+    messageContextuel=`Dépenses essentielles en baisse de ${Math.round((1-dep7Rigides/(medDep*0.6))*100)}% vs habitude. Si c'est un effort délibéré, bravo. Attention à ne pas fragiliser l'équilibre physique.`;
+  }
+  // Scénario C: Pic dopamine/plaisir
+  else if(medDep>0&&dep7Elastiques>medDep*1.2){
+    profilEtat='PLEASURE_SPIKE';
+    const amortissement=dep7Elastiques/4;
+    rythmeAutorise=Math.max(0,medDep-amortissement);
+    messageContextuel=`Pic de dépenses plaisir (+${Math.round((dep7Elastiques/medDep-1)*100)}%). Pas de panique — amorti sur 4 semaines. Ton rythme hebdo est ajusté de ${fmtFull(amortissement)}.`;
+  }
+  // Scénario D: Aucun revenu historique (mode subsistance)
+  else if(!txs.filter(tx=>tx.type==='income').length){
+    profilEtat='NO_INCOME_MODE';
+    rythmeAutorise=kpi.activeBalance/30;
+    messageContextuel=`Aucun revenu enregistré. Calcul basé sur le capital disponible. Chaque dépense compte double.`;
+  }
+
+  return{profilEtat,rythmeAutorise,tamponAmortissement,messageContextuel,medRev,medDep};
+}
+
+// ════════════════════════════════════════
+// ANALYSEUR SÉMANTIQUE LOCAL v4.14
+// Parse les notes pour classifier intent
+// Fonctionne 100% offline
+// ════════════════════════════════════════
+const DICT_URGENCE=['pharmacie','hopital','hôpital','maman','papa','reparation','réparation','panne','facture','byu','urgence','médicament','medicament','soin','doctor','docteur','clinique','accident'];
+const DICT_PLAISIR=['resto','restaurant','mcdo','burger','pizza','fete','fête','sortie','cadeau','anime','manga','netflix','one piece','les gars','shopping','mode','vêtement','loisir','jeu','jeux'];
+const DICT_RESTRICTION=['economie','économie','épargne','epargne','regime','régime','jeune','frugal','coupe','réduis','reduire','serrer','ceinture'];
+const DICT_TRAVAIL=['cours','byu','études','etudes','livre','formation','outil','investissement','investir','freelance','mission','contrat'];
+
+function extraireContexteSemantique(noteText, heureSaisie){
+  const texte=(noteText||'').toLowerCase();
+  const heure=heureSaisie||new Date().getHours();
+  let categorieStyle='standard';
+  let estUrgent=false;
+  let chargeEmotionnelle='neutre';
+  let profilHoraire='journee';
+  let iconeContexte='';
+
+  if(DICT_URGENCE.some(m=>texte.includes(m))){
+    categorieStyle='rigide_urgente';
+    estUrgent=true;
+    chargeEmotionnelle='pression_subie';
+    iconeContexte='🚨';
+  } else if(DICT_TRAVAIL.some(m=>texte.includes(m))){
+    categorieStyle='investissement';
+    chargeEmotionnelle='investissement_futur';
+    iconeContexte='📚';
+  } else if(DICT_RESTRICTION.some(m=>texte.includes(m))){
+    categorieStyle='restriction_volontaire';
+    chargeEmotionnelle='discipline';
+    iconeContexte='✊';
+  } else if(DICT_PLAISIR.some(m=>texte.includes(m))){
+    categorieStyle='elastique_plaisir';
+    chargeEmotionnelle='dopamine';
+    iconeContexte='⚡';
+  }
+
+  if(heure>=22||heure<=5){
+    profilHoraire='nocturne_impulsif';
+    if(!estUrgent&&categorieStyle==='standard') chargeEmotionnelle='impulsion_nocturne';
+    iconeContexte=iconeContexte||'🌙';
+  } else if(heure>=12&&heure<=14){
+    profilHoraire='dejeuner';
+  }
+
+  return{categorieStyle,estUrgent,chargeEmotionnelle,profilHoraire,iconeContexte};
+}
+
+// ════════════════════════════════════════
+// QUICK CATCHUP MODE v4.14
+// Simplifie l'UI si ≥3j sans saisie
+// ════════════════════════════════════════
+function isQuickCatchupMode(kpi){
+  return kpi.isSilent && kpi.joursSansSaisie>=3;
+}
+
+function renderQuickCatchup(kpi){
+  const j=kpi.joursSansSaisie;
+  const br=fmtFull(kpi.burnRateHistorique||0);
+  const estimate=Math.round((kpi.burnRateHistorique||0)*j);
+  return`<div style="margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(249,115,22,.06));border:2px solid rgba(251,191,36,.4);border-radius:18px">
+    <div style="font-size:14px;font-weight:800;color:var(--ylw);margin-bottom:6px">⚡ Mode Rattrapage Rapide</div>
+    <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:12px">${j} jours sans saisie. Estimation: ~${fmtFull(estimate)} de dépenses probables (${br}/j). Rattrape en 3 clics :</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-sm" style="background:rgba(244,63,94,.15);border:1px solid var(--red);color:var(--red);font-size:12px" onclick="quickCatchupAdd('food',${Math.round((kpi.burnRateHistorique||0)*j*0.4)})">🍔 Alimentation<br><span style="font-size:10px;opacity:.7">~${fmtFull(Math.round((kpi.burnRateHistorique||0)*j*0.4))}</span></button>
+      <button class="btn btn-sm" style="background:rgba(244,63,94,.15);border:1px solid var(--red);color:var(--red);font-size:12px" onclick="quickCatchupAdd('transport',${Math.round((kpi.burnRateHistorique||0)*j*0.2)})">🚕 Transport<br><span style="font-size:10px;opacity:.7">~${fmtFull(Math.round((kpi.burnRateHistorique||0)*j*0.2))}</span></button>
+      <button class="btn btn-sm btn-ghost" style="font-size:11px;grid-column:span 2" onclick="openAddModal()">✏️ Saisie manuelle précise</button>
+    </div>
+  </div>`;
+}
+
+async function quickCatchupAdd(catId, estimatedAmt){
+  if(!estimatedAmt||estimatedAmt<=0){openAddModal();return;}
+  const confirmed=confirm(`Enregistrer ~${fmtFull(estimatedAmt)} en "${catById(catId).name}" pour les ${computeKPIs().joursSansSaisie} jours manquants ?`);
+  if(!confirmed) return;
+  const mainAcc=accs.find(a=>a.type!=='savings')||accs[0];
+  if(!mainAcc){openAddModal();return;}
+  const tx={id:uid(),type:'expense',amount:estimatedAmt,categoryId:catId,accountId:mainAcc.id,date:new Date().toISOString(),note:'[Rattrapage auto]',mood:null,location:null,semantique:{categorieStyle:'rigide_urgente',estUrgent:false,chargeEmotionnelle:'neutre',profilHoraire:'journee',iconeContexte:'⏱️'}};
+  mainAcc.balance=Math.max(0,mainAcc.balance-estimatedAmt);
+  await dbPut('transactions',tx);
+  await dbPut('accounts',mainAcc);
+  txs.unshift(tx);
+  showToast('✅ Dépense de rattrapage enregistrée');
+  render();
+}
+
+// ════════════════════════════════════════
 // ONLINE STATUS
 // ════════════════════════════════════════
 function updateOnlineStatus(){
@@ -2812,6 +3052,28 @@ function buildCtx(){
   const topCategories=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,5)
     .map(([n,v])=>`${n}: ${Math.round(v)} ${cur()}`);
 
+  // ── Enrichissement v4.14: Analyse comportementale adaptative ──
+  let analyseAdaptative=null;
+  try{
+    const comport=analyserComportementFinancier();
+    analyseAdaptative={
+      profilEtat:comport.profilEtat,
+      revenuMedianHebdo:Math.round(comport.medRev),
+      depenseMedianeHebdo:Math.round(comport.medDep),
+      rythmeAutorise:Math.round(comport.rythmeAutorise),
+      tamponAmortissement:Math.round(comport.tamponAmortissement),
+      messageContextuel:comport.messageContextuel||'aucun',
+      transactionsAvecContexteSemantique:txs.slice(0,10).filter(tx=>tx.semantique).map(tx=>({
+        montant:tx.amount,
+        type:tx.type,
+        categorieStyle:tx.semantique?.categorieStyle,
+        chargeEmotionnelle:tx.semantique?.chargeEmotionnelle,
+        profilHoraire:tx.semantique?.profilHoraire,
+        classificationRevenu:tx.classificationRevenu||null,
+      })),
+    };
+  }catch(e){}
+
   // ── Payload JSON structuré pour l'IA ──────
   const payload={
     // ── RÉALITÉ TEMPORELLE (injectée systématiquement) ──
@@ -2882,6 +3144,8 @@ function buildCtx(){
       nbCategoriesUtilisees:Object.keys(catTotals).length,
       premiereTx:txs.length?new Date(txs[txs.length-1].date).toISOString().slice(0,10):'none',
     },
+    // v4.14: Moteur adaptatif anti-panique
+    analyseAdaptative,
   };
 
   return JSON.stringify(payload,null,0);
@@ -2917,12 +3181,24 @@ ${aucuneDonnee
   : 'Données fraîches disponibles.'
 }
 
+═══ MOTEUR ADAPTATIF v4.14 — ANTI-PANIQUE ═══
+${(()=>{try{
+  const comport=analyserComportementFinancier();
+  const medRev=comport.medRev;const medDep=comport.medDep;
+  return `PROFIL COMPORTEMENTAL: ${comport.profilEtat}
+Revenu médian hebdo (4 sem): ${Math.round(medRev)} ${cur()} | Dépense médiane hebdo: ${Math.round(medDep)} ${cur()}
+RÈGLE ANTI-PANIQUE: Si un revenu dépasse 2.5× la médiane, il est EXCEPTIONNEL — ne projette PAS un nouveau rythme de vie. Si les dépenses essentielles baissent de >40%, c'est une restriction volontaire — ne félicite PAS sans vérifier l'équilibre physique. Si pic de plaisir >120% médiane, amortis sur 4 semaines — ne crie PAS à la catastrophe.
+${comport.profilEtat!=='NORMAL'?'MESSAGE CONTEXTUEL ACTIF: '+comport.messageContextuel:''}`;
+}catch(e){return 'Moteur adaptatif: initialisation en cours';}})()}
+
 ═══ RÈGLES ANTI-HALLUCINATION (INVIOLABLES) ═══
 H1. JAMAIS inventer ou supposer des dépenses qui ne sont pas dans les données. Si le champ "depensesNocturnes" dit "Données insuffisantes", tu NE PARLES PAS de dépenses nocturnes.
 H2. L'heure actuelle est ${heurePourPrompt}h. Ne parle PAS de comportement nocturne si nous sommes le matin ou l'après-midi. Adapte tout ton discours au moment réel.
 H3. Si "analyseChronologiqueValide" = NON dans les données, ne tire AUCUNE conclusion comportementale sur les heures de dépense.
 H4. Si les données sont vides ou silencieuses, ne fabrique pas de chiffres. L'honnêteté sur l'absence de données est plus utile que l'invention.
 H5. Si "aucuneTransactionJamais" = true ou "aucuneSaisieAujourdhui" = true, NE parle PAS de "tes dépenses aujourd'hui" comme si elles existaient.
+H6. NOUVEAU v4.14: Si une transaction a classificationRevenu="EXCEPTIONNEL", mentionne que c'est exceptionnel et ne recalcule PAS le rythme de vie à la hausse.
+H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dépense était une urgence — ne la compte PAS comme impulsion dopaminergique.
 
 ═══ RÈGLES COMPORTEMENTALES ═══
 1. Tu connais leurs OBJECTIFS DE VIE ("objectifPrioritaire" + "tousLesObjectifs"). Juge chaque dépense contre ces rêves.
@@ -3377,6 +3653,8 @@ async function render(){
   try{updateOnlineStatus()}catch(e){console.warn(e)}
   if(screen==='ai'){try{setupChat()}catch(e){console.warn(e)}}
   if(screen==='home'){setTimeout(()=>{try{maybeAutoInsight()}catch(e){};try{checkCelebrations()}catch(e){}},150)}
+  // v4.14: Mise à jour ambiance financière
+  try{updateFinancialAmbiance()}catch(e){}
 }
 
 // ════════════════════════════════════════
@@ -3434,6 +3712,20 @@ function renderHome(){
 
   <!-- MODE FIN DE MOIS -->
   ${kpi.isEndOfMonth?`<div style="margin-bottom:12px;padding:10px 14px;background:linear-gradient(135deg,rgba(251,191,36,.1),rgba(249,115,22,.05));border:1px solid rgba(251,191,36,.3);border-radius:12px;font-size:12px;color:var(--ylw);font-weight:600">🌒 <strong>Mode fin de mois</strong> — la fatigue de décision s'accumule. Tes prochains achats coûtent plus cher au cerveau.</div>`:''}
+
+  <!-- QUICK CATCHUP MODE v4.14 -->
+  ${isQuickCatchupMode(kpi)?renderQuickCatchup(kpi):''}
+
+  <!-- COMPORTEMENT ADAPTATIF v4.14 (si mode normal actif) -->
+  ${!kpi.isSilent&&txs.length>=3?(()=>{
+    const comport=analyserComportementFinancier();
+    if(comport.profilEtat==='NORMAL'||!comport.messageContextuel) return '';
+    const icons={'EXCEPTIONAL_INCOME':'🛡️','USER_RESTRICTION':'✊','PLEASURE_SPIKE':'⚡','NO_INCOME_MODE':'💡'};
+    const colors={'EXCEPTIONAL_INCOME':'var(--grn)','USER_RESTRICTION':'var(--acc3)','PLEASURE_SPIKE':'var(--ylw)','NO_INCOME_MODE':'var(--org)'};
+    return`<div style="margin-bottom:12px;padding:12px 14px;background:rgba(0,0,0,.2);border:1px solid ${colors[comport.profilEtat]||'var(--brd)'}33;border-radius:14px;font-size:12px;color:var(--txt2);line-height:1.6">
+      <span style="font-weight:800;color:${colors[comport.profilEtat]||'var(--acc3)'}">${icons[comport.profilEtat]||'🧠'} IVY Adaptatif</span> — ${comport.messageContextuel}
+    </div>`;
+  })():''}
 
   <!-- EFFET FOURMI -->
   ${kpi.antCount>=8?`<div style="margin-bottom:12px;padding:10px 14px;background:var(--surf2);border:1px solid var(--brd);border-radius:12px;font-size:12px;color:var(--txt2);display:flex;justify-content:space-between;align-items:center"><span>🐜 <strong>${kpi.antCount}</strong> petites dépenses (≤${fmtFull(kpi.antThreshold)})</span><span class="mono fw8" style="color:var(--org)">${fmtFull(kpi.antTotal)}</span></div>`:''}
@@ -3522,11 +3814,20 @@ function txItem(t){
   const isExp=t.type==='expense',isTrans=t.type==='transfer';
   const color=isExp?'var(--red)':isTrans?'var(--acc3)':'var(--grn)';
   const sign=isExp?'-':isTrans?'⇄':'+';
-  return`<div class="txi" onclick="openTxDetailModal('${t.id}')">
+  // v4.14: icône contextuelle sémantique
+  const semIcon=t.semantique?.iconeContexte||'';
+  const isNight=t.semantique?.profilHoraire==='nocturne_impulsif';
+  const isUrgent=t.semantique?.estUrgent;
+  const isExcIncome=t.classificationRevenu==='EXCEPTIONNEL';
+  let rowBorder='';
+  if(isExp&&isNight) rowBorder='border-left:3px solid rgba(139,92,246,.4);padding-left:8px';
+  if(isExp&&isUrgent) rowBorder='border-left:3px solid rgba(249,115,22,.5);padding-left:8px';
+  if(isExcIncome) rowBorder='border-left:3px solid rgba(16,185,129,.5);padding-left:8px';
+  return`<div class="txi" onclick="openTxDetailModal('${t.id}')" style="${rowBorder}">
     <div class="txic">${cat.icon}</div>
     <div class="txin">
-      <div class="txn">${cat.name}${t.note?' · '+t.note:''}</div>
-      <div class="txm">${acc.name} · ${ago(t.date)}${t.type==='expense'&&timeOf(t.amount)?' · <span style="color:var(--acc3)">≈ '+timeOf(t.amount)+'</span>':''}</div>
+      <div class="txn">${cat.name}${t.note?' · '+t.note:''}${semIcon?` <span style="font-size:11px;opacity:.7">${semIcon}</span>`:''}</div>
+      <div class="txm">${acc.name} · ${ago(t.date)}${t.type==='expense'&&timeOf(t.amount)?' · <span style="color:var(--acc3)">≈ '+timeOf(t.amount)+'</span>':''}${isExcIncome?' · <span style="color:var(--grn);font-size:10px">🚀 Exceptionnel</span>':''}</div>
     </div>
     <div class="txa" style="color:${color}">${sign}${fmt(t.amount)}</div>
   </div>`;
@@ -4388,7 +4689,7 @@ function renderSettings(){
     <button class="btn btn-red" onclick="confirmClear()">${t('cfg_wipe')}</button>
   </div>
 
-  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS · Offline-First · IndexedDB</div>
+  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS v4.14.0 · Offline-First · IndexedDB</div>
   `;
 }
 
@@ -4604,17 +4905,52 @@ async function saveTx(){
   }
   acc.balance+=_txType==='income'?amt:-amt;
   await dbPut('accounts',acc);
-  await dbPut('transactions',{id:uid(),amount:amt,type:_txType,categoryId:catId,accountId:accId,date,note,mood,location,createdAt:new Date().toISOString()});
+
+  // ── v4.14: Enrichissement sémantique de chaque transaction ──
+  const heureSaisie=new Date(date).getHours();
+  const semantique=extraireContexteSemantique(note, heureSaisie);
+
+  // ── v4.14: Classification comportementale du revenu ──
+  let classificationRevenu=null;
+  if(_txType==='income'){
+    const medRev=getRevenuHebdoMedian();
+    if(medRev>0&&amt>medRev*2.5){
+      classificationRevenu='EXCEPTIONNEL'; // Cadeau, contrat unique, remboursement
+    } else if(medRev===0){
+      classificationRevenu='PREMIER_REVENU';
+    } else {
+      classificationRevenu='RECURRENT';
+    }
+  }
+
+  await dbPut('transactions',{id:uid(),amount:amt,type:_txType,categoryId:catId,accountId:accId,date,note,mood,location,semantique,classificationRevenu,createdAt:new Date().toISOString()});
   haptic(15);
   closeModal();
   // Invalide le cache de l'insight home pour forcer un refresh contextuel
   _lastInsight='';_lastInsightTime=0;
   await render();
+  // Mise à jour de l'ambiance visuelle
+  try{updateFinancialAmbiance()}catch(e){}
+
+  // ── v4.14: Message contextuel pour revenu exceptionnel ──
+  if(_txType==='income'&&classificationRevenu==='EXCEPTIONNEL'){
+    const comport=analyserComportementFinancier();
+    if(comport.messageContextuel){
+      setTimeout(()=>{
+        openModal(`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--grn),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:18px">🛡️</div>
+          <div><div style="font-weight:800;font-size:15px">IVY · Rentrée Détectée</div><div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px">Médiane protégée</div></div>
+        </div>
+        <div style="background:var(--surf2);border-left:3px solid var(--grn);padding:14px;border-radius:10px;font-size:13px;line-height:1.6;margin-bottom:14px">${comport.messageContextuel}</div>
+        <button class="btn" onclick="closeModal()">✓ Compris</button>`);
+      },400);
+    }
+  }
 
   // ── IVY : verdict proactif après coup (dépenses uniquement) ──
   if(_txType==='expense'){
     const hour=new Date(date).getHours();
-    const verdict=ivyVerdict({amt,catId,mood,location,hour});
+    const verdict=ivyVerdict({amt,catId,mood,location,hour,note});
     if(verdict) setTimeout(()=>showIvyVerdict(verdict),350);
   }
 }
@@ -5620,7 +5956,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
 // PATCH v4.13.0 — Loader natif APK/PWA, multilingue, polling robuste
 (function(){
   'use strict';
-  console.log('[LOADER v4.13.0] init');
+  console.log('[LOADER v4.14.0] init');
 
   var L = (function(){
     var raw = '';
@@ -5731,7 +6067,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
-  console.log('[LOADER v4.13.0] armed — lang='+L);
+  console.log('[LOADER v4.14.0] armed — lang='+L);
 })();
 </script>
 </body>

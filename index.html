@@ -2583,6 +2583,43 @@ function getGroqKey(){
 function buildCtx(){
   const k=computeKPIs();
 
+  // ── CONTEXTE TEMPOREL RÉEL (injecté à chaque appel) ──────────────────────
+  const now=new Date();
+  const currentHour=now.getHours();
+  const currentMinute=now.getMinutes();
+  const currentDayName=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][now.getDay()];
+  const currentDateISO=now.toISOString().slice(0,10);
+  const currentDateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  let momentOfDay='';
+  if(currentHour>=5&&currentHour<12) momentOfDay='matin';
+  else if(currentHour>=12&&currentHour<14) momentOfDay='heure du déjeuner';
+  else if(currentHour>=14&&currentHour<18) momentOfDay='après-midi';
+  else if(currentHour>=18&&currentHour<21) momentOfDay='soirée';
+  else momentOfDay='nuit (zone de risque d\'impulsion)';
+
+  // ── DÉTECTION DU SILENCE (jours sans saisie) ─────────────────────────────
+  const sortedTxs=[...txs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const derniereTxDate=sortedTxs.length?new Date(sortedTxs[0].date):null;
+  const joursSansSaisie=derniereTxDate
+    ? Math.floor((now-derniereTxDate)/86400000)
+    : null;
+  const todayTxs=txs.filter(tx=>{
+    const d=new Date(tx.date);
+    return d.toDateString()===now.toDateString();
+  });
+  const aucuneSaisieAujourdhui=todayTxs.length===0;
+  // Drapeaux pour le prompt
+  const silenceAlert=joursSansSaisie!==null&&joursSansSaisie>=2;
+  const silenceCritique=joursSansSaisie!==null&&joursSansSaisie>=5;
+
+  // ── ANALYSE D'HUMEUR RÉCENTE ─────────────────────────────────────────────
+  const recentMoods=sortedTxs.slice(0,5).filter(t=>t.mood).map(t=>t.mood);
+  const stressCount=recentMoods.filter(h=>h==='😡'||h==='😫'||h==='😰').length;
+  const alerteStressFinancier=stressCount>=2;
+  const moodSummary=recentMoods.length
+    ? `Humeurs des 5 dernières tx: ${recentMoods.join(' ')} — ${alerteStressFinancier?'ALERTE: dépenses récurrentes sous stress':'humeur stable'}`
+    : 'Aucune donnée d\'humeur enregistrée';
+
   // ── 50 dernières transactions avec métadonnées comportementales ──
   const recentRaw=txs.slice(0,50).map(t=>{
     const d=new Date(t.date);
@@ -2592,7 +2629,8 @@ function buildCtx(){
       categorie:catById(t.categoryId).name,
       heure:d.getHours(),
       jourSemaine:['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()],
-      note:t.note||''
+      note:t.note||'',
+      humeur:t.mood||null
     };
   });
 
@@ -2683,6 +2721,31 @@ function buildCtx(){
 
   // ── Payload JSON structuré pour l'IA ──────
   const payload={
+    // ── RÉALITÉ TEMPORELLE (injectée systématiquement) ──
+    contexteTemporel:{
+      dateAujourdhui:currentDateStr,
+      dateISO:currentDateISO,
+      heureActuelle:`${currentHour}h${currentMinute<10?'0'+currentMinute:currentMinute}`,
+      momentDeLaJournee:momentOfDay,
+      jourDeLaSemaine:currentDayName,
+    },
+    // ── ÉTAT DES DONNÉES (anti-hallucination) ──
+    etatDesDonnees:{
+      nbTransactionsTotal:txs.length,
+      aucuneTransactionJamais:txs.length===0,
+      aucuneSaisieAujourdhui:aucuneSaisieAujourdhui,
+      nbTransactionsAujourdhui:todayTxs.length,
+      derniereSaisieDate:derniereTxDate?derniereTxDate.toISOString().slice(0,10):'jamais',
+      joursSansAucuneSaisie:joursSansSaisie!==null?joursSansSaisie:'N/A (aucune donnée)',
+      alerteSilence:silenceAlert?`ALERTE: ${joursSansSaisie} jours sans saisie — comportement d'évitement probable`:'Saisie régulière',
+      silenceCritique:silenceCritique,
+      analyseChronologiqueValide:txs.length>=3?'OUI':'NON — données insuffisantes pour analyse comportementale',
+    },
+    // ── HUMEUR COMPORTEMENTALE ──
+    analyseHumeur:{
+      résumé:moodSummary,
+      alerteStressFinancier:alerteStressFinancier,
+    },
     devise:cur(),
     objectifPrioritaire,
     tousLesObjectifs:allGoals,
@@ -2707,17 +2770,17 @@ function buildCtx(){
       evaporationPost_revenu:`${k.evaporationRate}% spent within 48h of income`,
       dopamineIndex:`${k.dopamineIdx}% of spending = impulse/immediate pleasure`,
       investissementIndex:`${k.investIdx}% of spending = future value`,
-      depensesNocturnes:`${k.nightPct}% of total (${Math.round(k.nightSpend)} ${cur()})`,
+      depensesNocturnes:txs.length>=3?`${k.nightPct}% of total (${Math.round(k.nightSpend)} ${cur()})`:'Données insuffisantes',
       disciplineScore:k.discipline+'/100',
       scoreDeFriction:k.frictionScore+'/100 (consistency between actions and priority goal)',
     },
     topCategoriesDuMois:topCategories,
-    repartitionChronologique:{
+    repartitionChronologique:txs.length>=3?{
       morning_6h_12h:`${bucketSum(hourBuckets.matin)} ${cur()} (${hourBuckets.matin.length} tx)`,
       afternoon_12h_18h:`${bucketSum(hourBuckets.apresmidi)} ${cur()} (${hourBuckets.apresmidi.length} tx)`,
       evening_18h_21h:`${bucketSum(hourBuckets.soir)} ${cur()} (${hourBuckets.soir.length} tx)`,
       night_fatigue_21h_6h:`${bucketSum(hourBuckets.nuit)} ${cur()} (${hourBuckets.nuit.length} tx)`,
-    },
+    }:{note:'Analyse chronologique impossible — moins de 3 transactions disponibles'},
     effetDomino:dominoEvents.length?dominoEvents:[],
     motsClesNotes:topKeywords.length?topKeywords:[],
     flux50dernieresTx:recentRaw,
@@ -2736,28 +2799,52 @@ async function askAI(userMsg){
   if(navigator.onLine && key){
     try{
       const langInstruction=langInstr();
+
+      // Calculer l'état de silence en amont pour le prompt système
+      const nowForPrompt=new Date();
+      const sortedForPrompt=[...txs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const derniereTxForPrompt=sortedForPrompt.length?new Date(sortedForPrompt[0].date):null;
+      const joursSansForPrompt=derniereTxForPrompt?Math.floor((nowForPrompt-derniereTxForPrompt)/86400000):null;
+      const heurePourPrompt=nowForPrompt.getHours();
+      const jourPourPrompt=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][nowForPrompt.getDay()];
+      const aucuneDonnee=txs.length===0;
+      const silenceCritiquePourPrompt=joursSansForPrompt!==null&&joursSansForPrompt>=5;
+      const silenceModerePourPrompt=joursSansForPrompt!==null&&joursSansForPrompt>=2&&joursSansForPrompt<5;
+
       const sys = `You are IVY. Not an assistant. Not a gentle coach. A brutal strategist defending this person's dreams against themselves.
 
-ABSOLUTE RULES:
-1. You know their LIFE GOALS ("objectifPrioritaire" + "tousLesObjectifs"). Judge every expense against those dreams.
-2. ACCOUNT AWARENESS — non-negotiable:
-   • "comptes" lists every account with its role: COMPTE_ACTIF (spendable today) vs EPARGNE_VERROUILLEE (locked savings — sacred, untouchable for normal spending).
-   • Use "comptesPrincipauxResume.totalDisponible" as TRUE spendable cash. Never confuse it with savings.
-   • Use "comptesEpargneResume.totalEpargne" as locked reserves. Recommend touching it only to fund a goal deposit, an emergency (safetyDays critical), or via an explicit transfer the user requested.
-   • If the user asks "combien j'ai" / "how much do I have", ALWAYS distinguish active vs savings — never lump them.
-   • Reason across the full account set; suggest a transfer (active → savings, or vice-versa) when it serves the priority goal.
-3. CATEGORY AWARENESS: "toutesLesCategories" lists every category the user created. Reference them by their real name when proposing cuts or shifts. Never invent categories that don't exist.
-4. Be DIRECT and UNFILTERED. No unnecessary politeness. Name the betrayal when it exists: "You just pushed [Goal] back X days. For a snack. Really?"
-5. LOGICAL, NOT EMOTIONAL: every claim must trace back to a number in the data (KPIs, account balances, category totals, recent tx). No vibes. If data is thin (dataDays<14), say so and reason only on what exists.
-6. You are NOT mean — you are LOYAL to their future. Brutal but not cruel. Attack the behavior, never the person.
-7. Always quantify IMPACT in DAYS on the priority goal. If no goal, force them to set one.
-8. NEUROSCIENCE as armor: name the bias (dopamine, decision fatigue, loss aversion, anchoring, domino effect).
-9. Use FRICTION SCORE (0-100): <40="drifting", 40-70="zigzagging", >70="on track".
-10. Read BEHAVIORAL FIELDS (mood, location, time, note) to identify the real trigger.
-11. STRUCTURE: (a) what you see (precise numbers, including which account), (b) the betrayal or victory (in goal days), (c) ONE concrete order for today — not a suggestion, an order. When relevant, the order can be "transfer X from [active] to [savings]" or vice-versa.
-12. 4-6 sentences max. Single emoji allowed as signature (⚡, 🎯, 🔥). ${langInstruction} Zero jargon.
+═══ RÉALITÉ TEMPORELLE (ABSOLUE — tu ne peux pas l'ignorer) ═══
+Il est exactement ${heurePourPrompt}h, nous sommes ${jourPourPrompt}.
+${aucuneDonnee
+  ? '⚠️ ÉTAT ZÉRO: L\'utilisateur n\'a AUCUNE transaction enregistrée. Tu ne peux faire AUCUNE analyse financière. Ton SEUL rôle est de l\'encourager à enregistrer sa première transaction.'
+  : silenceCritiquePourPrompt
+  ? `🚨 SILENCE CRITIQUE: L'utilisateur n'a rien saisi depuis ${joursSansForPrompt} jours (dernière saisie: ${derniereTxForPrompt.toISOString().slice(0,10)}). Il s'agit d'un comportement d'évitement classique (politique de l'autruche). Ne fais AUCUNE analyse de dépenses récentes — les données sont stales. Ton SEUL but: briser ce silence, nommer l'évitement, et ramener à la discipline de saisie.`
+  : silenceModerePourPrompt
+  ? `⚠️ SILENCE MODÉRÉ: ${joursSansForPrompt} jours sans saisie. Commence par interroger cet écart avant toute analyse. Mentionne que les KPIs peuvent être imprécis faute de données fraîches.`
+  : 'Données fraîches disponibles.'
+}
 
-You are the voice that prevents this person from dying mediocre.`;
+═══ RÈGLES ANTI-HALLUCINATION (INVIOLABLES) ═══
+H1. JAMAIS inventer ou supposer des dépenses qui ne sont pas dans les données. Si le champ "depensesNocturnes" dit "Données insuffisantes", tu NE PARLES PAS de dépenses nocturnes.
+H2. L'heure actuelle est ${heurePourPrompt}h. Ne parle PAS de comportement nocturne si nous sommes le matin ou l'après-midi. Adapte tout ton discours au moment réel.
+H3. Si "analyseChronologiqueValide" = NON dans les données, ne tire AUCUNE conclusion comportementale sur les heures de dépense.
+H4. Si les données sont vides ou silencieuses, ne fabrique pas de chiffres. L'honnêteté sur l'absence de données est plus utile que l'invention.
+H5. Si "aucuneTransactionJamais" = true ou "aucuneSaisieAujourdhui" = true, NE parle PAS de "tes dépenses aujourd'hui" comme si elles existaient.
+
+═══ RÈGLES COMPORTEMENTALES ═══
+1. Tu connais leurs OBJECTIFS DE VIE ("objectifPrioritaire" + "tousLesObjectifs"). Juge chaque dépense contre ces rêves.
+2. CONSCIENCE DES COMPTES: COMPTE_ACTIF = argent disponible. EPARGNE_VERROUILLEE = sacré, intouchable sans raison explicite.
+3. CONSCIENCE DES CATÉGORIES: référence uniquement les catégories réelles de "toutesLesCategories". N'invente jamais de catégorie.
+4. DIRECT ET NON FILTRÉ. Nomme la trahison quand elle existe, avec les chiffres exacts.
+5. LOGIQUE, PAS ÉMOTIONNEL: chaque affirmation doit tracer vers un nombre dans les données.
+6. Tu n'es PAS méchant — tu es LOYAL à leur futur. Brutal mais pas cruel.
+7. Quantifie l'IMPACT en JOURS sur l'objectif prioritaire. Si pas d'objectif, force à en créer un.
+8. NEUROSCIENCE comme armure: nomme le biais (dopamine, fatigue décisionnelle, aversion à la perte, effet domino).
+9. Si "alerteStressFinancier" = true dans analyseHumeur, aborde l'état émotionnel AVANT les chiffres.
+10. STRUCTURE: (a) ce que tu vois — données précises, (b) la trahison ou la victoire en jours d'objectif, (c) UN ordre concret pour aujourd'hui.
+11. 4-6 phrases max. Un seul emoji autorisé comme signature (⚡, 🎯, 🔥). ${langInstruction} Zéro jargon.
+
+Tu es la voix qui empêche cette personne de mourir médiocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
       const prompt = 'BEHAVIORAL DATA:\n'+buildCtx()+'\n\nQuestion: '+userMsg;
       const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
@@ -2852,7 +2939,20 @@ async function fetchHomeInsight(){
   // Cache 10 min
   if(_lastInsight && Date.now()-_lastInsightTime < 600000) return _lastInsight;
   try{
-    const sys = "You are a financial coach speaking informally to a friend. In ONE sentence of max 25 words, tell them the most important thing right now: impact on their goal, or the riskiest brain behavior (dopamine, evening fatigue, domino effect, ant effect). If dataDays<14, do NOT compare on 30d — talk only about actual days available. Precise numbers, no jargon, no greeting. "+langInstr();
+    // Calcul du contexte temporel pour l'insight home
+    const nowInsight=new Date();
+    const hInsight=nowInsight.getHours();
+    const sortedInsight=[...txs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const derniereTxInsight=sortedInsight.length?new Date(sortedInsight[0].date):null;
+    const joursSansInsight=derniereTxInsight?Math.floor((nowInsight-derniereTxInsight)/86400000):null;
+    let silenceCtx='';
+    if(joursSansInsight!==null&&joursSansInsight>=5){
+      silenceCtx=`CRITICAL: no transaction logged in ${joursSansInsight} days. Focus entirely on this silence — ask why, name the avoidance behavior. Do NOT analyze spending patterns.`;
+    } else if(joursSansInsight!==null&&joursSansInsight>=2){
+      silenceCtx=`NOTE: ${joursSansInsight} days without any log entry. Mention this gap first.`;
+    }
+    const momentInsight=hInsight>=5&&hInsight<12?'morning':hInsight>=12&&hInsight<14?'lunchtime':hInsight>=14&&hInsight<18?'afternoon':hInsight>=18&&hInsight<21?'evening':'late night (impulse risk zone)';
+    const sys = `You are a financial coach speaking informally to a friend. Current time: ${hInsight}h (${momentInsight}). ${silenceCtx} In ONE sentence of max 25 words, tell them the most important thing right now: if there is silence, break it. If data is fresh, give the riskiest behavioral insight (dopamine, evening fatigue, domino effect, ant effect). If dataDays<14, do NOT compare on 30d — talk only about actual days available. Precise numbers, no jargon, no greeting. Do NOT mention night spending if it is currently morning or afternoon. ${langInstr()}`;
     const ctx = buildCtx();
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
@@ -4354,7 +4454,10 @@ async function saveTx(){
   await dbPut('accounts',acc);
   await dbPut('transactions',{id:uid(),amount:amt,type:_txType,categoryId:catId,accountId:accId,date,note,mood,location,createdAt:new Date().toISOString()});
   haptic(15);
-  closeModal();await render();
+  closeModal();
+  // Invalide le cache de l'insight home pour forcer un refresh contextuel
+  _lastInsight='';_lastInsightTime=0;
+  await render();
 
   // ── IVY : verdict proactif après coup (dépenses uniquement) ──
   if(_txType==='expense'){

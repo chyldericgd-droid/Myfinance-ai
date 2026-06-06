@@ -155,10 +155,10 @@ select.fi{cursor:pointer}
 .geta{font-size:10px;color:var(--acc3);margin-top:3px}
 
 /* WEEKBAR */
-.wb{display:flex;align-items:flex-end;gap:5px;height:72px;margin-top:7px}
-.wbc{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
-.wbf{width:100%;border-radius:6px 6px 0 0;min-height:6px;transition:height .5s,background .3s}
-.wbl{font-size:9px;color:var(--mut);font-weight:700}
+.wb{display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:7px}
+.wbc{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px}
+.wbf{width:100%;border-radius:5px 5px 0 0;transition:height .5s cubic-bezier(.34,1.56,.64,1),background .3s;display:block}
+.wbl{font-size:9px;color:var(--mut);font-weight:700;text-align:center;line-height:1.1}
 
 /* ACC CHIP */
 .ach{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:13px;background:var(--surf2);border:1px solid var(--brd);margin-bottom:7px;cursor:pointer;transition:border-color .2s}
@@ -854,8 +854,10 @@ const I18N={
     ai_nocturne:'Nocturn.',ai_nocturne_sub:'dépenses 21h-5h',
     ai_dopamine:'Dopamine',ai_dopamine_sub:'impulsion / total',
     ai_glossary:'📖 Comprendre ces mots',ai_chat:'Chat IA',ai_local:'Local',
-    ai_paused_title:'🟡 Système en veille',ai_paused_msg:'{n} jours sans saisie — l\'analyse comportementale est suspendue. Importe tes mouvements pour réactiver les indicateurs.',ai_paused_btn:'+ Saisir les transactions manquées',ai_paused_status:'Mise à jour nécessaire',
+    ai_paused_title:'🟡 Système en veille',ai_paused_msg:'{n} jours sans saisie — l\'analyse comportementale est suspendue. Importe tes mouvements pour réactiver les indicateurs.',ai_paused_msg_long:'Le système est en veille. Importe tes données pour réactiver l\'analyse.',ai_paused_btn:'+ Saisir les transactions manquées',ai_paused_status:'Mise à jour nécessaire',
     ai_actions_title:'🎯 Actions du moment',ai_act_no_tx:'Tu n\'as encore rien enregistré. Ajoute une première dépense ou un revenu pour calibrer ton budget.',ai_act_silence:'Tu n\'as rien saisi depuis {n} jours. Rattrape les mouvements oubliés pour que l\'IA reste juste.',ai_act_evap_high:'Évaporation à {v}% sur 48h post-revenu. Programme un virement épargne automatique le jour de paie.',ai_act_night_high:'{v}% de tes dépenses tombent entre 21h et 5h. Active une règle : pas d\'achat non-essentiel après 22h.',ai_act_dopamine_high:'Index dopamine à {v}%. Avant chaque achat plaisir > 20{c}, attends 24h.',ai_act_low_security:'Réserve à {n}j d\'autonomie. Vise 30j minimum — bloque 10% de chaque revenu en épargne.',ai_act_keep_mastery:'Maîtrise à {v}%. Maintiens le cap : révise tes catégories de la semaine.',ai_act_calibrate:'Saisis quelques jours pour calibrer ton profil — l\'IA a besoin d\'au moins 7 mouvements.',ai_act_review_goal:'Aucun objectif défini. Crée un objectif prioritaire pour donner un sens à ton épargne.',ai_act_btn_add:'+ Ajouter',ai_act_btn_categories:'Voir catégories',ai_act_btn_goals:'Créer objectif',ai_act_btn_analyse:'Voir analyse',
+    ai_act_backup_due:'Aucune sauvegarde depuis {n} jours. Génère un code aujourd’hui avant de continuer les tests.',ai_act_btn_backup:'Sauvegarder',ai_hardcore_title:'⚔️ Mode Hardcore',ai_hardcore_repeat:'Même schéma que {day} : {cat}, {amt}. Ce n’est plus un accident, c’est une boucle.',ai_hardcore_no_goal:'Tu dépenses sans objectif prioritaire actif. Sans cible, chaque petite sortie gagne contre ton futur.',ai_hardcore_backup:'Aucune sauvegarde récente. Si ton navigateur se vide, ton historique disparaît.',ai_hardcore_btn_backup:'Générer une sauvegarde',ai_hardcore_btn_goal:'Créer une cible',ai_hardcore_btn_analyse:'Voir la dérive',
+    an_attention_title:'⚡ Attention',an_attention_none:'Aucune dérive forte sur cette période.',tx_visible_note:'Affichage limité aux {n} premières transactions pour garder l’app fluide.',cfg_hardcore:'Mode Hardcore',cfg_hardcore_desc:'Ivy devient plus directe et confronte les répétitions au lieu de rester seulement bienveillante.',
     ai_placeholder:'Analyse mes dépenses...',ai_data:'Données 100% locales',
     ai_groq_active:'Analyse via Groq',ai_groq_local:'Analyse locale active',
     ai_quick:'Questions rapides',
@@ -1265,8 +1267,10 @@ const I18N={
     ai_nocturne:'Night',ai_nocturne_sub:'expenses 9pm-5am',
     ai_dopamine:'Dopamine',ai_dopamine_sub:'impulse / total',
     ai_glossary:'📖 Understand these terms',ai_chat:'AI Chat',ai_local:'Local',
-    ai_paused_title:'🟡 System idle',ai_paused_msg:'{n} days without entries — behavioural analysis is paused. Log your moves to reactivate the indicators.',ai_paused_btn:'+ Log missed transactions',ai_paused_status:'Update required',
+    ai_paused_title:'🟡 System idle',ai_paused_msg:'{n} days without entries — behavioural analysis is paused. Log your moves to reactivate the indicators.',ai_paused_msg_long:'The system is idle. Import your data to reactivate analysis.',ai_paused_btn:'+ Log missed transactions',ai_paused_status:'Update required',
     ai_actions_title:'🎯 Next actions',ai_act_no_tx:'Nothing recorded yet. Add a first expense or income to calibrate your budget.',ai_act_silence:'No entries for {n} days. Catch up on missed moves so the AI stays accurate.',ai_act_evap_high:'Evaporation at {v}% in the 48h after income. Set up an automatic savings transfer on payday.',ai_act_night_high:'{v}% of your spending happens between 9pm and 5am. Apply a rule: no non-essential purchase after 10pm.',ai_act_dopamine_high:'Dopamine index at {v}%. Wait 24h before any pleasure purchase above 20{c}.',ai_act_low_security:'Reserve at {n}d of runway. Aim for 30d minimum — lock 10% of each income into savings.',ai_act_keep_mastery:'Mastery at {v}%. Keep the pace: review this week\'s categories.',ai_act_calibrate:'Log a few days to calibrate your profile — the AI needs at least 7 moves.',ai_act_review_goal:'No goal set. Create a priority goal to give your savings meaning.',ai_act_btn_add:'+ Add',ai_act_btn_categories:'View categories',ai_act_btn_goals:'Create goal',ai_act_btn_analyse:'View analysis',
+    ai_act_backup_due:'No backup for {n} days. Generate a code today before continuing tests.',ai_act_btn_backup:'Back up',ai_hardcore_title:'⚔️ Hardcore Mode',ai_hardcore_repeat:'Same pattern as {day}: {cat}, {amt}. This is no longer an accident; it is a loop.',ai_hardcore_no_goal:'You are spending without an active priority goal. Without a target, every small expense beats your future.',ai_hardcore_backup:'No recent backup. If your browser data is cleared, your history disappears.',ai_hardcore_btn_backup:'Generate backup',ai_hardcore_btn_goal:'Create target',ai_hardcore_btn_analyse:'View drift',
+    an_attention_title:'⚡ Attention',an_attention_none:'No major drift on this period.',tx_visible_note:'Showing the first {n} transactions only to keep the app smooth.',cfg_hardcore:'Hardcore Mode',cfg_hardcore_desc:'Ivy becomes more direct and confronts repeated patterns instead of staying only supportive.',
     ai_placeholder:'Analyze my spending...',ai_data:'100% local data',
     ai_groq_active:'Analysis via Groq',ai_groq_local:'Local analysis active',
     ai_quick:'Quick questions',
@@ -1673,8 +1677,10 @@ const I18N={
     ai_nocturne:'Nocturno',ai_nocturne_sub:'gastos 21h-5h',
     ai_dopamine:'Dopamina',ai_dopamine_sub:'impulso / total',
     ai_glossary:'📖 Entender estos términos',ai_chat:'Chat IA',ai_local:'Local',
-    ai_paused_title:'🟡 Sistema en pausa',ai_paused_msg:'{n} días sin entradas — el análisis de comportamiento está suspendido. Registra tus movimientos para reactivar los indicadores.',ai_paused_btn:'+ Registrar transacciones perdidas',ai_paused_status:'Actualización necesaria',
+    ai_paused_title:'🟡 Sistema en pausa',ai_paused_msg:'{n} días sin entradas — el análisis de comportamiento está suspendido. Registra tus movimientos para reactivar los indicadores.',ai_paused_msg_long:'El sistema está en pausa. Importa tus datos para reactivar el análisis.',ai_paused_btn:'+ Registrar transacciones perdidas',ai_paused_status:'Actualización necesaria',
     ai_actions_title:'🎯 Acciones del momento',ai_act_no_tx:'Aún no has registrado nada. Añade un primer gasto o ingreso para calibrar tu presupuesto.',ai_act_silence:'{n} días sin registros. Recupera los movimientos olvidados para mantener la IA precisa.',ai_act_evap_high:'Evaporación al {v}% en las 48h posteriores al ingreso. Programa una transferencia automática a ahorros el día de pago.',ai_act_night_high:'{v}% de tus gastos ocurren entre las 21h y las 5h. Aplica una regla: nada no esencial después de las 22h.',ai_act_dopamine_high:'Índice dopamina al {v}%. Espera 24h antes de cualquier compra placer mayor a 20{c}.',ai_act_low_security:'Reserva de {n}d de autonomía. Apunta a 30d mínimo — bloquea el 10% de cada ingreso en ahorros.',ai_act_keep_mastery:'Maestría al {v}%. Mantén el ritmo: revisa las categorías de la semana.',ai_act_calibrate:'Registra unos días para calibrar tu perfil — la IA necesita al menos 7 movimientos.',ai_act_review_goal:'Sin objetivo definido. Crea un objetivo prioritario para dar sentido a tu ahorro.',ai_act_btn_add:'+ Añadir',ai_act_btn_categories:'Ver categorías',ai_act_btn_goals:'Crear objetivo',ai_act_btn_analyse:'Ver análisis',
+    ai_act_backup_due:'Sin copia de seguridad desde hace {n} días. Genera un código hoy antes de seguir probando.',ai_act_btn_backup:'Respaldar',ai_hardcore_title:'⚔️ Modo Hardcore',ai_hardcore_repeat:'Mismo patrón que {day}: {cat}, {amt}. Ya no es un accidente; es un bucle.',ai_hardcore_no_goal:'Estás gastando sin un objetivo prioritario activo. Sin meta, cada pequeño gasto vence a tu futuro.',ai_hardcore_backup:'No hay copia reciente. Si se borran los datos del navegador, tu historial desaparece.',ai_hardcore_btn_backup:'Generar copia',ai_hardcore_btn_goal:'Crear meta',ai_hardcore_btn_analyse:'Ver deriva',
+    an_attention_title:'⚡ Atención',an_attention_none:'Sin deriva fuerte en este período.',tx_visible_note:'Mostrando solo las primeras {n} transacciones para mantener la app fluida.',cfg_hardcore:'Modo Hardcore',cfg_hardcore_desc:'Ivy se vuelve más directa y confronta patrones repetidos en vez de ser solo amable.',
     ai_placeholder:'Analiza mis gastos...',ai_data:'Datos 100% locales',
     ai_groq_active:'Análisis via Groq',ai_groq_local:'Análisis local activo',
     ai_quick:'Preguntas rápidas',
@@ -2073,8 +2079,10 @@ const I18N={
     ai_nocturne:'Noturno',ai_nocturne_sub:'despesas 21h-5h',
     ai_dopamine:'Dopamina',ai_dopamine_sub:'impulso / total',
     ai_glossary:'📖 Entender estes termos',ai_chat:'Chat IA',ai_local:'Local',
-    ai_paused_title:'🟡 Sistema em pausa',ai_paused_msg:'{n} dias sem registos — a análise comportamental está suspensa. Regista os teus movimentos para reativar os indicadores.',ai_paused_btn:'+ Registar transações em falta',ai_paused_status:'Atualização necessária',
+    ai_paused_title:'🟡 Sistema em pausa',ai_paused_msg:'{n} dias sem registos — a análise comportamental está suspensa. Regista os teus movimentos para reativar os indicadores.',ai_paused_msg_long:'O sistema está em pausa. Importa os teus dados para reativar a análise.',ai_paused_btn:'+ Registar transações em falta',ai_paused_status:'Atualização necessária',
     ai_actions_title:'🎯 Ações do momento',ai_act_no_tx:'Ainda não registaste nada. Adiciona uma primeira despesa ou receita para calibrar o teu orçamento.',ai_act_silence:'{n} dias sem registos. Recupera os movimentos esquecidos para a IA continuar precisa.',ai_act_evap_high:'Evaporação a {v}% nas 48h após receita. Programa uma transferência automática para poupança no dia do pagamento.',ai_act_night_high:'{v}% das tuas despesas acontecem entre as 21h e as 5h. Aplica uma regra: nada não essencial depois das 22h.',ai_act_dopamine_high:'Índice dopamina a {v}%. Espera 24h antes de qualquer compra prazer acima de 20{c}.',ai_act_low_security:'Reserva a {n}d de autonomia. Apontar para 30d mínimo — bloqueia 10% de cada receita em poupança.',ai_act_keep_mastery:'Mestria a {v}%. Mantém o ritmo: revê as categorias da semana.',ai_act_calibrate:'Regista alguns dias para calibrar o teu perfil — a IA precisa de pelo menos 7 movimentos.',ai_act_review_goal:'Sem objetivo definido. Cria um objetivo prioritário para dar sentido à tua poupança.',ai_act_btn_add:'+ Adicionar',ai_act_btn_categories:'Ver categorias',ai_act_btn_goals:'Criar objetivo',ai_act_btn_analyse:'Ver análise',
+    ai_act_backup_due:'Sem backup há {n} dias. Gera um código hoje antes de continuar os testes.',ai_act_btn_backup:'Backup',ai_hardcore_title:'⚔️ Modo Hardcore',ai_hardcore_repeat:'Mesmo padrão que {day}: {cat}, {amt}. Já não é acidente; é um ciclo.',ai_hardcore_no_goal:'Estás a gastar sem objetivo prioritário ativo. Sem alvo, cada pequena despesa vence o teu futuro.',ai_hardcore_backup:'Não há backup recente. Se os dados do navegador forem limpos, o histórico desaparece.',ai_hardcore_btn_backup:'Gerar backup',ai_hardcore_btn_goal:'Criar meta',ai_hardcore_btn_analyse:'Ver deriva',
+    an_attention_title:'⚡ Atenção',an_attention_none:'Sem deriva forte neste período.',tx_visible_note:'A mostrar apenas as primeiras {n} transações para manter a app fluida.',cfg_hardcore:'Modo Hardcore',cfg_hardcore_desc:'Ivy torna-se mais direta e confronta padrões repetidos em vez de ser apenas gentil.',
     ai_placeholder:'Analisa os meus gastos...',ai_data:'Dados 100% locais',
     ai_groq_active:'Análise via Groq',ai_groq_local:'Análise local ativa',
     ai_quick:'Perguntas rápidas',
@@ -2392,6 +2400,7 @@ const $=id=>document.getElementById(id);
 const uid=()=>Date.now()+'-'+Math.random().toString(36).slice(2,7);
 // cur() lit d'abord le setting DB, sinon auto-détection
 const cur=()=>settings.currency||detectCurrency();
+const L=(fr,en,es,pt)=>_lang==='en'?en:_lang==='es'?es:_lang==='pt'?pt:fr;
 
 function fmt(n){
   const a=Math.abs(Math.round(n));
@@ -2417,6 +2426,18 @@ function monthTxs(){
 }
 function catById(id){const c=cats.find(c=>c.id===id);return c?displayCat(c):{icon:'💸',name:id}}
 function accById(id){const a=accs.find(a=>a.id===id);return a?displayAcc(a):{icon:'?',name:'?'}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function classifyCategoryRole(categoryId){
+  const c=cats.find(x=>x.id===categoryId)||{};
+  const name=((c.name||categoryId||'')+' '+(c.id||'')).toLowerCase();
+  if((c.type&&c.type!=='expense')||categoryId==='transfer')return 'neutral';
+  if(['food','transport','housing','health','bills'].includes(categoryId)||/food|aliment|manger|repas|transport|taxi|bus|loyer|rent|logement|sant[eé]|health|facture|bill|school|[eé]cole|medicine|m[eé]dic/.test(name))return 'rigid';
+  if(['tech','studies'].includes(categoryId)||/cours|[eé]tude|formation|livre|outil|productivit|invest|business|freelance|education|skill/.test(name))return 'invest';
+  return 'elastic';
+}
+function isRigidExpense(t){return classifyCategoryRole(t.categoryId)==='rigid'}
+function isElasticExpense(t){return classifyCategoryRole(t.categoryId)==='elastic'}
+function isInvestExpense(t){return classifyCategoryRole(t.categoryId)==='invest'}
 
 // ════════════════════════════════════════
 // KPIs — Modèle Cashflow Dynamique (Rolling)
@@ -2507,8 +2528,8 @@ function computeKPIs(){
   const FOOD_IMPULSE_KEYWORDS=/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon/i;
   const isFoodImpulse=t=>t.categoryId==='food' && t.note && FOOD_IMPULSE_KEYWORDS.test(t.note);
   const INVEST_CATS=['tech','studies','invest_inc','youtube'];
-  const impulseSpend=w30.filter(t=>t.type==='expense'&&(IMPULSE_CATS.includes(t.categoryId)||isFoodImpulse(t))).reduce((s,t)=>s+t.amount,0);
-  const investSpend=w30.filter(t=>t.type==='expense'&&INVEST_CATS.includes(t.categoryId)).reduce((s,t)=>s+t.amount,0);
+  const impulseSpend=w30.filter(t=>t.type==='expense'&&(IMPULSE_CATS.includes(t.categoryId)||isFoodImpulse(t)||isElasticExpense(t))).reduce((s,t)=>s+t.amount,0);
+  const investSpend=w30.filter(t=>t.type==='expense'&&(INVEST_CATS.includes(t.categoryId)||isInvestExpense(t))).reduce((s,t)=>s+t.amount,0);
   const dopamineIdx=exp30>0?Math.round((impulseSpend/exp30)*100):0;
   const investIdx  =exp30>0?Math.round((investSpend/exp30)*100):0;
   // ── Effet Fourmi — petites tx <seuil cumulées 30j ──
@@ -2672,12 +2693,10 @@ function analyserComportementFinancier(){
   const dep7=kpi.exp7;
   const rev7=kpi.inc7;
 
-  // Catégoriser les dépenses 7j
-  const RIGIDE_CATS=['food','transport','housing','health','bills'];
-  const ELASTIQUE_CATS=['leisure','clothes','unforeseen','other_exp'];
+  // Catégoriser les dépenses 7j, y compris catégories personnalisées
   const w7txs=txsInWindow(7);
-  const dep7Rigides=w7txs.filter(tx=>tx.type==='expense'&&RIGIDE_CATS.includes(tx.categoryId)).reduce((s,tx)=>s+tx.amount,0);
-  const dep7Elastiques=w7txs.filter(tx=>tx.type==='expense'&&ELASTIQUE_CATS.includes(tx.categoryId)).reduce((s,tx)=>s+tx.amount,0);
+  const dep7Rigides=w7txs.filter(tx=>tx.type==='expense'&&isRigidExpense(tx)).reduce((s,tx)=>s+tx.amount,0);
+  const dep7Elastiques=w7txs.filter(tx=>tx.type==='expense'&&isElasticExpense(tx)).reduce((s,tx)=>s+tx.amount,0);
 
   let profilEtat='NORMAL';
   let rythmeAutorise=medDep||kpi.burnRate*7;
@@ -3119,7 +3138,8 @@ function buildCtx(){
     indicateurs:{
       capitalActif:k.activeBalance,
       epargne:k.savingsBalance,
-      patrimoineTotal:(k.activeBalance||0)+(k.savingsBalance||0),
+      patrimoineTotal_ATTENTION_comprend_epargne_verrouillee:(k.activeBalance||0)+(k.savingsBalance||0),
+    liquiditeReelle_SEUL_montant_depensable:k.activeBalance||0,
       joursDeDonneesDisponibles:k.dataDays,
       historiqueCourtAttention:k.isShortHistory?'YES — less than 14d of data, do NOT compare to 30d':'No',
       safetyDays:k.safetyDays===9999?'infinite':k.safetyDays,
@@ -3154,6 +3174,34 @@ function buildCtx(){
     },
     // v4.14: Moteur adaptatif anti-panique
     analyseAdaptative,
+    // v4.17: Analyse sémantique des notes
+    analyseNotes:{
+      totalTransactionsAvecNotes:txs.filter(tx=>tx.note&&tx.note.length>1).length,
+      totalTransactions:txs.length,
+      tauxAnnotation:txs.length>0?Math.round(txs.filter(tx=>tx.note&&tx.note.length>1).length/txs.length*100):0,
+      notesAujourdhui:txs.filter(tx=>{
+        return new Date(tx.date).toDateString()===new Date().toDateString()&&tx.note&&tx.note.length>1;
+      }).map(tx=>({note:tx.note,montant:tx.amount,categorie:catById(tx.categoryId).name,type:tx.type})),
+      alimentationAujourdhui:{
+        count:txs.filter(tx=>{const d=new Date(tx.date);return d.toDateString()===new Date().toDateString()&&tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger|snack/i.test(tx.note||''))}).length,
+        total:txs.filter(tx=>{const d=new Date(tx.date);return d.toDateString()===new Date().toDateString()&&tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger|snack/i.test(tx.note||''))}).reduce((s,tx)=>s+tx.amount,0),
+      },
+      motsClesFrequents:topKeywords,
+      dernièresNotes:txs.filter(tx=>tx.note&&tx.note.length>1).slice(0,10).map(tx=>({
+        date:new Date(tx.date).toISOString().slice(0,10),
+        note:tx.note,
+        montant:tx.amount,
+        type:tx.type,
+        categorie:catById(tx.categoryId).name,
+      })),
+    },
+    // v4.17: Paramètres utilisateur (pour personnalisation)
+    parametresUtilisateur:{
+      tauxHoraire:parseFloat(settings.hourlyRate)||0,
+      revenuAttendu7j:parseFloat(settings.expectedIncome7d)||0,
+      seuilFourmi:parseFloat(settings.antThreshold)||200,
+      devise:cur(),
+    },
   };
 
   return JSON.stringify(payload,null,0);
@@ -3220,6 +3268,10 @@ H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dép
 9. Si "alerteStressFinancier" = true dans analyseHumeur, aborde l'état émotionnel AVANT les chiffres.
 10. STRUCTURE: (a) ce que tu vois — données précises, (b) la trahison ou la victoire en jours d'objectif, (c) UN ordre concret pour aujourd'hui.
 11. 4-6 phrases max. Un seul emoji autorisé comme signature (⚡, 🎯, 🔥). ${langInstruction} Zéro jargon.
+12. NOTES SÉMANTIQUES: Quand une transaction a une note ('pizza', 'transport école', 'médicament'), juge si c'était nécessaire. Besoin primaire (manger, transport, santé, école) → ne blâme PAS mais questionne fréquence/montant. Plaisir → interroge l'impulsion avec respect. Urgence (note marquée 'urgent' ou 'urgence') → ne classe pas comme dopamine.
+13. COMPTES PRÉCIS: Ne confonds JAMAIS épargne et disponible. Cite toujours: 'X disponible (+ Y en épargne verrouillée)'. Ne somme JAMAIS les deux pour parler de 'ce que tu as'.
+14. TRANSACTIONS PRÉCISES: Tu as les 50 dernières tx dans flux50dernieresTx. Cite-les factuellement: 'Ta dépense de ce matin: X XAF - Alimentation.' Ne généralise pas quand les faits sont là.
+15. PARAMÈTRES: Tu connais les objectifs, catégories, comptes réels de l'utilisateur. Réponds SPÉCIFIQUEMENT à sa situation, pas en mode coach générique.
 
 Tu es la voix qui empêche cette personne de mourir médiocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
@@ -3263,28 +3315,102 @@ Tu es la voix qui empêche cette personne de mourir médiocre.`;
 
 function localAI(q){
   const k=computeKPIs();const ql=q.toLowerCase();
-  // Multilingual offline coach — uses i18n keys, responds in user's language
-  const riskKw=  _lang==='pt'?['risco','projeção','fim do mês']:_lang==='es'?['riesgo','proyección','fin de mes']:_lang==='en'?['risk','projection','end of month']:['risque','projection','fin de mois'];
-  const expKw=   _lang==='pt'?['despesa','categoria']:_lang==='es'?['gasto','categoría']:_lang==='en'?['expense','category','spending']:['dépense','catégorie'];
-  const balKw=   _lang==='pt'?['saldo','patrimônio','dinheiro']:_lang==='es'?['saldo','patrimonio','dinero']:_lang==='en'?['balance','wealth','money','net worth']:['solde','patrimoine','argent'];
-  const discKw=  _lang==='pt'?['disciplina','score','pontuação']:_lang==='es'?['disciplina','score','puntuación']:_lang==='en'?['discipline','score']:['discipline','score'];
-  const advKw=   _lang==='pt'?['conselho','melhorar','ajuda']:_lang==='es'?['consejo','mejorar','ayuda']:_lang==='en'?['advice','improve','help','tip']:['conseil','améliorer','aide'];
+  const now=new Date();
+  const h=now.getHours();
+
+  // ── ANALYSE SÉMANTIQUE DES NOTES ──────────────────────────────────────
+  // Extrait ce que l'utilisateur a mangé, où il est allé, etc.
+  const recentNotes=txs.slice(0,20).filter(tx=>tx.note&&tx.note.length>1).map(tx=>({
+    note:tx.note.toLowerCase(), amt:tx.amount, type:tx.type,
+    catId:tx.categoryId, date:new Date(tx.date)
+  }));
+  const foodNotes=recentNotes.filter(n=>['food','alimentation','resto','manger','repas','dejeuner','diner','pizza','burger','snack'].some(w=>n.note.includes(w)));
+  const todayFoodCount=foodNotes.filter(n=>n.date.toDateString()===now.toDateString()).length;
+
+  // ── DÉTECTION D'INTENTION dans la question ─────────────────────────────
+  const isAboutFood=['mang','alim','repas','nourriture','resto','déj','dîner','lunch','food','eat'].some(w=>ql.includes(w));
+  const isAboutGoal=['objectif','goal','pc','achat','économie','épargne','save','target'].some(w=>ql.includes(w));
+  const isAboutToday=['aujourd','today','journée','day'].some(w=>ql.includes(w));
+  const isAboutNote=['note',"j'ai",'j ai',"j'avais",'écrit','marqué'].some(w=>ql.includes(w));
+
+  // ── RÉPONSE CONTEXTUELLE ALIMENTAIRE ──────────────────────────────────
+  if(isAboutFood||isAboutNote){
+    const todayFoodTxs=txs.filter(tx=>{
+      const d=new Date(tx.date);
+      return d.toDateString()===now.toDateString()&&tx.type==='expense'&&
+        (tx.categoryId==='food'||(tx.note&&['manger','repas','resto','pizza','burger','snack','déj','dîner'].some(w=>(tx.note||'').toLowerCase().includes(w))));
+    });
+    if(todayFoodTxs.length===0){
+      return _lang==='en'
+        ?'📍 No food expense logged today yet. If you just ate, log it now — your brain forgets 60% of purchases within 3 hours.'
+        :`📍 Aucune dépense alimentaire enregistrée aujourd'hui. Si tu viens de manger, saisis-la maintenant — ton cerveau oublie 60% des achats en 3h.`;
+    }
+    const totalFood=todayFoodTxs.reduce((s,tx)=>s+tx.amount,0);
+    const notes=todayFoodTxs.map(tx=>tx.note).filter(Boolean).join(', ');
+    const avgFoodCost=k.expense>0?Math.round(foodNotes.slice(0,14).reduce((s,n)=>s+n.amt,0)/Math.max(1,foodNotes.slice(0,14).length)):0;
+    const isExpensive=avgFoodCost>0&&totalFood>avgFoodCost*1.5;
+    return _lang==='en'
+      ?`🍽️ Today's food: ${fmtFull(totalFood)} (${todayFoodTxs.length} time${todayFoodTxs.length>1?'s':''})${notes?' — '+notes:''}. ${isExpensive?'That\'s '+Math.round((totalFood/avgFoodCost-1)*100)+'% above your usual food budget.':'Within your normal range.'} Each meal is a choice: eating is necessary, the restaurant is optional.`
+      :`🍽️ Alimentation aujourd'hui: ${fmtFull(totalFood)} (${todayFoodTxs.length} fois)${notes?' — '+notes:''}. ${isExpensive?'C\'est '+Math.round((totalFood/avgFoodCost-1)*100)+'% au-dessus de ta moyenne alimentation.':'Dans ta norme habituelle.'} Manger est nécessaire — c'est le lieu et la fréquence qui coûtent.`;
+  }
+
+  // ── RÉPONSE SUR LES OBJECTIFS ─────────────────────────────────────────
+  if(isAboutGoal){
+    const pg=getPriorityGoal();
+    if(!pg) return _lang==='en'?'🎯 No goal set yet. Go to Config → Goals to add one. A goal makes every sacrifice tangible.':'🎯 Aucun objectif défini. Va dans Config → Objectifs pour en créer un. Un objectif rend chaque sacrifice concret.';
+    const gap=pg.target-pg.saved;
+    const dailySurplus=Math.max(0,(k.inc30/30)-k.burnRate);
+    const daysNeeded=dailySurplus>0?Math.ceil(gap/dailySurplus):null;
+    const pct=Math.round(((pg.saved/pg.target)*100));
+    return _lang==='en'
+      ?`🎯 "${pg.name}": ${pct}% done (${fmtFull(pg.saved)}/${fmtFull(pg.target)}). ${daysNeeded?'At current pace: ~'+daysNeeded+' days away.':'No surplus available right now — cut one recurring expense to accelerate.'} Every ${fmtFull(Math.round(gap/Math.max(1,daysNeeded||90)))}/day gets you there.`
+      :`🎯 "${pg.name}": ${pct}% fait (${fmtFull(pg.saved)}/${fmtFull(pg.target)}). ${daysNeeded?'Au rythme actuel: ~'+daysNeeded+' jours.':'Pas de surplus disponible — coupe une dépense récurrente pour accélérer.'} Chaque ${fmtFull(Math.round(gap/Math.max(1,daysNeeded||90)))}/jour te rapproche.`;
+  }
+
+  // ── RÉPONSE SUR AUJOURD'HUI ───────────────────────────────────────────
+  if(isAboutToday){
+    const todayTxs=txs.filter(tx=>new Date(tx.date).toDateString()===now.toDateString());
+    const todayExp=todayTxs.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0);
+    const todayInc=todayTxs.filter(tx=>tx.type==='income').reduce((s,tx)=>s+tx.amount,0);
+    const todayNotes=todayTxs.filter(tx=>tx.note).map(tx=>tx.note).join(', ');
+    const dailyBudget=k.burnRate>0?k.burnRate:k.expense/Math.max(1,k.dataDays);
+    const overBudget=todayExp>dailyBudget*1.3;
+    return _lang==='en'
+      ?`📅 Today so far: ${fmtFull(todayExp)} spent, ${fmtFull(todayInc)} received (${todayTxs.length} transaction${todayTxs.length!==1?'s':''})${todayNotes?' — '+todayNotes:''}. ${overBudget?'⚠️ 30% above your daily average.':'Within your daily average of '+fmtFull(Math.round(dailyBudget))+'.'} ${h>=18?'Evening spending risk is higher now — cortex fatigue.':h>=12?'Afternoon: decision fatigue starts at 14h.':'Morning: best decisions of the day.'}`
+      :`📅 Aujourd'hui: ${fmtFull(todayExp)} dépensés, ${fmtFull(todayInc)} reçus (${todayTxs.length} transaction${todayTxs.length!==1?'s':''})${todayNotes?' — '+todayNotes:''}. ${overBudget?'⚠️ 30% au-dessus de ta moyenne journalière.':'Dans ta norme journalière de '+fmtFull(Math.round(dailyBudget))+'.'} ${h>=18?'Soirée = zone de risque — cortex fatigué, résistance faible.':h>=12?"Après-midi: la fatigue décisionnelle s'installe vers 14h.":'Matin: meilleures décisions de la journée.'}`;
+  }
+
+  // ── RÉPONSES CLASSIQUES ───────────────────────────────────────────────
+  const riskKw=_lang==='en'?['risk','projection','end of month']:_lang==='es'?['riesgo','proyección']:_lang==='pt'?['risco','projeção']:['risque','projection','fin de mois'];
+  const expKw =_lang==='en'?['expense','category','spending']:_lang==='es'?['gasto','categoría']:_lang==='pt'?['despesa','categoria']:['dépense','catégorie'];
+  const balKw =_lang==='en'?['balance','wealth','money','net worth']:_lang==='es'?['saldo','patrimonio']:_lang==='pt'?['saldo','patrimônio']:['solde','patrimoine','argent'];
+  const discKw=_lang==='en'?['discipline','score']:_lang==='es'?['disciplina']:_lang==='pt'?['disciplina']:['discipline','score'];
+  const advKw =_lang==='en'?['advice','improve','help','tip']:_lang==='es'?['consejo','mejorar']:_lang==='pt'?['conselho','melhorar']:['conseil','améliorer','aide'];
+  const accKw =_lang==='en'?['account','wallet','cash']:_lang==='es'?['cuenta','billetera']:_lang==='pt'?['conta','carteira']:['compte','argent','espèce','wallet'];
 
   if(riskKw.some(w=>ql.includes(w))){
     const r=riskLevel(k);
     const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
     const sens=k.projDelta>=0?t('local_risk_good'):t('local_risk_bad');
     const delta=(k.projDelta>=0?'+':'')+fmtFull(k.projDelta);
-    return t('local_risk_msg').replace('{level}',r.l).replace('{sens}',sens).replace('{delta}',delta).replace('{br}',fmtFull(k.burnRate)).replace('{safe}',safe);
+    // Add savings context
+    const savingsCtx=k.savingsBalance>0?(_lang==='en'?` Savings buffer: ${fmtFull(k.savingsBalance)} (+${k.safetyDaysWithSavings}d).`:` Épargne: ${fmtFull(k.savingsBalance)} (+${k.safetyDaysWithSavings}j de tampon).`):'';
+    return t('local_risk_msg').replace('{level}',r.l).replace('{sens}',sens).replace('{delta}',delta).replace('{br}',fmtFull(k.burnRate)).replace('{safe}',safe)+savingsCtx;
   }
   if(expKw.some(w=>ql.includes(w))){
     if(!k.topCat) return t('local_no_top_cat');
     const save=fmtFull(k.expense*0.1);
-    return t('local_exp_msg').replace('{icon}',k.topCat.icon).replace('{name}',k.topCat.name).replace('{total}',fmtFull(k.expense)).replace('{br}',fmtFull(k.burnRate)).replace('{save}',save);
+    // Add period context
+    const periodCtx=k.isShortHistory?(_lang==='en'?` (${k.dataDays}-day sample — numbers will stabilize over time).`:` (Échantillon ${k.dataDays}j — les chiffres s'affinent avec le temps).`):'';
+    return t('local_exp_msg').replace('{icon}',k.topCat.icon).replace('{name}',k.topCat.name).replace('{total}',fmtFull(k.expense)).replace('{br}',fmtFull(k.burnRate)).replace('{save}',save)+periodCtx;
   }
-  if(balKw.some(w=>ql.includes(w))){
+  if(accKw.some(w=>ql.includes(w))||balKw.some(w=>ql.includes(w))){
     const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
-    return t('local_balance_msg').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{savings}',fmtFull(k.savingsBalance||0)).replace('{inc}',fmtFull(k.income)).replace('{exp}',fmtFull(k.expense)).replace('{safe}',safe);
+    // Clarify clearly what is active vs savings
+    const accDetail=accs.map(a=>`${a.icon} ${a.name}: ${fmtFull(a.balance)} (${a.type==='savings'?(_lang==='en'?'LOCKED':'VERROUILLÉ'):(_lang==='en'?'active':'actif')})`).join(', ');
+    return (_lang==='en'
+      ?`💳 Your accounts: ${accDetail}. AVAILABLE to spend: ${fmtFull(k.activeBalance)}. Savings are locked. This month: +${fmtFull(k.income)} in, -${fmtFull(k.expense)} out. ${safe} of runway without income.`
+      :`💳 Tes comptes: ${accDetail}. DISPONIBLE à dépenser: ${fmtFull(k.activeBalance)}. L'épargne est verrouillée. Ce mois: +${fmtFull(k.income)} entrés, -${fmtFull(k.expense)} sortis. ${safe} d'autonomie sans revenu.`);
   }
   if(discKw.some(w=>ql.includes(w))){
     const tip=k.discipline<60?t('local_disc_low'):t('local_disc_ok');
@@ -3297,10 +3423,14 @@ function localAI(q){
     if(k.discipline<60) issues.push(t('local_issue_disc'));
     if(k.dopamineIdx>50) issues.push(t('local_issue_dopamine').replace('{n}',k.dopamineIdx));
     if(k.nightPct>15) issues.push(t('local_issue_night').replace('{n}',k.nightPct));
+    if(k.evaporationRate>60) issues.push(_lang==='en'?`${k.evaporationRate}% of each income gone in 48h (evaporation)`:_lang==='fr'?`${k.evaporationRate}% de chaque revenu disparaît en 48h (évaporation)`:`${k.evaporationRate}% de cada ingreso se evapora en 48h`);
     if(!issues.length) return t('local_advice_ok').replace('{br}',fmtFull(k.burnRate));
     return t('local_advice_issues').replace('{issues}',issues.join('\n• '));
   }
-  return t('local_default').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{exp}',fmtFull(k.expense)).replace('{disc}',k.discipline);
+  // ── Fallback enrichi avec contexte temporel ───────────────────────────
+  const timeCtx=h>=21?(_lang==='en'?'\n⚠️ Late night = impulse zone. Your next purchase costs your brain more than during the day.':_lang==='fr'?'\n⚠️ Soirée tardive = zone impulsion. Ton prochain achat coûte plus cher à ton cerveau.':''):
+    h>=18?(_lang==='en'?'\n🌇 Evening: decision fatigue is active.':_lang==='fr'?'\n🌇 Soirée: la fatigue décisionnelle est active.':''):'';
+  return t('local_default').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{exp}',fmtFull(k.expense)).replace('{disc}',k.discipline)+timeCtx;
 }
 
 
@@ -3329,7 +3459,15 @@ async function fetchHomeInsight(){
       silenceCtx=`NOTE: ${joursSansInsight} days without any log entry. Mention this gap first.`;
     }
     const momentInsight=hInsight>=5&&hInsight<12?'morning':hInsight>=12&&hInsight<14?'lunchtime':hInsight>=14&&hInsight<18?'afternoon':hInsight>=18&&hInsight<21?'evening':'late night (impulse risk zone)';
-    const sys = `You are a financial coach speaking informally to a friend. Current time: ${hInsight}h (${momentInsight}). ${silenceCtx} In ONE sentence of max 25 words, tell them the most important thing right now: if there is silence, break it. If data is fresh, give the riskiest behavioral insight (dopamine, evening fatigue, domino effect, ant effect). If dataDays<14, do NOT compare on 30d — talk only about actual days available. Precise numbers, no jargon, no greeting. Do NOT mention night spending if it is currently morning or afternoon. ${langInstr()}`;
+    // Enrich home insight with today's notes and goal context
+    const _todayTxsI=txs.filter(tx=>new Date(tx.date).toDateString()===new Date().toDateString());
+    const _todayNotes=_todayTxsI.filter(tx=>tx.note).map(tx=>tx.note).join(', ');
+    const _todayFoodCount=_todayTxsI.filter(tx=>tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger/i.test(tx.note||''))).length;
+    const _todayExpTotal=_todayTxsI.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0);
+    const _kpiI=computeKPIs();
+    const _todayCtx=_todayTxsI.length>0?`Today: ${_todayTxsI.length} tx, ${Math.round(_todayExpTotal)} ${cur()} spent${_todayNotes?' (notes: '+_todayNotes+')':''}${_todayFoodCount>=2?' — '+_todayFoodCount+' food expenses':''}.`:'No transactions today.';
+    const _pgI=(()=>{const pg=getPriorityGoal();return pg?`Goal "${pg.name}": ${Math.round((pg.saved/pg.target)*100)}%.`:'';})();
+    const sys = `You are IVY, brutal financial coach. ${hInsight}h (${momentInsight}). ${silenceCtx} ${_todayCtx} ${_pgI} ONE sentence max 30 words: silence→break it, notes with food/impulse→cite them, goal behind→flag it, all good→specific insight. Real numbers. No jargon. No greeting. ${langInstr()}`;
     const ctx = buildCtx();
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
@@ -3444,6 +3582,28 @@ function getAlerts(kpi){
   if(kpi.isEndOfMonth)
     critical.push({t:'w',m:t('alert_end_month')});
 
+  // ── ALERTE CONTEXTUELLE NOTES ──────────────────────────────────────
+  // Si l'utilisateur a dépensé pour alimentation 2+ fois aujourd'hui → signal
+  const todayFoodTx=txs.filter(tx=>{
+    const d=new Date(tx.date);
+    return d.toDateString()===new Date().toDateString()&&tx.type==='expense'&&
+      (tx.categoryId==='food'||(tx.note&&/repas|resto|déj|dîner|manger|pizza|burger|snack/i.test(tx.note||'')));
+  });
+  if(todayFoodTx.length>=3){
+    const totalFood=todayFoodTx.reduce((s,t)=>s+t.amount,0);
+    pool.push({t:'w',m:`🍽️ ${todayFoodTx.length} dépenses alimentation aujourd'hui (${fmtFull(totalFood)}). Vérifier si toutes étaient nécessaires.`,prio:2});
+  }
+  // ── ALERTE SAISIE JOURNALIÈRE ──────────────────────────────────────
+  const todayTxAll=txs.filter(tx=>new Date(tx.date).toDateString()===new Date().toDateString());
+  const currentHourAlert=new Date().getHours();
+  if(todayTxAll.length===0&&currentHourAlert>=14&&!kpi.isSilent){
+    pool.push({t:'i',m:`📝 Aucune saisie aujourd'hui (${currentHourAlert}h). Ton cerveau oublie 60% des dépenses en 3h — note maintenant.`,prio:1});
+  }
+  // ── ALERTE COMPTE ACTIF VIDE + ÉPARGNE DISPO ──────────────────────
+  if(kpi.activeBalance<=0&&kpi.savingsBalance>0&&!kpi.isSilent){
+    pool.push({t:'w',m:`💰 Capital actif: ${fmtFull(kpi.activeBalance)}. Ton épargne (${fmtFull(kpi.savingsBalance)}) reste verrouillée — ne la touche pas sans décision consciente.`,prio:1});
+  }
+
   // ── ALERTES MODÉRÉES ─────────────────────────────────────────────────
   if(kpi.pressureDataOK && kpi.pressureIdx>20 && kpi.pressureIdx<=40)
     pool.push({t:'w',m:t('alert_pressure_mid').replace('{n}',kpi.pressureIdx),prio:2});
@@ -3469,7 +3629,7 @@ function getAlerts(kpi){
       pool.push({t:'w',m:t('alert_moral_license').replace('{exp}',fmtFull(todayExp)).replace('{x}',Math.round(todayExp/kpi.burnRate)),prio:1});
   }
 
-  const seed=Math.floor(Date.now()/86400000);
+  const seed=Math.floor(Date.now()/10800000);// Refresh every 3h — alerts feel alive
   const shuffled=pool.map((a,i)=>({a,r:((seed+i*31)%97)})).sort((x,y)=>x.a.prio-y.a.prio||x.r-y.r).map(x=>x.a);
   const out=[...critical];
   for(const a of shuffled){
@@ -3681,10 +3841,16 @@ function renderHome(){
       <div onclick="openKPIModal('balance')" style="cursor:pointer">
         <div style="font-size:10px;color:var(--mut);font-weight:700;letter-spacing:.8px;text-transform:uppercase">${t('capital')}</div>
         <div class="bal ${kpi.activeBalance>=0?'tg':'tr'}" style="margin-top:4px">${fmtFull(kpi.activeBalance)}</div>
-        ${kpi.savingsBalance>0?`<div style="font-size:11px;color:var(--grn);margin-top:3px;font-weight:600">🔒 ${fmtFull(kpi.savingsBalance)} ${t('savings_locked')}</div>`:''}
+        ${kpi.savingsBalance>0?`<div style="font-size:11px;color:var(--grn);margin-top:3px;font-weight:600" onclick="openKPIModal('safety')" style="cursor:pointer">🔒 ${fmtFull(kpi.savingsBalance)} ${t('savings_locked')} ${kpi.safetyDaysWithSavings>0&&kpi.safetyDaysWithSavings!==9999?' · +'+kpi.safetyDaysWithSavings+'j':kpi.safetyDaysWithSavings===9999?' · ∞':''}</div>`:''}
       </div>
       <div style="text-align:right">
-        <div class="badge" style="border-color:${risk.c};color:${risk.c};background:${risk.c}20">${risk.l}</div>
+        ${(()=>{
+          // Si capital actif <7j mais épargne couvre >14j → badge modéré pas critique
+          const effectiveDays = kpi.safetyDaysWithSavings;
+          const showRisk = (kpi.safetyDays < 7 && effectiveDays < 7) ? risk :
+            (kpi.safetyDays < 7 && effectiveDays >= 7) ? {l:t('risk_moderate'),c:'var(--ylw)'} : risk;
+          return `<div class="badge" style="border-color:${showRisk.c};color:${showRisk.c};background:${showRisk.c}20">${showRisk.l}</div>`;
+        })()}
         <div style="font-size:10px;color:var(--mut);margin-top:6px">${mn}</div>
       </div>
     </div>
@@ -3702,7 +3868,10 @@ function renderHome(){
       </div>
       <div class="kt" onclick="openKPIModal('safety')">
         <div class="kl">${t('safety_days')}</div>
-        <div class="kv" style="color:${kpi.safetyDays<7?'var(--red)':kpi.safetyDays<15?'var(--org)':'var(--grn)'}">${kpi.safetyDays===9999?'∞':kpi.safetyDays}</div>
+        <div class="kv" style="color:${kpi.safetyDays<7&&kpi.safetyDaysWithSavings<7?'var(--red)':kpi.safetyDays<7?'var(--ylw)':kpi.safetyDays<15?'var(--org)':'var(--grn)'}">
+          ${kpi.safetyDays===9999?'∞':kpi.safetyDays}
+          ${kpi.safetyDays<7&&kpi.safetyDaysWithSavings>kpi.safetyDays?`<span style="font-size:10px;color:var(--grn);font-weight:600"> +${kpi.safetyDaysWithSavings-kpi.safetyDays}🔒</span>`:''}
+        </div>
         <div class="ks">${t('safety_sub')}</div>
       </div>
       <div class="kt" onclick="openKPIModal('pressure')">
@@ -3742,12 +3911,17 @@ function renderHome(){
   ${navigator.onLine && getGroqKey()?`<div class="ai-insight" onclick="openAIQuick()" style="cursor:pointer">
     <div class="ai-h">✨ ${t('ai_assistant')} <span style="margin-left:auto;font-size:10px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0">${t('ai_tap_chat')}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
-  </div>`:''}
-
-  <!-- ALERTS -->
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
+      <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
+    </div>
+  </div>`:''}  <!-- ALERTS -->
   <div class="card">
-    <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span></div>
+    <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
+      <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
+    </div>
     ${alerts.map(a=>`<div class="al al-${a.t}">${a.m}</div>`).join('')}
+    ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j — alertes comportementales actives à 14j+</div>`:'')}
   </div>
 
   <!-- RECENT TX -->
@@ -3834,7 +4008,7 @@ function txItem(t){
   return`<div class="txi" onclick="openTxDetailModal('${t.id}')" style="${rowBorder}">
     <div class="txic">${cat.icon}</div>
     <div class="txin">
-      <div class="txn">${cat.name}${t.note?' · '+t.note:''}${semIcon?` <span style="font-size:11px;opacity:.7">${semIcon}</span>`:''}</div>
+      <div class="txn">${esc(cat.name)}${t.note?' · '+esc(t.note):''}${semIcon?` <span style="font-size:11px;opacity:.7">${esc(semIcon)}</span>`:''}</div>
       <div class="txm">${acc.name} · ${ago(t.date)}${t.type==='expense'&&timeOf(t.amount)?' · <span style="color:var(--acc3)">≈ '+timeOf(t.amount)+'</span>':''}${isExcIncome?' · <span style="color:var(--grn);font-size:10px">🚀 Exceptionnel</span>':''}</div>
     </div>
     <div class="txa" style="color:${color}">${sign}${fmt(t.amount)}</div>
@@ -3853,9 +4027,12 @@ function renderTxList(){
     return cat.name.toLowerCase().includes(q)||acc.name.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)||String(t.amount).includes(q);
   });
 
-  // Group by date
+  const visible=filtered.slice(0,100);
+  const hiddenCount=Math.max(0,filtered.length-visible.length);
+
+  // Group by date — liste bornée pour garder le DOM fluide
   const groups={};
-  filtered.forEach(t=>{
+  visible.forEach(t=>{
     const d=new Date(t.date).toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long'});
     if(!groups[d])groups[d]=[];
     groups[d].push(t);
@@ -3871,6 +4048,7 @@ function renderTxList(){
     ${['all','income','expense','transfer'].map(f=>`<button class="ftab ${txFilter===f?'on':''}" onclick="txFilter='${f}';render()">${f==='all'?t('tx_filter_all'):f==='income'?t('tx_filter_inc'):f==='expense'?t('tx_filter_exp'):t('tx_filter_tr')}</button>`).join('')}
   </div>
   <div class="card">
+    ${hiddenCount?`<div class="al al-i" style="margin-bottom:10px">${t('tx_visible_note').replace('{n}',visible.length)}</div>`:''}
     ${Object.keys(groups).length?Object.entries(groups).map(([date,list])=>`
       <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;${Object.keys(groups).indexOf(date)===0?'margin-top:0':''}">${date}</div>
       <div style="font-size:11px;color:var(--mut);text-align:right;margin-top:-20px;margin-bottom:6px">${fmtFull(list.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)||0)}</div>
@@ -4059,6 +4237,8 @@ function renderAnalytics(){
     <div id="${aiCommentId}" style="font-size:13px;line-height:1.55;color:var(--txt2)">${localCmt}</div>
   </div>
 
+  ${anomalies.length?`<div class="card" style="border-color:rgba(244,63,94,.26);background:linear-gradient(135deg,rgba(244,63,94,.08),rgba(251,191,36,.04))"><div class="ch">${t('an_attention_title')} — ${periodLabel(p)}</div>${anomalies.map(a=>`<div class="al al-w">${a}</div>`).join('')}</div>`:''}
+
   <!-- COMPARISON PÉRIODE -->
   <div class="card">
     <div class="ch">${t('cmp_label')} — ${pLabels[p]}</div>
@@ -4105,11 +4285,10 @@ function renderAnalytics(){
       ${subData.map((v,i)=>{
         const ratio=v/maxSub;
         const col=intensityColor(ratio);
+        const h=v>0?Math.max(6,Math.round((v/maxSub)*68)):3;
         return`<div class="wbc">
-          <div style="flex:1;display:flex;align-items:flex-end">
-            <div class="wbf" style="height:${v>0?Math.max(8,(v/maxSub)*60):8}px;background:${v>0?col:"var(--surf3)"};opacity:1;width:100%"></div>
-          </div>
-          <div class="wbl" style="white-space:pre-line;font-size:9px">${subLabels[i]}</div>
+          <div class="wbf" style="height:${h}px;background:${v>0?col:'rgba(255,255,255,.06)'};min-height:${v>0?6:3}px"></div>
+          <div class="wbl">${subLabels[i].replace('\n','<br>')}</div>
         </div>`;
       }).join('')}
     </div>
@@ -4118,7 +4297,7 @@ function renderAnalytics(){
 
   <!-- TOP DÉPENSES ADAPTATIF -->
   <div class="card">
-    <div class="ch">${t('top_exp')} ${periodLabel(p)}</div>
+    <div class="ch">${t('top_exp')} ${periodLabel(p)} <span class="tm" style="font-size:9px">${catEntries.length} catégorie${catEntries.length!==1?'s':''}</span></div>
     ${catEntries.map(([id,v])=>{
       const cat=catById(id);const pct=Math.round((v/maxCat)*100);const sharePct=catSum?Math.round(v/catSum*100):0;
       return`<div style="margin-bottom:11px;cursor:pointer" onclick="openCategoryModal('${id}','${p}')">
@@ -4129,8 +4308,6 @@ function renderAnalytics(){
       </div>`;
     }).join('')||`<div class="tm" style="font-size:12px">${t('an_no_cat')}</div>`}
   </div>
-
-  ${anomalies.length?`<div class="card"><div class="ch">⚡ Anomalies — ${periodLabel(p)}</div>${anomalies.map(a=>`<div class="al al-w">${a}</div>`).join('')}</div>`:''}
 
   <!-- SCORE FINANCIER ADAPTATIF -->
   <div class="card">
@@ -4149,13 +4326,13 @@ function localPeriodComment(p,d){
   const lbl=periodLabel(p),prev=periodPrevLabel(p);
   const kpi=computeKPIs();
 
-  // ── Silence : on ne commente pas des données stales ─────────────────
   if(kpi.isSilent){
     return t('analyse_silence').replace('{n}',kpi.joursSansSaisie);
   }
-
   if(d.curExp===0&&d.curInc===0) return t('no_data_period').replace('{p}',lbl);
+
   const parts=[];
+  // ── Comparaison avec période précédente ────────────────────────────
   if(d.curExp>0&&d.prevExp>0){
     if(d.expDpct>30) parts.push(t('analyse_exp_up').replace('{pct}',d.expDpct).replace('{prev}',prev));
     else if(d.expDpct<-20) parts.push(t('analyse_exp_down').replace('{pct}',Math.abs(d.expDpct)).replace('{prev}',prev));
@@ -4163,11 +4340,29 @@ function localPeriodComment(p,d){
   } else if(d.curExp>0){
     parts.push(t('analyse_exp_only').replace('{amt}',fmtFull(d.curExp)).replace('{p}',lbl));
   }
-  if(d.curInc>0&&d.curExp>d.curInc) parts.push(`⚠️ ${t('over_budget')} ${lbl}. ${t('over_budget_neg')}: ${fmtFull(d.curInc-d.curExp)}.`);
+  // ── Déficit ──────────────────────────────────────────────────────
+  if(d.curInc>0&&d.curExp>d.curInc) parts.push('⚠️ '+t('over_budget')+' '+lbl+'. Solde: '+fmtFull(d.curInc-d.curExp)+'.');
+  // ── Top cat ──────────────────────────────────────────────────────
   if(d.topCat) parts.push(t('analyse_top_cat').replace('{icon}',catById(d.topCat[0]).icon).replace('{name}',catById(d.topCat[0]).name).replace('{amt}',fmtFull(d.topCat[1])));
-  return parts.join(' ');
+  // ── Analyse des notes de la période (offline behavioral insight) ──
+  const ptxs=getPeriodTxs(p);
+  const notedTxs=ptxs.filter(tx=>tx.note&&tx.note.length>1);
+  if(notedTxs.length>=2){
+    const topNotes=notedTxs.slice(0,3).map(tx=>tx.note).join(', ');
+    parts.push(_lang==='en'?`Notes logged: "${topNotes}" — these give context for spending decisions.`:`Notes: "${topNotes}" — ces informations permettent de mieux contextualiser.`);
+  }
+  // ── Taux de rétention local ──────────────────────────────────────
+  if(d.curInc>0){
+    const retPct=Math.round(((d.curInc-d.curExp)/d.curInc)*100);
+    if(retPct<0) parts.push(_lang==='en'?'⚠️ You spent more than you earned this period.':'⚠️ Tu as dépensé plus que tu n\'as gagné sur cette période.');
+    else if(retPct>=30) parts.push(_lang==='en'?`✅ You kept ${retPct}% of income — strong retention.`:`✅ Tu as conservé ${retPct}% de tes revenus — bonne rétention.`);
+  }
+  // ── Histogramme court-circuit : affiche "pas assez de données" si besoin ──
+  if(kpi.isShortHistory&&p!=='day'){
+    parts.push(_lang==='en'?`(${kpi.dataDays}-day sample — data stabilizes after 14+ days)`:`(Échantillon de ${kpi.dataDays}j — données plus fiables après 14j+)`);
+  }
+  return parts.filter(Boolean).join(' ');
 }
-
 async function fetchPeriodInsight(p){
   if(!navigator.onLine||!getGroqKey()) return;
   const kpi=computeKPIs();
@@ -4190,12 +4385,19 @@ async function fetchPeriodInsight(p){
   const prevExp=prevTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const catSpendP={};ptxs.filter(t=>t.type==='expense').forEach(t=>{catSpendP[t.categoryId]=(catSpendP[t.categoryId]||0)+t.amount});
   const top=Object.entries(catSpendP).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([id,v])=>catById(id).name+':'+Math.round(v));
+  // Enriched period context with notes and today's transactions
+  const periodNotes=ptxs.filter(tx=>tx.note&&tx.note.length>1).slice(0,8).map(tx=>`${catById(tx.categoryId).name}(${tx.amount}${cur()})${tx.note?':'+tx.note:''}`);
+  const totalTxCount=ptxs.length;
+  const kpiCtx=computeKPIs();
   const prompt=`You are Ivy, neuro financial coach. Analyse in 2-3 sentences max, blunt but useful. ${langInstr()}
-Period: ${periodLabel(p)}. Currency: ${cur()}.
-Expenses ${periodLabel(p)}: ${Math.round(curExp)} | ${periodPrevLabel(p)}: ${Math.round(prevExp)}.
-Income ${periodLabel(p)}: ${Math.round(curInc)}.
-Top expenses: ${top.join(', ')||'none'}.
-Give ONE neuro/behavioral observation + ONE concrete action. No jargon.`;
+Period: ${periodLabel(p)} (${totalTxCount} transactions). Currency: ${cur()}.
+Expenses: ${Math.round(curExp)} vs previous ${periodPrevLabel(p)}: ${Math.round(prevExp)} (${prevExp>0?Math.round((curExp-prevExp)/prevExp*100):0}% change).
+Income: ${Math.round(curInc)}.
+Top expense categories: ${top.join(', ')||'none'}.
+Transaction notes (what was actually spent on): ${periodNotes.join(' | ')||'no notes logged'}.
+Behavioral KPIs: dopamine=${kpiCtx.dopamineIdx}%, evaporation=${kpiCtx.evaporationRate}%, night spending=${kpiCtx.nightPct}%.
+${kpiCtx.isShortHistory?'NOTE: Short history ('+kpiCtx.dataDays+'d) — do not compare to 30-day norms. Only analyze actual available data.':''}
+Give ONE neuro/behavioral insight based on actual notes and spending + ONE concrete action. Cite specific amounts. No jargon. Max 3 sentences.`;
   try{
     const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
@@ -4489,6 +4691,10 @@ function getNextActions(kpi){
       actions.push({icon:'⭐',text:t('ai_act_review_goal'),btn:t('ai_act_btn_goals'),btnAction:"go('settings')"});
     }
   }catch(e){}
+  const backupGap=getBackupGapDays();
+  if(backupGap>=7){
+    actions.push({icon:'💾',text:t('ai_act_backup_due').replace('{n}',backupGap),btn:t('ai_act_btn_backup'),btnAction:'doExport()'});
+  }
   // 9. Tout va bien — féliciter
   if(actions.length===0){
     const mastery=Math.max(0,100-kpi.dopamineIdx);
@@ -4497,9 +4703,34 @@ function getNextActions(kpi){
   return actions.slice(0,4);
 }
 
+function getBackupGapDays(){
+  const d=settings.lastBackupAt?new Date(settings.lastBackupAt):null;
+  return d&&!isNaN(d)?Math.floor((Date.now()-d.getTime())/86400000):999;
+}
+
+function checkConsistency(kpi){
+  const out=[];
+  const dopamineLike=tx=>tx.type==='expense'&&(isElasticExpense(tx)||/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon|shopping|jeu/i.test(tx.note||''));
+  const recent=txs.filter(tx=>dopamineLike(tx)&&Date.now()-new Date(tx.date).getTime()<=7*86400000);
+  const latest=recent[0];
+  if(latest){
+    const ld=new Date(latest.date).getTime();
+    const prev=txs.find(tx=>tx.id!==latest.id&&dopamineLike(tx)&&tx.categoryId===latest.categoryId&&new Date(tx.date).getTime()<ld-21600000&&ld-new Date(tx.date).getTime()<=21*86400000);
+    if(prev){
+      const day=new Date(prev.date).toLocaleDateString(getLocaleForDates(),{weekday:'long'});
+      out.push({icon:'🔁',text:t('ai_hardcore_repeat').replace('{day}',day).replace('{cat}',catById(latest.categoryId).name).replace('{amt}',fmtFull(latest.amount)),btn:t('ai_hardcore_btn_analyse'),btnAction:"go('analytics')"});
+    }
+  }
+  try{if(!getPriorityGoal()&&kpi.exp30>0)out.push({icon:'🎯',text:t('ai_hardcore_no_goal'),btn:t('ai_hardcore_btn_goal'),btnAction:"go('settings')"});}catch(e){}
+  if(getBackupGapDays()>=7)out.push({icon:'💾',text:t('ai_hardcore_backup'),btn:t('ai_hardcore_btn_backup'),btnAction:'doExport()'});
+  return out.slice(0,3);
+}
+
 function renderAI(){
   const kpi=computeKPIs(),alerts=getAlerts(kpi);
   const isOnline=navigator.onLine;
+  const hardcore=settings.hardcoreMode!==false;
+  const consistency=hardcore?checkConsistency(kpi):[];
 
   // ── v4.15: Bannière contextuelle Pulse (médiane glissante + autonomie réelle) ──
   let pulseBanner='';
@@ -4507,9 +4738,15 @@ function renderAI(){
     const comport=analyserComportementFinancier();
     const rythme=Math.max(0,Math.round((kpi.burnRateHistorique||0)));
     const joursAutonomie=rythme>0?Math.floor(kpi.activeBalance/rythme):(kpi.activeBalance>0?'∞':0);
-    const profilLabel={NORMAL:'Rythme stable',EXCEPTIONAL_INCOME:'Rentrée majeure absorbée',USER_RESTRICTION:'Restriction détectée',PLEASURE_SPIKE:'Pic plaisir amorti',NO_INCOME_MODE:'Mode subsistance'}[comport.profilEtat]||'Rythme stable';
+    const profilLabel={
+      NORMAL:L('Rythme stable','Stable rhythm','Ritmo estable','Ritmo estável'),
+      EXCEPTIONAL_INCOME:L('Rentrée majeure absorbée','Major income absorbed','Ingreso mayor absorbido','Entrada maior absorvida'),
+      USER_RESTRICTION:L('Restriction détectée','Restriction detected','Restricción detectada','Restrição detetada'),
+      PLEASURE_SPIKE:L('Pic plaisir amorti','Pleasure spike absorbed','Pico placer amortiguado','Pico prazer amortecido'),
+      NO_INCOME_MODE:L('Mode subsistance','Survival mode','Modo subsistencia','Modo subsistência')
+    }[comport.profilEtat]||L('Rythme stable','Stable rhythm','Ritmo estable','Ritmo estável');
     const accent=comport.profilEtat==='NORMAL'?'var(--grn)':comport.profilEtat==='PLEASURE_SPIKE'||comport.profilEtat==='NO_INCOME_MODE'?'var(--red)':'var(--ylw)';
-    const msg=comport.messageContextuel||`Ton épargne couvre ~<b>${joursAutonomie}j</b> au rythme passé (${fmtFull(rythme)}/j). Elle ne doit pas devenir ton excuse pour ne plus saisir.`;
+    const msg=comport.messageContextuel||L(`Ton épargne couvre ~<b>${joursAutonomie}j</b> au rythme passé (${fmtFull(rythme)}/j). Elle ne doit pas devenir ton excuse pour ne plus saisir.`,`Your savings cover ~<b>${joursAutonomie}d</b> at the past rhythm (${fmtFull(rythme)}/d). They must not become an excuse to stop logging.`,`Tus ahorros cubren ~<b>${joursAutonomie}d</b> al ritmo pasado (${fmtFull(rythme)}/d). No deben ser excusa para dejar de registrar.`,`A tua poupança cobre ~<b>${joursAutonomie}d</b> ao ritmo anterior (${fmtFull(rythme)}/d). Não deve virar desculpa para parar de registar.`);
     pulseBanner=`
     <div style="margin-bottom:14px;padding:14px 16px;background:linear-gradient(135deg,color-mix(in srgb,${accent} 14%,transparent),color-mix(in srgb,${accent} 4%,transparent));border:1px solid color-mix(in srgb,${accent} 35%,transparent);border-radius:18px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -4526,10 +4763,19 @@ function renderAI(){
 
   ${pulseBanner}
 
-  <!-- AUTO INSIGHTS -->
+  <!-- AUTO INSIGHTS — enriched for AI screen -->
   <div class="card">
-    <div class="ch">${t('ai_auto')}</div>
-    ${alerts.map(a=>`<div class="al al-${a.t}">${a.m}</div>`).join('')}
+    <div class="ch">${t('ai_auto')} <span class="pill">${alerts.length}</span></div>
+    ${alerts.map(a=>`<div class="al al-${a.t}" style="cursor:pointer" onclick="quickAsk(this.innerText.replace(/^[^:]+:/,'').trim())">${a.m}</div>`).join('')}
+    ${kpi.isShortHistory?`<div style="margin-top:8px;padding:7px 10px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:10px;font-size:10px;color:var(--mut)">${L(`📊 Alertes basées sur ${kpi.dataDays}j — précision maximale à partir de 14j`,`📊 Alerts based on ${kpi.dataDays}d — best accuracy after 14d`,`📊 Alertas basadas en ${kpi.dataDays}d — precisión máxima desde 14d`,`📊 Alertas baseadas em ${kpi.dataDays}d — precisão máxima após 14d`)}</div>`:''}
+    ${(()=>{
+      // Show what the AI CAN'T analyze yet (transparency)
+      const gaps=[];
+      if(!kpi.pressureDataOK) gaps.push(L('pression hebdomadaire (besoin 14j+)','weekly pressure (needs 14d+)','presión semanal (necesita 14d+)','pressão semanal (precisa de 14d+)'));
+      if(kpi.dopamineIdx===0&&kpi.exp30===0) gaps.push(L('comportement dopaminergique (aucune dépense)','dopamine pattern (no expense)','patrón dopamina (sin gasto)','padrão dopamina (sem despesa)'));
+      if(kpi.nightPct===0&&kpi.exp30===0) gaps.push(L('empreinte nocturne','night footprint','huella nocturna','marca noturna'));
+      return gaps.length?`<div style="margin-top:6px;font-size:10px;color:var(--mut);padding:0 2px">${L('⏳ En attente de données:','⏳ Waiting for data:','⏳ Esperando datos:','⏳ À espera de dados:')} ${gaps.join(', ')}</div>`:'';
+    })()}
   </div>
 
   <!-- SCORES COMPORTEMENTAUX — masqués si silence ≥7j -->
@@ -4539,13 +4785,14 @@ function renderAI(){
     <div style="padding:18px 4px;text-align:center">
       <div style="font-size:42px;line-height:1;margin-bottom:10px">🟡</div>
       <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:6px">${t('ai_paused_title')}</div>
-      <div style="font-size:12px;color:var(--txt2);line-height:1.55;margin-bottom:14px">${t('ai_paused_msg').replace('{n}',kpi.joursSansSaisie)}</div>
+      <div style="font-size:12px;color:var(--txt2);line-height:1.55;margin-bottom:14px">${kpi.joursSansSaisie>=15?t('ai_paused_msg_long'):t('ai_paused_msg').replace('{n}',kpi.joursSansSaisie)}</div>
       <button class="btn" onclick="openAddModal()" style="width:100%">${t('ai_paused_btn')}</button>
     </div>
   </div>
   ` : `
   <div class="card">
     <div class="ch">${t('ai_indicators')}</div>
+    ${kpi.isShortHistory?`<div style="margin-bottom:8px;padding:7px 10px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px;font-size:10px;color:var(--ylw);font-weight:600">${L(`📊 Scores basés sur ${kpi.dataDays}j de données — s'affinent avec le temps (optimal: 30j)`,`📊 Scores based on ${kpi.dataDays}d of data — they improve over time (best: 30d)`,`📊 Puntuaciones basadas en ${kpi.dataDays}d de datos — mejoran con el tiempo (óptimo: 30d)`,`📊 Pontuações baseadas em ${kpi.dataDays}d de dados — melhoram com o tempo (ideal: 30d)`)}</div>`:''}
     <div class="flex" style="justify-content:space-around;padding:8px 0">
       ${scoreRing(kpi.retention!==null?Math.min(100,Math.max(0,kpi.retention)):0,t('ai_retention'),kpi.retention>=25?'var(--grn)':kpi.retention>=0?'var(--ylw)':'var(--red)')}
       ${scoreRing(Math.min(100,kpi.safetyDays===9999?100:kpi.safetyDays*3),t('ai_security'),kpi.safetyDays>20?'var(--grn)':kpi.safetyDays>10?'var(--ylw)':'var(--red)')}
@@ -4573,6 +4820,14 @@ function renderAI(){
       </div>
     `).join('')}
   </div>
+
+  ${consistency.length?`<div class="card" style="border-color:rgba(244,63,94,.28);background:linear-gradient(135deg,rgba(244,63,94,.07),rgba(15,23,42,.02))">
+    <div class="ch">${t('ai_hardcore_title')}</div>
+    ${consistency.map(a=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--brd)">
+      <div style="font-size:18px;flex-shrink:0;line-height:1.3">${a.icon}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--txt);line-height:1.5;margin-bottom:6px">${a.text}</div>${a.btn?`<button class="btn btn-ghost btn-sm" onclick="${a.btnAction}">${a.btn}</button>`:''}</div>
+    </div>`).join('')}
+  </div>`:''}
   <div class="card">
     <div class="ch">${t('ai_chat')} <span class="pill" style="color:${isOnline?'var(--grn)':'var(--org)'}">${isOnline?'Groq AI':t('ai_local')}</span></div>
     <div class="chat" id="chatArea">
@@ -4587,11 +4842,26 @@ function renderAI(){
     <div style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${isOnline?t('ai_via_groq'):t('ai_via_local')}</div>
   </div>
 
-  <!-- QUICK Q -->
+  <!-- QUICK Q — contextuels selon l'état réel -->
   <div class="card">
     <div class="ch">${t('home_quick_q')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${['ai_q1','ai_q2','ai_q3','ai_q4','ai_q5','ai_q6'].map(k=>{const q=t(k);return `<button class="btn btn-ghost btn-sm" onclick="quickAsk(\`${q}\`)">${q}</button>`}).join('')}
+      ${(()=>{
+        const extras=[];
+        const k2=computeKPIs();
+        // Dynamic contextual questions based on real data
+        if(txs.some(tx=>tx.note&&tx.note.length>1)){
+          extras.push(_lang==='en'?'Analyze my transaction notes':'Analyse mes notes de transactions');
+        }
+        const pg=getPriorityGoal();
+        if(pg) extras.push(_lang==='en'?`How is "${pg.name}" going?`:`Comment avance "${pg.name}" ?`);
+        if(k2.activeBalance<=0&&k2.savingsBalance>0){
+          extras.push(_lang==='en'?'My active balance is 0, what to do?':'Mon solde actif est à 0, que faire ?');
+        }
+        if(new Date().getHours()>=18) extras.push(_lang==='en'?'Evening impulse check':'Bilan de soirée — risque impulsion');
+        return extras.slice(0,3).map(q=>`<button class="btn btn-ghost btn-sm" style="border-color:rgba(139,92,246,.3)" onclick="quickAsk('${q}')">${q}</button>`).join('');
+      })()}
     </div>
   </div>
   `;
@@ -4711,6 +4981,12 @@ function renderSettings(){
     <div id="groq-test-result" style="font-size:12px;margin-top:8px;padding:10px;border-radius:8px;display:none;line-height:1.5"></div>
   </div>
 
+  <div class="card">
+    <div class="ch">${t('cfg_hardcore')}</div>
+    <div style="font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:10px">${t('cfg_hardcore_desc')}</div>
+    <button class="btn btn-ghost" onclick="saveSet('hardcoreMode',settings.hardcoreMode===false).then(render)">${settings.hardcoreMode===false?t('notif_enable'):t('notif_active')}</button>
+  </div>
+
   <!-- VIE & PRÉVISIONS -->
   <div class="card">
     <div class="ch">⏳ ${t('cfg_life')}</div>
@@ -4788,7 +5064,7 @@ function renderSettings(){
     <button class="btn btn-red" onclick="confirmClear()">${t('cfg_wipe')}</button>
   </div>
 
-  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS v4.16.0 · Offline-First · IndexedDB</div>
+  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS v4.18.0 · Offline-First · IndexedDB</div>
   `;
 }
 
@@ -5490,6 +5766,7 @@ function testNotif(){sendNotif(t('notif_demo_title'),t('notif_demo_body'),'test'
 // SYNC / EXPORT
 // ════════════════════════════════════════
 async function doExport(){
+  await saveSet('lastBackupAt',new Date().toISOString());
   const payload={v:3,date:new Date().toISOString(),txs,accs,cats,goals,settings:Object.entries(settings).map(([k,v])=>({key:k,value:v}))};
   const code=btoa(encodeURIComponent(JSON.stringify(payload)));
   openModal(`
@@ -6055,7 +6332,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
 // PATCH v4.13.0 — Loader natif APK/PWA, multilingue, polling robuste
 (function(){
   'use strict';
-  console.log('[LOADER v4.16.0] init');
+  console.log('[LOADER v4.18.0] init');
 
   var L = (function(){
     var raw = '';
@@ -6166,7 +6443,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
-  console.log('[LOADER v4.16.0] armed — lang='+L);
+  console.log('[LOADER v4.18.0] armed — lang='+L);
 })();
 </script>
 </body>

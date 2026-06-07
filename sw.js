@@ -1,5 +1,5 @@
-// Finance AI Service Worker v4.18.0 — Stale-While-Revalidate + Offline + APK background
-const CACHE = 'finance-ai-v4.18.0';
+// Finance AI Service Worker v4.19.0 — Stale-While-Revalidate + Offline + APK background
+const CACHE = 'finance-ai-v4.19.0';
 const SHELL = ['./', './index.html', './manifest.json', './icon-96.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

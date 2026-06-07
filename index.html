@@ -2450,7 +2450,16 @@ function txsInWindow(days){
   return txs.filter(t=>new Date(t.date)>=cutoff);
 }
 
+// Mémoïsation par tick de render — invalidée par invalidateKPICache()
+let _kpiCache=null;
+function invalidateKPICache(){ _kpiCache=null; }
 function computeKPIs(){
+  if(_kpiCache) return _kpiCache;
+  const _result = _computeKPIsImpl();
+  _kpiCache = _result;
+  return _result;
+}
+function _computeKPIsImpl(){
   const now=new Date();
   // ── Fenêtre adaptative — si moins de 14j de données, on calcule sur les jours réels ──
   const firstTxDate=txs.length?new Date(txs[txs.length-1].date):now;
@@ -2528,7 +2537,9 @@ function computeKPIs(){
   const FOOD_IMPULSE_KEYWORDS=/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon/i;
   const isFoodImpulse=t=>t.categoryId==='food' && t.note && FOOD_IMPULSE_KEYWORDS.test(t.note);
   const INVEST_CATS=['tech','studies','invest_inc','youtube'];
-  const impulseSpend=w30.filter(t=>t.type==='expense'&&(IMPULSE_CATS.includes(t.categoryId)||isFoodImpulse(t)||isElasticExpense(t))).reduce((s,t)=>s+t.amount,0);
+  // Dopamine = catégories explicitement plaisir + food impulsif via mots-clés.
+  // On NE compte PAS isElasticExpense ici (double-comptage des leisure/clothes).
+  const impulseSpend=w30.filter(t=>t.type==='expense'&&!isRigidExpense(t)&&!isInvestExpense(t)&&(IMPULSE_CATS.includes(t.categoryId)||isFoodImpulse(t))).reduce((s,t)=>s+t.amount,0);
   const investSpend=w30.filter(t=>t.type==='expense'&&(INVEST_CATS.includes(t.categoryId)||isInvestExpense(t))).reduce((s,t)=>s+t.amount,0);
   const dopamineIdx=exp30>0?Math.round((impulseSpend/exp30)*100):0;
   const investIdx  =exp30>0?Math.round((investSpend/exp30)*100):0;
@@ -2626,17 +2637,18 @@ function riskLevel(kpi){
 function updateFinancialAmbiance(){
   try{
     const kpi=computeKPIs();
-    const risk=riskLevel(kpi);
     const body=document.body;
-    // Remove existing state classes
     body.classList.remove('state-critical','state-high','state-moderate','state-stable','state-zero');
+    // L'ambiance reflète l'autonomie RÉELLE (capital actif + épargne + revenus attendus)
+    // pour rester cohérente avec le badge hero qui atténue déjà CRITIQUE quand l'épargne couvre.
+    const eff = kpi.safetyDaysWithSavings;
     if(!txs.length){
       body.classList.add('state-zero');
-    } else if(kpi.safetyDays<7||kpi.projDelta<-kpi.income*.3){
+    } else if(kpi.safetyDays<7 && eff<7){
       body.classList.add('state-critical');
-    } else if(kpi.safetyDays<15||kpi.projDelta<0){
+    } else if(eff<15 || kpi.projDelta<-kpi.income*.3){
       body.classList.add('state-high');
-    } else if(kpi.safetyDays<30){
+    } else if(eff<30 || kpi.projDelta<0){
       body.classList.add('state-moderate');
     } else {
       body.classList.add('state-stable');
@@ -3812,6 +3824,7 @@ function go(s){screen=s;render()}
 // ════════════════════════════════════════
 async function render(){
   try{await loadAll()}catch(e){console.warn('loadAll',e)}
+  invalidateKPICache(); // tout render = nouveau tick = nouveau cache KPI
   const screens={home:renderHome,txlist:renderTxList,analytics:renderAnalytics,ai:renderAI,settings:renderSettings};
   let html='';
   try{html=(screens[screen]||renderHome)()}
@@ -3841,7 +3854,7 @@ function renderHome(){
       <div onclick="openKPIModal('balance')" style="cursor:pointer">
         <div style="font-size:10px;color:var(--mut);font-weight:700;letter-spacing:.8px;text-transform:uppercase">${t('capital')}</div>
         <div class="bal ${kpi.activeBalance>=0?'tg':'tr'}" style="margin-top:4px">${fmtFull(kpi.activeBalance)}</div>
-        ${kpi.savingsBalance>0?`<div style="font-size:11px;color:var(--grn);margin-top:3px;font-weight:600" onclick="openKPIModal('safety')" style="cursor:pointer">🔒 ${fmtFull(kpi.savingsBalance)} ${t('savings_locked')} ${kpi.safetyDaysWithSavings>0&&kpi.safetyDaysWithSavings!==9999?' · +'+kpi.safetyDaysWithSavings+'j':kpi.safetyDaysWithSavings===9999?' · ∞':''}</div>`:''}
+        ${kpi.savingsBalance>0?`<div style="font-size:11px;color:var(--grn);margin-top:3px;font-weight:600;cursor:pointer" onclick="event.stopPropagation();openKPIModal('safety')">🔒 ${fmtFull(kpi.savingsBalance)} ${t('savings_locked')} ${kpi.safetyDaysWithSavings>0&&kpi.safetyDaysWithSavings!==9999?' · +'+kpi.safetyDaysWithSavings+'j':kpi.safetyDaysWithSavings===9999?' · ∞':''}</div>`:''}
       </div>
       <div style="text-align:right">
         ${(()=>{
@@ -4021,11 +4034,14 @@ function txItem(t){
 function renderTxList(){
   let filtered=txs;
   if(txFilter!=='all')filtered=filtered.filter(t=>t.type===txFilter);
-  if(searchQ)filtered=filtered.filter(t=>{
-    const cat=catById(t.categoryId),acc=accById(t.accountId);
-    const q=searchQ.toLowerCase();
-    return cat.name.toLowerCase().includes(q)||acc.name.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)||String(t.amount).includes(q);
-  });
+  if(searchQ){
+    const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const q=norm(searchQ);
+    filtered=filtered.filter(t=>{
+      const cat=catById(t.categoryId),acc=accById(t.accountId);
+      return norm(cat.name).includes(q)||norm(acc.name).includes(q)||norm(t.note).includes(q)||String(t.amount).includes(q);
+    });
+  }
 
   const visible=filtered.slice(0,100);
   const hiddenCount=Math.max(0,filtered.length-visible.length);
@@ -4465,7 +4481,7 @@ function renderTrendChartAdaptive(p,ptxs){
         <stop offset="100%" stop-color="var(--acc3)" stop-opacity="0"/>
       </linearGradient></defs>
       <line class="axis" x1="${pad}" y1="${yAvg}" x2="${W-pad}" y2="${yAvg}"/>
-      <text class="lbl" x="${W-pad}" y="${yAvg-3}" text-anchor="end">moy</text>
+      <text class="lbl" x="${W-pad}" y="${yAvg-3}" text-anchor="end">${L('moy','avg','prom','méd')}</text>
       <path class="area" d="${areaExp}"/>
       <path class="line" d="${lineExp}"/>
       <path d="${lineInc}" fill="none" stroke="var(--grn)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"/>
@@ -4501,7 +4517,7 @@ function renderCategoryBarsAdaptive(p,ptxs){
       }).join('')}
     </div>
     <div style="font-size:11px;color:var(--txt2);margin-top:10px;line-height:1.5;padding:8px 10px;background:var(--surf2);border-radius:8px">
-      💡 Top catégorie : ${Math.round(top[0][1]/sum*100)}% du budget ${periodLabel(p)}. Réduire de 10% libère <strong style="color:var(--acc3)">${fmtFull(top[0][1]*0.1)}</strong>.
+      💡 ${L('Top catégorie','Top category','Top categoría','Top categoria')} : ${Math.round(top[0][1]/sum*100)}% ${L('du budget','of budget','del presupuesto','do orçamento')} ${periodLabel(p)}. ${L('Réduire de 10% libère','Cutting 10% frees','Reducir 10% libera','Cortar 10% liberta')} <strong style="color:var(--acc3)">${fmtFull(top[0][1]*0.1)}</strong>.
     </div>
   </div>`;
 }
@@ -4593,7 +4609,7 @@ function renderTrendChart(){
         <stop offset="100%" stop-color="var(--acc3)" stop-opacity="0"/>
       </linearGradient></defs>
       <line class="axis" x1="${pad}" y1="${yAvg}" x2="${W-pad}" y2="${yAvg}"/>
-      <text class="lbl" x="${W-pad}" y="${yAvg-3}" text-anchor="end">moy</text>
+      <text class="lbl" x="${W-pad}" y="${yAvg-3}" text-anchor="end">${L('moy','avg','prom','méd')}</text>
       <path class="area" d="${areaExp}"/>
       <path class="line" d="${lineExp}"/>
       <path d="${lineInc}" fill="none" stroke="var(--grn)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"/>
@@ -4710,7 +4726,7 @@ function getBackupGapDays(){
 
 function checkConsistency(kpi){
   const out=[];
-  const dopamineLike=tx=>tx.type==='expense'&&(isElasticExpense(tx)||/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon|shopping|jeu/i.test(tx.note||''));
+  const dopamineLike=tx=>tx.type==='expense'&&!isRigidExpense(tx)&&(isElasticExpense(tx)||/snack|fast.?food|livraison|delivery|resto|burger|pizza|glace|bonbon|shopping|jeu/i.test(tx.note||''));
   const recent=txs.filter(tx=>dopamineLike(tx)&&Date.now()-new Date(tx.date).getTime()<=7*86400000);
   const latest=recent[0];
   if(latest){
@@ -4729,8 +4745,9 @@ function checkConsistency(kpi){
 function renderAI(){
   const kpi=computeKPIs(),alerts=getAlerts(kpi);
   const isOnline=navigator.onLine;
-  const hardcore=settings.hardcoreMode!==false;
-  const consistency=hardcore?checkConsistency(kpi):[];
+  // Hardcore mode désactivé par défaut — l'onboarding ne doit pas générer d'alertes sans historique
+  const hardcore=settings.hardcoreMode===true;
+  const consistency=(hardcore && txs.length>=10)?checkConsistency(kpi):[];
 
   // ── v4.15: Bannière contextuelle Pulse (médiane glissante + autonomie réelle) ──
   let pulseBanner='';
@@ -4846,11 +4863,10 @@ function renderAI(){
   <div class="card">
     <div class="ch">${t('home_quick_q')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${['ai_q1','ai_q2','ai_q3','ai_q4','ai_q5','ai_q6'].map(k=>{const q=t(k);return `<button class="btn btn-ghost btn-sm" onclick="quickAsk(\`${q}\`)">${q}</button>`}).join('')}
+      ${['ai_q1','ai_q2','ai_q3','ai_q4','ai_q5','ai_q6'].map(k=>{const q=t(k);return `<button class="btn btn-ghost btn-sm" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}</button>`}).join('')}
       ${(()=>{
         const extras=[];
         const k2=computeKPIs();
-        // Dynamic contextual questions based on real data
         if(txs.some(tx=>tx.note&&tx.note.length>1)){
           extras.push(_lang==='en'?'Analyze my transaction notes':'Analyse mes notes de transactions');
         }
@@ -4860,7 +4876,7 @@ function renderAI(){
           extras.push(_lang==='en'?'My active balance is 0, what to do?':'Mon solde actif est à 0, que faire ?');
         }
         if(new Date().getHours()>=18) extras.push(_lang==='en'?'Evening impulse check':'Bilan de soirée — risque impulsion');
-        return extras.slice(0,3).map(q=>`<button class="btn btn-ghost btn-sm" style="border-color:rgba(139,92,246,.3)" onclick="quickAsk('${q}')">${q}</button>`).join('');
+        return extras.slice(0,3).map(q=>`<button class="btn btn-ghost btn-sm" style="border-color:rgba(139,92,246,.3)" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}</button>`).join('');
       })()}
     </div>
   </div>
@@ -4984,7 +5000,7 @@ function renderSettings(){
   <div class="card">
     <div class="ch">${t('cfg_hardcore')}</div>
     <div style="font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:10px">${t('cfg_hardcore_desc')}</div>
-    <button class="btn btn-ghost" onclick="saveSet('hardcoreMode',settings.hardcoreMode===false).then(render)">${settings.hardcoreMode===false?t('notif_enable'):t('notif_active')}</button>
+    <button class="btn btn-ghost" onclick="saveSet('hardcoreMode',settings.hardcoreMode!==true).then(render)">${settings.hardcoreMode!==true?t('notif_enable'):t('notif_active')}</button>
   </div>
 
   <!-- VIE & PRÉVISIONS -->
@@ -5064,7 +5080,7 @@ function renderSettings(){
     <button class="btn btn-red" onclick="confirmClear()">${t('cfg_wipe')}</button>
   </div>
 
-  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS v4.18.0 · Offline-First · IndexedDB</div>
+  <div style="text-align:center;padding:16px 0;font-size:10px;color:var(--mut)">Finance AI OS v4.19.0 · Offline-First · IndexedDB</div>
   `;
 }
 
@@ -5093,7 +5109,13 @@ function openAddModal(){
     <input type="text" id="txLoc" class="fi" placeholder="${t('tx_loc_ph')}" autocomplete="off">
     <div style="font-size:10px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin:6px 2px 4px">${t('mood_label')}</div>
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      ${[['😊','calme'],['😐','neutre'],['😫','fatigué'],['😡','stressé'],['🥳','euphorique']].map(([e,l])=>`
+      ${[
+        ['😊',L('calme','calm','tranquilo','calmo')],
+        ['😐',L('neutre','neutral','neutral','neutro')],
+        ['😫',L('fatigué','tired','cansado','cansado')],
+        ['😡',L('stressé','stressed','estresado','estressado')],
+        ['🥳',L('euphorique','euphoric','eufórico','eufórico')]
+      ].map(([e,l])=>`
         <label style="flex:1;min-width:50px;cursor:pointer">
           <input type="radio" name="txMood" value="${e}" style="display:none" onchange="document.querySelectorAll('label[data-mood]').forEach(x=>x.style.background='var(--surf2)');this.parentElement.style.background='rgba(124,58,237,.18)'">
           <div data-mood="${e}" style="background:var(--surf2);border:1px solid var(--brd);border-radius:10px;padding:8px 4px;text-align:center;font-size:18px">
@@ -5117,16 +5139,18 @@ function switchType(t){
 
 function updateTxFields(){
   const f=$('txFields');if(!f)return;
+  const lastAcc=settings.lastUsedAccountId;
+  const accSel=(id)=>id===(lastAcc||(accs[0]&&accs[0].id))?'selected':'';
   if(_txType==='transfer'){
     f.innerHTML=`
-      <select id="txFrom" class="fi"><option value="" disabled selected>Compte source</option>${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name} (${fmtFull(a.balance)})</option>`).join('')}</select>
-      <select id="txTo" class="fi"><option value="" disabled selected>Compte destination</option>${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name}</option>`).join('')}</select>
+      <select id="txFrom" class="fi"><option value="" disabled selected>${t('tx_from')}</option>${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name} (${fmtFull(a.balance)})</option>`).join('')}</select>
+      <select id="txTo" class="fi"><option value="" disabled selected>${t('tx_to')}</option>${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name}</option>`).join('')}</select>
     `;
   } else {
     const filtered=cats.filter(c=>c.type===_txType);
     f.innerHTML=`
       <select id="txCat" class="fi">${filtered.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}</select>
-      <select id="txAcc" class="fi">${accs.map(a=>`<option value="${a.id}">${a.icon} ${a.name}</option>`).join('')}</select>
+      <select id="txAcc" class="fi">${accs.map(a=>`<option value="${a.id}" ${accSel(a.id)}>${a.icon} ${a.name}</option>`).join('')}</select>
     `;
   }
 }
@@ -5179,7 +5203,9 @@ function goalETA(g){
   const gap=g.target-(g.saved||0);
   if(gap<=0) return {done:true,date:null,days:0};
   const k=computeKPIs();
-  const dailySurplus=Math.max(0,(k.inc30/30)-k.burnRate);
+  // Surplus journalier — inclut les revenus attendus 7j si configurés
+  const expectedDaily=(k.expectedIncome7d||0)/7;
+  const dailySurplus=Math.max(0,(k.inc30/30)+expectedDaily-k.burnRate);
   if(dailySurplus<=0) return {done:false,date:null,days:null,impossible:true};
   const days=Math.ceil(gap/dailySurplus);
   const date=new Date(Date.now()+days*86400000);
@@ -5189,28 +5215,47 @@ function goalETA(g){
 // ════════════════════════════════════════
 // IVY — INTERVENTION PROACTIVE après une dépense
 // ════════════════════════════════════════
-function ivyVerdict({amt,catId,mood,location,hour}){
+function ivyVerdict({amt,catId,mood,location,hour,note}){
+  // Exclure les dépenses rigides (besoin réel) — pas de verdict moralisateur sur la nourriture/santé/transport
+  const fakeTx={categoryId:catId,note:note||''};
+  if(isRigidExpense(fakeTx)) return null;
   const g=getPriorityGoal();
   const days=opportunityCostDays(amt);
-  const isDopamine=DOPAMINE_CATS.includes(catId) || (catId==='food' && /snack|fast.?food|livraison|delivery|resto|burger|pizza/i.test(arguments[0].note||''));
+  const isDopamine=DOPAMINE_CATS.includes(catId) || (catId==='food' && /snack|fast.?food|livraison|delivery|resto|burger|pizza/i.test(note||''));
   const isNight=hour>=21||hour<5;
   const tiredMood=['😫','😡','😴'].includes(mood);
   const triggers=[];
-  if(isDopamine && days!==null && days>=0.5) triggers.push('opportunité');
-  if(isNight) triggers.push('nuit');
-  if(tiredMood) triggers.push('humeur');
-  if(location && location.length>1) triggers.push('lieu');
-  if(triggers.length<1) return null; // pas d'intervention
+  if(isDopamine && days!==null && days>=0.5) triggers.push('opp');
+  if(isNight) triggers.push('night');
+  if(tiredMood) triggers.push('mood');
+  if(location && location.length>1) triggers.push('loc');
+  if(triggers.length<1) return null;
   const cat=catById(catId);
   const lines=[];
   if(g && days!==null && days>=0.5){
-    const unit=days>=1?`${days} jour${days>1?'s':''}`:`${Math.round(days*24)} heures`;
-    lines.push(`⚡ Tu viens de repousser <strong>"${g.name}"</strong> de <strong>${unit}</strong>. Pour ${cat.name.toLowerCase()}.`);
+    const dayU=L('jour','day','día','dia'), daysU=L('jours','days','días','dias'), hoursU=L('heures','hours','horas','horas');
+    const unit=days>=1?`${days} ${days>1?daysU:dayU}`:`${Math.round(days*24)} ${hoursU}`;
+    lines.push(L(`⚡ Tu viens de repousser <strong>"${esc(g.name)}"</strong> de <strong>${unit}</strong>. Pour ${cat.name.toLowerCase()}.`,
+      `⚡ You just pushed back <strong>"${esc(g.name)}"</strong> by <strong>${unit}</strong>. For ${cat.name.toLowerCase()}.`,
+      `⚡ Acabas de retrasar <strong>"${esc(g.name)}"</strong> en <strong>${unit}</strong>. Para ${cat.name.toLowerCase()}.`,
+      `⚡ Acabaste de adiar <strong>"${esc(g.name)}"</strong> em <strong>${unit}</strong>. Para ${cat.name.toLowerCase()}.`));
   }
-  if(tiredMood) lines.push(`🧠 Humeur ${mood} au moment de payer. C'est pas l'envie — c'est l'épuisement qui décide à ta place (fatigue décisionnelle).`);
-  if(isNight) lines.push(`🌙 ${hour}h du matin/soir. Ton cortex préfrontal (le frein) dort. Ton cerveau primitif (la pulsion) signe.`);
-  if(location && location.length>1) lines.push(`📍 <em>${location}</em> — ce lieu déclenche tes craquages. Note-le. Évite-le quand t'es fatigué.`);
-  lines.push(`<strong>Ordre du jour :</strong> demain matin, vire ${fmtFull(amt)} sur ton épargne. Réparation immédiate.`);
+  if(tiredMood) lines.push(L(`🧠 Humeur ${mood} au moment de payer. C'est pas l'envie — c'est l'épuisement qui décide à ta place (fatigue décisionnelle).`,
+    `🧠 Mood ${mood} when paying. It's not desire — it's exhaustion deciding for you (decision fatigue).`,
+    `🧠 Humor ${mood} al pagar. No es deseo — es agotamiento decidiendo por ti (fatiga de decisión).`,
+    `🧠 Humor ${mood} ao pagar. Não é desejo — é exaustão a decidir por ti (fadiga de decisão).`));
+  if(isNight) lines.push(L(`🌙 ${hour}h. Ton cortex préfrontal (le frein) dort. Ton cerveau primitif (la pulsion) signe.`,
+    `🌙 ${hour}:00. Your prefrontal cortex (the brake) is asleep. Your primitive brain (the impulse) signs.`,
+    `🌙 ${hour}h. Tu corteza prefrontal (el freno) duerme. Tu cerebro primitivo (el impulso) firma.`,
+    `🌙 ${hour}h. O teu córtex pré-frontal (o travão) dorme. O teu cérebro primitivo (o impulso) assina.`));
+  if(location && location.length>1) lines.push(L(`📍 <em>${esc(location)}</em> — ce lieu déclenche tes craquages. Note-le. Évite-le quand t'es fatigué.`,
+    `📍 <em>${esc(location)}</em> — this place triggers your slips. Note it. Avoid it when tired.`,
+    `📍 <em>${esc(location)}</em> — este lugar dispara tus deslices. Anótalo. Evítalo cuando estés cansado.`,
+    `📍 <em>${esc(location)}</em> — este lugar dispara as tuas falhas. Nota. Evita quando cansado.`));
+  lines.push(L(`<strong>Ordre du jour :</strong> demain matin, vire ${fmtFull(amt)} sur ton épargne. Réparation immédiate.`,
+    `<strong>Action:</strong> tomorrow morning, transfer ${fmtFull(amt)} to your savings. Immediate repair.`,
+    `<strong>Acción:</strong> mañana por la mañana, transfiere ${fmtFull(amt)} a tus ahorros. Reparación inmediata.`,
+    `<strong>Ação:</strong> amanhã de manhã, transfere ${fmtFull(amt)} para a tua poupança. Reparação imediata.`));
   return lines.join('<br><br>');
 }
 
@@ -5220,14 +5265,14 @@ function showIvyVerdict(html){
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--org));display:flex;align-items:center;justify-content:center;font-size:18px">⚡</div>
       <div>
-        <div style="font-weight:800;font-size:15px">IVY · Verdict</div>
-        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px">Stratège brutal</div>
+        <div style="font-weight:800;font-size:15px">${t('ivy_verdict')}</div>
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px">${t('ivy_sub')}</div>
       </div>
     </div>
     <div style="background:var(--surf2);border-left:3px solid var(--red);padding:14px;border-radius:10px;font-size:13px;line-height:1.6;margin-bottom:14px">${html}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="btn btn-ghost" onclick="closeModal()">J'assume</button>
-      <button class="btn" onclick="closeModal();go('ai')">Parler à Ivy</button>
+      <button class="btn btn-ghost" onclick="closeModal()">${t('ivy_assume')}</button>
+      <button class="btn" onclick="closeModal();go('ai')">${t('ivy_talk')}</button>
     </div>
   `);
 }
@@ -5299,6 +5344,7 @@ async function saveTx(){
   }
 
   await dbPut('transactions',{id:uid(),amount:amt,type:_txType,categoryId:catId,accountId:accId,date,note,mood,location,semantique,classificationRevenu,createdAt:new Date().toISOString()});
+  try{ await saveSet('lastUsedAccountId', accId); }catch(e){}
   haptic(15);
   closeModal();
   // Invalide le cache de l'insight home pour forcer un refresh contextuel
@@ -5334,34 +5380,74 @@ async function saveTx(){
 // TX DETAIL MODAL
 // ════════════════════════════════════════
 function openTxDetailModal(id){
-  const t=txs.find(x=>x.id===id);if(!t)return;
-  const cat=catById(t.categoryId),acc=accById(t.accountId);
-  const color=t.type==='expense'?'var(--red)':t.type==='transfer'?'var(--acc3)':'var(--grn)';
-  const sign=t.type==='expense'?'-':t.type==='transfer'?'⇄':'+';
-  const ds=new Date(t.date).toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const tx=txs.find(x=>x.id===id);if(!tx)return;
+  const cat=catById(tx.categoryId),acc=accById(tx.accountId);
+  const color=tx.type==='expense'?'var(--red)':tx.type==='transfer'?'var(--acc3)':'var(--grn)';
+  const sign=tx.type==='expense'?'-':tx.type==='transfer'?'⇄':'+';
+  const ds=new Date(tx.date).toLocaleDateString(getLocaleForDates(),{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
   openModal(`
-    <h3>${cat.icon} ${cat.name}</h3>
-    <div style="font-size:30px;font-weight:800;font-family:var(--mono);color:${color};margin-bottom:14px">${sign}${fmtFull(t.amount)}</div>
+    <h3>${esc(cat.icon)} ${esc(cat.name)}</h3>
+    <div style="font-size:30px;font-weight:800;font-family:var(--mono);color:${color};margin-bottom:14px">${sign}${fmtFull(tx.amount)}</div>
     <div class="al al-i" style="margin-bottom:8px">
-      <div>📅 ${ds}</div>
-      <div style="margin-top:4px">🏦 ${acc.icon} ${acc.name}</div>
-      ${t.type==='transfer'&&t.toAccountId?`<div style="margin-top:4px">→ ${accById(t.toAccountId).icon} ${accById(t.toAccountId).name}</div>`:''}
-      ${t.note?`<div style="margin-top:4px">📝 ${t.note}</div>`:''}
+      <div>📅 ${esc(ds)}</div>
+      <div style="margin-top:4px">🏦 ${esc(acc.icon)} ${esc(acc.name)}</div>
+      ${tx.type==='transfer'&&tx.toAccountId?`<div style="margin-top:4px">→ ${esc(accById(tx.toAccountId).icon)} ${esc(accById(tx.toAccountId).name)}</div>`:''}
+      ${tx.note?`<div style="margin-top:4px">📝 ${esc(tx.note)}</div>`:''}
     </div>
-    <button class="btn btn-red" onclick="delTx('${t.id}')">🗑️ Supprimer</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-ghost" onclick="openEditTxModal('${esc(tx.id)}')">${L('✏️ Modifier','✏️ Edit','✏️ Editar','✏️ Editar')}</button>
+      <button class="btn btn-red" onclick="delTx('${esc(tx.id)}')">${L('🗑️ Supprimer','🗑️ Delete','🗑️ Eliminar','🗑️ Excluir')}</button>
+    </div>
   `);
 }
 
 async function delTx(id){
-  const t=txs.find(x=>x.id===id);if(!t)return;
+  const tx=txs.find(x=>x.id===id);if(!tx)return;
   if(!confirm(t('confirm_del_tx')))return;
-  const acc=accs.find(a=>a.id===t.accountId);
-  if(acc){acc.balance+=t.type==='expense'?t.amount:-t.amount;await dbPut('accounts',acc)}
-  if(t.type==='transfer'&&t.toAccountId){
-    const to=accs.find(a=>a.id===t.toAccountId);
-    if(to){to.balance-=t.amount;await dbPut('accounts',to)}
+  const acc=accs.find(a=>a.id===tx.accountId);
+  if(acc){acc.balance+=tx.type==='expense'?tx.amount:-tx.amount;await dbPut('accounts',acc)}
+  if(tx.type==='transfer'&&tx.toAccountId){
+    const to=accs.find(a=>a.id===tx.toAccountId);
+    if(to){to.balance-=tx.amount;await dbPut('accounts',to)}
   }
   await dbDel('transactions',id);closeModal();await render();
+}
+
+async function openEditTxModal(id){
+  const tx=txs.find(x=>x.id===id);if(!tx)return;
+  const dt=new Date(tx.date);
+  const dtVal=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const filtered=cats.filter(c=>c.type===tx.type||tx.type==='transfer');
+  openModal(`
+    <h3>${L('Modifier transaction','Edit transaction','Editar transacción','Editar transação')}</h3>
+    <input id="etxAmt" type="number" inputmode="decimal" class="fi" value="${tx.amount}" style="font-size:22px;font-weight:800;text-align:center;font-family:var(--mono)">
+    ${tx.type!=='transfer'?`<select id="etxCat" class="fi">${filtered.map(c=>`<option value="${esc(c.id)}" ${c.id===tx.categoryId?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('')}</select>`:''}
+    <select id="etxAcc" class="fi">${accs.map(a=>`<option value="${esc(a.id)}" ${a.id===tx.accountId?'selected':''}>${esc(a.icon)} ${esc(a.name)}</option>`).join('')}</select>
+    <input type="datetime-local" id="etxDate" class="fi" value="${dtVal}">
+    <input type="text" id="etxNote" class="fi" value="${esc(tx.note||'')}" placeholder="${t('tx_note_ph')}">
+    <button class="btn" onclick="saveEditTx('${esc(tx.id)}')">${L('💾 Enregistrer','💾 Save','💾 Guardar','💾 Salvar')}</button>
+  `);
+}
+
+async function saveEditTx(id){
+  const tx=txs.find(x=>x.id===id);if(!tx)return;
+  const newAmt=parseFloat(document.getElementById('etxAmt')?.value);
+  if(!newAmt||newAmt<=0){alert(t('confirm_del_tx'));return;}
+  const newAcc=document.getElementById('etxAcc')?.value||tx.accountId;
+  const newCat=document.getElementById('etxCat')?.value||tx.categoryId;
+  const newDate=document.getElementById('etxDate')?.value;
+  const newNote=document.getElementById('etxNote')?.value||'';
+  // Revert old balance impact
+  const oldAcc=accs.find(a=>a.id===tx.accountId);
+  if(oldAcc){oldAcc.balance+=tx.type==='expense'?tx.amount:-tx.amount;await dbPut('accounts',oldAcc);}
+  // Apply new
+  tx.amount=newAmt; tx.accountId=newAcc; tx.categoryId=newCat;
+  if(newDate) tx.date=new Date(newDate).toISOString();
+  tx.note=newNote;
+  const a=accs.find(x=>x.id===newAcc);
+  if(a){a.balance-=tx.type==='expense'?newAmt:-newAmt;await dbPut('accounts',a);}
+  await dbPut('transactions',tx);
+  closeModal();await render();
 }
 
 // ════════════════════════════════════════
@@ -5369,10 +5455,28 @@ async function delTx(id){
 // ════════════════════════════════════════
 function openKPIModal(type){
   const k=computeKPIs();
+  const dayU=L('jour','day','día','dia');
+  const daysU=L('jours','days','días','dias');
+  const indef=L('indéfiniment','indefinitely','indefinidamente','indefinidamente');
   const content={
-    burn:`<h3>🔥 Burn Rate lissé</h3><div style="font-size:28px;font-weight:800;font-family:var(--mono);color:var(--org);margin:12px 0">${fmtFull(k.burnRate)}/jour</div><p style="color:var(--mut);font-size:13px;line-height:1.6">Calculé sur tes <strong>30 derniers jours</strong> de dépenses (${fmtFull(k.exp30)} total).<br>Ce chiffre lissé est immunisé contre les grosses dépenses ponctuelles.<br>En comparaison, ta moyenne des 7 derniers jours: <strong>${fmtFull(k.exp7/7)}/j</strong>.</p>`,
-    safety:`<h3>🛡️ Safety Days</h3><div style="font-size:28px;font-weight:800;font-family:var(--mono);margin:12px 0;color:${k.safetyDays<7?'var(--red)':k.safetyDays<15?'var(--org)':'var(--grn)'}">${k.safetyDays===9999?'∞':k.safetyDays} jours</div><p style="color:var(--mut);font-size:13px;line-height:1.6">Avec <strong>${fmtFull(k.balance)}</strong> de capital actif et <strong>${fmtFull(k.burnRate)}/j</strong> de burn rate lissé (30j),<br>tu peux tenir <strong>${k.safetyDays===9999?'indéfiniment':k.safetyDays+' jours'}</strong> sans aucune entrée.</p>`,
-    pressure:`<h3>📊 Indice de Pression</h3><div style="font-size:28px;font-weight:800;font-family:var(--mono);margin:12px 0;color:${k.pressureIdx>20?'var(--red)':k.pressureIdx>0?'var(--org)':'var(--grn)'}">${k.pressureIdx>0?'+':''}${k.pressureIdx}%</div><p style="color:var(--mut);font-size:13px;line-height:1.6">Dépenses journalières des 7 derniers jours: <strong>${fmtFull(k.exp7/7)}/j</strong><br>vs ta moyenne 30j: <strong>${fmtFull(k.burnRate)}/j</strong><br>${k.pressureIdx>20?'⚠️ Tu accélères. C\'est le moment de freiner <em>avant</em> d\'être à sec.':k.pressureIdx<-15?'✅ Tu freines par rapport à ton habitude. Bonne maîtrise.':'Rythme stable par rapport à ton habitude.'}</p>`,
+    balance:`<h3>💰 ${t('capital')}</h3>
+      <div style="font-size:28px;font-weight:800;font-family:var(--mono);color:${k.activeBalance>=0?'var(--grn)':'var(--red)'};margin:12px 0">${fmtFull(k.activeBalance)}</div>
+      <p style="color:var(--mut);font-size:13px;line-height:1.6">
+        ${L('Capital actif (hors épargne) — c’est ce que tu peux réellement dépenser aujourd’hui.','Active capital (excluding savings) — what you can actually spend today.','Capital activo (excluyendo ahorros) — lo que puedes gastar hoy.','Capital ativo (sem poupança) — o que podes gastar hoje.')}<br><br>
+        ${L('Épargne verrouillée','Locked savings','Ahorros bloqueados','Poupança bloqueada')}: <strong>${fmtFull(k.savingsBalance)}</strong><br>
+        ${L('Total disponible','Total available','Total disponible','Total disponível')}: <strong>${fmtFull(k.activeBalance+k.savingsBalance)}</strong><br>
+        ${k.expectedIncome7d>0?L('Revenus attendus 7j','Expected income 7d','Ingresos esperados 7d','Receitas esperadas 7d')+`: <strong>${fmtFull(k.expectedIncome7d)}</strong><br>`:''}
+        ${L('Autonomie totale','Total runway','Autonomía total','Autonomia total')}: <strong>${k.safetyDaysWithSavings===9999?'∞':k.safetyDaysWithSavings+' '+daysU}</strong>
+      </p>`,
+    burn:`<h3>🔥 ${t('burn_rate')}</h3>
+      <div style="font-size:28px;font-weight:800;font-family:var(--mono);color:var(--org);margin:12px 0">${fmtFull(k.burnRate)}/${dayU}</div>
+      <p style="color:var(--mut);font-size:13px;line-height:1.6">${t('kpi_burn_detail')} (${fmtFull(k.exp30)} total).<br>${t('kpi_burn_vs')} <strong>${fmtFull(k.exp7/7)}/${dayU}</strong>.</p>`,
+    safety:`<h3>🛡️ ${t('safety_days')}</h3>
+      <div style="font-size:28px;font-weight:800;font-family:var(--mono);margin:12px 0;color:${k.safetyDays<7?'var(--red)':k.safetyDays<15?'var(--org)':'var(--grn)'}">${k.safetyDays===9999?'∞':k.safetyDays} ${daysU}</div>
+      <p style="color:var(--mut);font-size:13px;line-height:1.6"><strong>${fmtFull(k.balance)}</strong> ${t('kpi_safety_detail')} <strong>${fmtFull(k.burnRate)}/${dayU}</strong> → ${t('kpi_safety_per')} <strong>${k.safetyDays===9999?indef:k.safetyDays+' '+daysU}</strong>.</p>`,
+    pressure:`<h3>📊 ${L('Indice de Pression','Pressure Index','Índice de Presión','Índice de Pressão')}</h3>
+      <div style="font-size:28px;font-weight:800;font-family:var(--mono);margin:12px 0;color:${k.pressureIdx>20?'var(--red)':k.pressureIdx>0?'var(--org)':'var(--grn)'}">${k.pressureIdx>0?'+':''}${k.pressureIdx}%</div>
+      <p style="color:var(--mut);font-size:13px;line-height:1.6">${t('kpi_pressure_detail')} <strong>${fmtFull(k.exp7/7)}/${dayU}</strong><br>${t('kpi_pressure_vs')} <strong>${fmtFull(k.burnRate)}/${dayU}</strong></p>`,
   };
   openModal(content[type]||'');
 }
@@ -5428,7 +5532,7 @@ function openMonthModal(monthIdx,yearArg){
   const list=txs.filter(t=>new Date(t.date)>=s&&new Date(t.date)<e);
   const total=list.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
   const inc=list.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
-  const mn=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const mn=Array.from({length:12},(_,i)=>new Date(y,i,1).toLocaleDateString(getLocaleForDates(),{month:'long'})).map(s=>s.charAt(0).toUpperCase()+s.slice(1));
   // Heatmap par jour
   const dim=new Date(y,monthIdx+1,0).getDate();
   const days=[];let max=1;
@@ -5458,7 +5562,7 @@ function openCategoryModal(catId,period){
     <h3>${cat.icon} ${cat.name}</h3>
     <div style="font-size:22px;font-weight:800;font-family:var(--mono);color:var(--red);margin-bottom:6px">-${fmtFull(total)}</div>
     <div class="tm" style="font-size:11px;margin-bottom:12px">${ptxs.length} transactions · ${periodLabel(period||'month')}</div>
-    ${ptxs.length?ptxs.slice(0,30).map(txItem).join(''):'<div class="tm">Aucune transaction.</div>'}
+    ${ptxs.length?ptxs.slice(0,30).map(txItem).join('')+(ptxs.length>30?`<div class="tm" style="font-size:10px;margin-top:8px;text-align:center">${L(`+ ${ptxs.length-30} transactions plus anciennes non affichées`,`+ ${ptxs.length-30} older transactions hidden`,`+ ${ptxs.length-30} transacciones más antiguas ocultas`,`+ ${ptxs.length-30} transações mais antigas ocultas`)}</div>`:''):`<div class="tm">${L('Aucune transaction.','No transactions.','Sin transacciones.','Sem transações.')}</div>`}
   `);
 }
 
@@ -5805,10 +5909,15 @@ async function processImport(){
   }catch(e){alert(t('code_invalid'))}
 }
 function exportCSV(){
-  const rows=[['Date','Type','Montant','Catégorie','Compte','Note']];
-  txs.forEach(t=>{const cat=catById(t.categoryId),acc=accById(t.accountId);rows.push([new Date(t.date).toLocaleDateString(getLocaleForDates()),t.type,t.amount,cat.name,acc.name,t.note||''])});
-  const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='transactions.csv';a.click();URL.revokeObjectURL(url);
+  const headers=[L('Date','Date','Fecha','Data'),L('Type','Type','Tipo','Tipo'),L('Montant','Amount','Monto','Valor'),L('Catégorie','Category','Categoría','Categoria'),L('Compte','Account','Cuenta','Conta'),L('Note','Note','Nota','Nota')];
+  const rows=[headers];
+  const escCsv=s=>{const v=String(s==null?'':s);return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  txs.forEach(t=>{const cat=catById(t.categoryId),acc=accById(t.accountId);rows.push([new Date(t.date).toLocaleDateString(getLocaleForDates()),t.type,t.amount,cat.name,acc.name,t.note||''].map(escCsv))});
+  const blob=new Blob(['\uFEFF'+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
+  const ymd=new Date().toISOString().slice(0,10);
+  a.download=`finance-ai-transactions-${ymd}.csv`;
+  a.click();URL.revokeObjectURL(url);
 }
 async function confirmClear(){
   if(!confirm(t('wipe_confirm')))return;
@@ -5914,9 +6023,46 @@ function cloudBuildPayload(){
   };
 }
 
+// Lit toute erreur Supabase sous une forme lisible (message, code, error_description, JSON)
+function cloudErrMsg(e){
+  if(!e) return 'unknown';
+  if(typeof e==='string') return e;
+  return e.message||e.error_description||e.msg||e.error||e.code||(()=>{try{return JSON.stringify(e)}catch(_){return String(e)}})();
+}
+
+// Capture le token quand l'utilisateur revient du lien de confirmation email / OAuth
+async function cloudHandleAuthCallback(c){
+  try{
+    // 1) Implicit flow — token dans le hash
+    const hash = window.location.hash || '';
+    if(hash.includes('access_token=') || hash.includes('error=')){
+      const params = new URLSearchParams(hash.replace(/^#/,''));
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      const err = params.get('error_description')||params.get('error');
+      if(access_token && refresh_token){
+        await c.auth.setSession({ access_token, refresh_token });
+      } else if(err){
+        alert('❌ '+err);
+      }
+      // Nettoie l'URL pour ne pas re-tenter au prochain refresh
+      history.replaceState(null,'',window.location.pathname+window.location.search);
+    }
+    // 2) PKCE flow — ?code=... dans la query string
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    if(code && typeof c.auth.exchangeCodeForSession === 'function'){
+      try{ await c.auth.exchangeCodeForSession(code); }catch(e){ console.warn('exchangeCode', e); }
+      url.searchParams.delete('code');
+      history.replaceState(null,'',url.pathname+url.search);
+    }
+  }catch(e){ console.warn('cloudHandleAuthCallback', e); }
+}
+
 async function cloudInit(){
   const c = cloudClient();
   if(!c){ setTimeout(cloudInit, 500); return; }
+  await cloudHandleAuthCallback(c);
   try{
     const { data } = await c.auth.getSession();
     cloud.user = data.session?.user || null;
@@ -5934,7 +6080,17 @@ async function cloudSignUp(){
   const password = document.getElementById('cloudPwd')?.value;
   if(!email || !password || password.length<6){ alert(t('cloud_need_credentials')); return; }
   const { data, error } = await c.auth.signUp({ email, password, options:{ emailRedirectTo: window.location.origin } });
-  if(error){ alert('❌ '+error.message); return; }
+  if(error){ alert('❌ '+cloudErrMsg(error)); return; }
+  // Si la confirmation email est activée, data.user existe mais data.session est null
+  if(data.user && !data.session){
+    alert(L(
+      '📧 Compte créé. Vérifie ta boîte mail et clique sur le lien pour activer.\n\nTu pourras te connecter ici dès que ce sera fait.',
+      '📧 Account created. Check your email and click the link to activate.\n\nYou can sign in here once that\'s done.',
+      '📧 Cuenta creada. Revisa tu correo y haz clic en el enlace para activar.\n\nLuego podrás iniciar sesión aquí.',
+      '📧 Conta criada. Verifica o teu email e clica no link para ativar.\n\nDepois podes entrar aqui.'
+    ));
+    return;
+  }
   cloud.user = data.user;
   cloudUpdateUI();
   alert(t('cloud_account_created'));
@@ -5947,15 +6103,31 @@ async function cloudSignIn(){
   const password = document.getElementById('cloudPwd')?.value;
   if(!email || !password){ alert(t('cloud_need_credentials_short')); return; }
   const { data, error } = await c.auth.signInWithPassword({ email, password });
-  if(error){ alert('❌ '+error.message); return; }
+  if(error){
+    const msg=cloudErrMsg(error);
+    // Hint utile pour les cas les plus fréquents
+    if(/email.*confirm/i.test(msg)) alert('❌ '+msg+'\n\n'+L('Confirme ton email puis réessaie.','Confirm your email then retry.','Confirma tu correo y reintenta.','Confirma o teu email e tenta novamente.'));
+    else if(/invalid.*credentials/i.test(msg)) alert('❌ '+L('Email ou mot de passe incorrect.','Wrong email or password.','Email o contraseña incorrectos.','Email ou senha incorretos.'));
+    else alert('❌ '+msg);
+    return;
+  }
   cloud.user = data.user;
   cloudUpdateUI();
-  // Propose restore if remote snapshot exists and is newer than local last-save
   try{
     const { data:row } = await c.from('cloud_snapshots').select('updated_at').eq('user_id', cloud.user.id).maybeSingle();
     if(row && confirm(t('cloud_exists_restore'))) await cloudRestore(true);
     else cloudBackup(true);
-  }catch(e){}
+  }catch(e){
+    const msg=cloudErrMsg(e);
+    if(/relation.*does not exist|cloud_snapshots/i.test(msg)){
+      alert('⚠️ '+L(
+        'Table cloud_snapshots manquante côté Supabase. Crée-la via SQL Editor :\n\ncreate table cloud_snapshots (\n  user_id uuid primary key references auth.users(id) on delete cascade,\n  data jsonb,\n  updated_at timestamptz default now()\n);\nalter table cloud_snapshots enable row level security;\ngrant select,insert,update,delete on cloud_snapshots to authenticated;\ncreate policy "own" on cloud_snapshots for all using (auth.uid()=user_id);',
+        'Missing cloud_snapshots table on Supabase. Create it via SQL Editor:\n\ncreate table cloud_snapshots (\n  user_id uuid primary key references auth.users(id) on delete cascade,\n  data jsonb,\n  updated_at timestamptz default now()\n);\nalter table cloud_snapshots enable row level security;\ngrant select,insert,update,delete on cloud_snapshots to authenticated;\ncreate policy "own" on cloud_snapshots for all using (auth.uid()=user_id);',
+        'Falta la tabla cloud_snapshots en Supabase. Créala desde SQL Editor con el SQL en la documentación.',
+        'Falta a tabela cloud_snapshots no Supabase. Cria-a no SQL Editor com o SQL na documentação.'
+      ));
+    }
+  }
 }
 
 async function cloudSignOut(){
@@ -5977,7 +6149,7 @@ async function cloudBackup(silent){
     if(!silent) alert(t('cloud_saved'));
   }catch(e){
     console.warn('cloudBackup', e);
-    if(!silent) alert(t('cloud_save_fail')+(e.message||e));
+    if(!silent) alert(t('cloud_save_fail')+cloudErrMsg(e));
   }
 }
 
@@ -5997,7 +6169,7 @@ async function cloudRestore(skipConfirm){
     for(const sset of p.settings||[]) await dbPut('settings', sset);
     await loadAll(); await render();
     alert(t('cloud_restored'));
-  }catch(e){ console.warn('cloudRestore', e); alert(t('cloud_restore_fail')+(e.message||e)); }
+  }catch(e){ console.warn('cloudRestore', e); alert(t('cloud_restore_fail')+cloudErrMsg(e)); }
 }
 
 function cloudUpdateUI(){
@@ -6332,7 +6504,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
 // PATCH v4.13.0 — Loader natif APK/PWA, multilingue, polling robuste
 (function(){
   'use strict';
-  console.log('[LOADER v4.18.0] init');
+  console.log('[LOADER v4.19.0] init');
 
   var L = (function(){
     var raw = '';
@@ -6443,7 +6615,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
   window.addEventListener('offline', syncOnline);
   syncOnline();
 
-  console.log('[LOADER v4.18.0] armed — lang='+L);
+  console.log('[LOADER v4.19.0] armed — lang='+L);
 })();
 </script>
 </body>

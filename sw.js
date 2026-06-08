@@ -1,5 +1,5 @@
-// Finance AI Service Worker v5.0.0 ALADDIN — Stale-While-Revalidate + Offline + APK background
-const CACHE = 'finance-ai-v5.0.0';
+// Finance AI Service Worker v5.1.0 — Upgrade build (skipWaiting + update banner)
+const CACHE = 'finance-ai-v5.1.0';
 const SHELL = ['./', './index.html', './manifest.json', './icon-96.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

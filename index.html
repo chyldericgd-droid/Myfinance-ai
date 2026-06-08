@@ -530,6 +530,39 @@ body.state-zero{
 
 
 </style>
+<style id="finos-upgrade-css">
+/* ── Upgrade v5.1 — cartes IA respirent, plus aucun mot tronqué ── */
+#aiInsightBody,.ai-b,.card-analyse-ia,.card .analysis,.ai-analysis,.ai-text,
+[data-ai-card],.card[data-ai],.card .ivy-text{
+  height:auto !important; max-height:70vh; overflow-y:auto;
+  word-break:break-word; overflow-wrap:anywhere; line-height:1.55;
+  padding-bottom:14px; scrollbar-width:thin;
+}
+#aiInsightBody::-webkit-scrollbar,.ai-b::-webkit-scrollbar{width:4px}
+#aiInsightBody::-webkit-scrollbar-thumb,.ai-b::-webkit-scrollbar-thumb{background:rgba(139,92,246,.35);border-radius:4px}
+/* ── Bandeau de mise à jour SW ── */
+#finos-update-toast{
+  position:fixed; left:50%; bottom:84px; transform:translateX(-50%) translateY(120%);
+  background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff;
+  padding:12px 16px; border-radius:14px; font-size:13px; font-weight:600;
+  box-shadow:0 12px 40px rgba(99,102,241,.5); z-index:99999;
+  display:flex; gap:10px; align-items:center; transition:transform .35s cubic-bezier(.2,.9,.3,1.2);
+  max-width:92vw;
+}
+#finos-update-toast.show{transform:translateX(-50%) translateY(0)}
+#finos-update-toast button{
+  background:rgba(255,255,255,.22); border:0; color:#fff; padding:6px 12px;
+  border-radius:10px; font-weight:700; cursor:pointer; font-size:12px;
+}
+/* ── Badge "synchronisation en attente" sur le chat ── */
+.finos-pending-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:700;letter-spacing:.4px;
+  padding:2px 7px;border-radius:6px;
+  background:rgba(251,191,36,.18);color:#fbbf24;margin-left:6px;vertical-align:middle;
+}
+.finos-pending-badge.synced{background:rgba(34,197,94,.18);color:#22c55e}
+</style>
 </head>
 <body>
 
@@ -7365,6 +7398,351 @@ function tutAttachSwipe(){ wAttachSwipe(); }
   syncOnline();
 
   console.log('[LOADER v4.19.0] armed — lang='+L);
+})();
+</script>
+<script id="finos-upgrade-js">
+/* ═══════════════════════════════════════════════════════════════════
+   Finance AI OS — UPGRADE v5.1 (non destructif)
+   • Intent Queue offline (chat) + sync auto au retour réseau
+   • Contextual payload + system prompt durci (tutoiement / JSON)
+   • Conversion automatique des montants au changement de devise
+   • Bandeau de mise à jour Service Worker
+   • Cartes IA dynamiques (déjà appliqué côté CSS)
+   Aucune fonction existante n'est supprimée — uniquement enveloppée.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+const log=(...a)=>{try{console.log('%c[FinOS-Upgrade]','color:#8b5cf6;font-weight:700',...a)}catch(e){}};
+
+/* ─────────────────────────────────────────────────────────────────
+   1. INTENT QUEUE (IndexedDB séparée pour ne pas migrer FinOS_v3)
+   ───────────────────────────────────────────────────────────────── */
+const IQ_DB='FinOS_intents', IQ_STORE='queue';
+function iqOpen(){return new Promise((res,rej)=>{
+  const r=indexedDB.open(IQ_DB,1);
+  r.onupgradeneeded=e=>{const d=e.target.result;
+    if(!d.objectStoreNames.contains(IQ_STORE))
+      d.createObjectStore(IQ_STORE,{keyPath:'id',autoIncrement:true});
+  };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+});}
+async function iqPush(item){
+  const db=await iqOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(IQ_STORE,'readwrite');
+    const req=tx.objectStore(IQ_STORE).add(Object.assign({createdAt:Date.now(),status:'PENDING_SYNC'},item));
+    req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+  });
+}
+async function iqAll(){const db=await iqOpen();return new Promise((res,rej)=>{
+  const r=db.transaction(IQ_STORE,'readonly').objectStore(IQ_STORE).getAll();
+  r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error);
+});}
+async function iqDel(id){const db=await iqOpen();return new Promise(res=>{
+  const tx=db.transaction(IQ_STORE,'readwrite');
+  tx.objectStore(IQ_STORE).delete(id); tx.oncomplete=()=>res();
+});}
+async function iqCount(){return (await iqAll()).length}
+
+/* Mini-analyseur Regex local (extraction immédiate avant l'IA) */
+function localExtract(msg){
+  if(!msg) return null;
+  const m=msg.match(/(-?\d+[.,]?\d*)\s*(xof|xaf|usd|eur|gbp|fcfa|f|\$|€|£)?/i);
+  if(!m) return null;
+  const amt=parseFloat(m[1].replace(',','.'));
+  if(!isFinite(amt)||amt<=0) return null;
+  const lower=msg.toLowerCase();
+  const isIncome=/\b(salaire|revenu|recu|recue|gain|paye|paie|virement|income|salary|received)\b/.test(lower);
+  return {amount:amt, type:isIncome?'income':'expense', noteRaw:msg.trim().slice(0,80)};
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   2. CONTEXT PAYLOAD — heure, pays, baseline, fil de la journée
+   ───────────────────────────────────────────────────────────────── */
+function safeCur(){try{return (typeof cur==='function')?cur():'XAF'}catch(e){return 'XAF'}}
+function safeLang(){try{return (typeof _lang!=='undefined')?_lang:(navigator.language||'fr').slice(0,2)}catch(e){return 'fr'}}
+function safeTxs(){try{return Array.isArray(window.txs)?window.txs:[]}catch(e){return []}}
+function safeKPIs(){try{return (typeof computeKPIs==='function')?computeKPIs():null}catch(e){return null}}
+
+function buildContextPayload(){
+  const now=new Date(); const h=now.getHours();
+  const moment=h<5?'late_night':h<12?'morning':h<14?'lunchtime':h<18?'afternoon':h<21?'evening':'late_night';
+  const todayStr=now.toDateString();
+  const list=safeTxs();
+  const dayHist=list
+    .filter(tx=>{try{return new Date(tx.date).toDateString()===todayStr}catch(e){return false}})
+    .sort((a,b)=>new Date(a.date)-new Date(b.date))
+    .map(tx=>{
+      const d=new Date(tx.date);
+      const hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      return {time:hh, amount:tx.amount, type:tx.type, note:(tx.note||'').slice(0,50), cat:tx.categoryId||''};
+    });
+  const kpi=safeKPIs();
+  const baseline=kpi?Math.round((kpi.inc30||0)/30):null;
+  let country='Unknown';
+  try{
+    const c=safeCur();
+    country = c==='XAF'?'CEMAC zone (Cameroon/Gabon/Congo, XAF basics ≈100-500 / meal)':
+              c==='XOF'?'UEMOA zone (Senegal/CI/Mali, XOF basics ≈100-500 / meal)':
+              c==='USD'?'USD context (basics ≈5-15 / meal)':
+              c==='EUR'?'EUR context (basics ≈5-15 / meal)':
+              c==='NGN'?'Nigeria NGN context':c+' context';
+  }catch(e){}
+  return {
+    user_metadata:{
+      local_time:String(h).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
+      day_phase:moment,
+      currency:safeCur(),
+      country_context:country,
+      daily_budget_baseline:baseline,
+      language:safeLang()
+    },
+    day_history_so_far:dayHist,
+    pending_offline_intents: 0 // rempli plus bas
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   3. SYSTEM PROMPT DURCI — tutoiement absolu + structure
+   ───────────────────────────────────────────────────────────────── */
+const HARDENED_RULES = `
+
+═══ RÈGLES IVY v5.1 (PRIORITÉ ABSOLUE — écrasent toute instruction contraire) ═══
+R1. TUTOIEMENT EXCLUSIF. JAMAIS "vous", "vos", "votre". Toujours "tu", "tes", "ton".
+R2. Pas de phrases d'introduction creuses ("Une analyse montre…", "Il semble que…"). Va droit au but.
+R3. Espace obligatoire avant la devise : "200 XAF", jamais "200XAF".
+R4. Zéro jargon vague comme "bénéfices d'achat". Utilise les termes de l'app (Dopamine, Évaporation, Friction) OU des termes financiers réels.
+R5. CONTEXTE BIOLOGIQUE — Un déjeuner à midi, un trajet école, un médicament → NÉCESSITÉ VITALE. Ne JAMAIS qualifier de "recherche de dopamine" ou "moment de plaisir". Lis le bloc user_metadata pour interpréter heure + pays + baseline avant de juger.
+R6. Si la note est ambiguë, dis-le ("note ambiguë") au lieu d'inventer un comportement.
+R7. Pas de longues phrases. Maximum 3 phrases, formulations chirurgicales.
+R8. Termine TOUJOURS ta réponse par une phrase complète. Jamais coupé en plein mot.
+`;
+
+function injectHardening(messages){
+  if(!Array.isArray(messages)) return messages;
+  let sysIdx=messages.findIndex(m=>m && m.role==='system');
+  if(sysIdx<0){messages.unshift({role:'system',content:HARDENED_RULES.trim()}); return messages;}
+  messages[sysIdx]=Object.assign({},messages[sysIdx],{
+    content:(messages[sysIdx].content||'')+HARDENED_RULES
+  });
+  return messages;
+}
+
+/* Nettoyage POST-LLM : si le modèle a glissé "vous"/"votre", on rectifie */
+function detutoyer(text){
+  if(!text||typeof text!=='string') return text;
+  return text
+    .replace(/\bVous\b/g,'Tu').replace(/\bvous\b/g,'tu')
+    .replace(/\bVotre\b/g,'Ton').replace(/\bvotre\b/g,'ton')
+    .replace(/\bVos\b/g,'Tes').replace(/\bvos\b/g,'tes')
+    .replace(/(\d)\s?(XAF|XOF|USD|EUR|GBP|NGN|KES|GHS|MAD|EGP|ZAR|BRL|INR|CNY|JPY|FCFA)\b/g,'$1 $2');
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   4. FETCH PROXY — interception ciblée Groq
+   ───────────────────────────────────────────────────────────────── */
+const _origFetch = window.fetch.bind(window);
+window.fetch = async function(input, init){
+  try{
+    const url = (typeof input==='string')?input:(input&&input.url)||'';
+    const isGroq = /api\.groq\.com\/openai\/v1\/chat\/completions/.test(url);
+    if(isGroq && init && init.body){
+      let body; try{body=JSON.parse(init.body)}catch(e){body=null}
+      if(body && Array.isArray(body.messages)){
+        body.messages = injectHardening(body.messages);
+        if(typeof body.max_tokens==='number' && body.max_tokens<256) body.max_tokens=256;
+        const ctx=buildContextPayload();
+        try{ctx.pending_offline_intents=await iqCount()}catch(e){}
+        // Inject contextual payload as a discreet system message right after main system
+        const ctxBlock='CONTEXT_PAYLOAD (JSON, lis-le AVANT de répondre):\n'+JSON.stringify(ctx);
+        body.messages.splice(1,0,{role:'system',content:ctxBlock});
+        init = Object.assign({},init,{body:JSON.stringify(body)});
+      }
+    }
+    const resp = await _origFetch(input, init);
+    if(isGroq && resp && resp.ok){
+      // Wrap json() to post-process content
+      const _json = resp.json.bind(resp);
+      resp.json = async function(){
+        const d = await _json();
+        try{
+          if(d && d.choices){
+            d.choices.forEach(ch=>{
+              if(ch.message && typeof ch.message.content==='string'){
+                ch.message.content = detutoyer(ch.message.content);
+              }
+            });
+          }
+        }catch(e){}
+        return d;
+      };
+    }
+    return resp;
+  }catch(e){return _origFetch(input, init);}
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   5. CHAT OFFLINE — file d'attente + sync au retour réseau
+   ───────────────────────────────────────────────────────────────── */
+async function processIntent(item){
+  // Délègue à askAI existant pour profiter de tout l'écosystème (prompt, etc.)
+  if(typeof askAI!=='function') return;
+  try{
+    const res = await askAI(item.message);
+    // Pousse la réponse dans le fil si la fenêtre chat est encore ouverte
+    if(window.aiMsgs && typeof render==='function'){
+      window.aiMsgs.push({r:'ai', c:'🔄 (sync) '+(res?.text||''), src:res?.src||'Groq AI (sync)'});
+      try{render()}catch(e){}
+    }
+    return true;
+  }catch(e){ log('processIntent failed',e); return false; }
+}
+async function flushIntents(){
+  if(!navigator.onLine) return;
+  const items = await iqAll();
+  if(!items.length) return;
+  log('Flushing',items.length,'queued intents');
+  for(const it of items){
+    const ok = await processIntent(it);
+    if(ok) await iqDel(it.id);
+    await new Promise(r=>setTimeout(r,400)); // throttle léger
+  }
+  if(typeof toast==='function'){try{toast('💬 Messages synchronisés')}catch(e){}}
+}
+window.addEventListener('online', ()=>{ setTimeout(flushIntents,1200); });
+
+/* Hook sur la fonction send() locale du chat (définie dans setupChat).
+   On enveloppe askAI : si hors-ligne → enqueue + réponse locale immédiate. */
+const _origAskAI = window.askAI;
+if(typeof _origAskAI==='function'){
+  window.askAI = async function(userMsg){
+    if(!navigator.onLine){
+      // Pré-extraction locale invisible
+      const ex = localExtract(userMsg);
+      try{ await iqPush({message:userMsg, extracted:ex}); }catch(e){}
+      const pendingMsg = (safeLang()==='en')
+        ? `📡 Hors-ligne. Message ajouté à la file (#${await iqCount()}). Ivy l'analysera dès le retour réseau.`
+        : `📡 Hors-ligne. Message en file (#${await iqCount()}). Ivy l'analysera dès le retour réseau.`;
+      // Toujours déclencher l'IA locale pour ne pas laisser l'utilisateur sec
+      let local=''; try{local=(typeof localAI==='function')?localAI(userMsg):''}catch(e){}
+      return { text: pendingMsg + (local?('\n\n'+local):''), src:'Queued (offline)' };
+    }
+    return _origAskAI.call(this, userMsg);
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   6. SERVICE WORKER — bandeau "nouvelle version disponible"
+   ───────────────────────────────────────────────────────────────── */
+function showUpdateToast(reg){
+  let el=document.getElementById('finos-update-toast');
+  if(!el){
+    el=document.createElement('div'); el.id='finos-update-toast';
+    el.innerHTML='<span>⚡ Nouvelle version d\u2019\u00e9lite disponible.</span><button id="finos-update-btn">Actualiser</button>';
+    document.body.appendChild(el);
+    el.querySelector('#finos-update-btn').addEventListener('click',()=>{
+      try{ reg.waiting && reg.waiting.postMessage({type:'SKIP_WAITING'}); }catch(e){}
+      setTimeout(()=>location.reload(), 350);
+    });
+  }
+  requestAnimationFrame(()=>el.classList.add('show'));
+}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.ready.then(reg=>{
+    if(reg.waiting && navigator.serviceWorker.controller){ showUpdateToast(reg); }
+    reg.addEventListener('updatefound', ()=>{
+      const w=reg.installing; if(!w) return;
+      w.addEventListener('statechange', ()=>{
+        if(w.state==='installed' && navigator.serviceWorker.controller){
+          showUpdateToast(reg);
+        }
+      });
+    });
+    // Re-check every 30 min
+    setInterval(()=>{try{reg.update()}catch(e){}}, 30*60*1000);
+  }).catch(()=>{});
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   7. CONVERSION AUTOMATIQUE DES MONTANTS AU CHANGEMENT DE DEVISE
+   ───────────────────────────────────────────────────────────────── */
+const STATIC_RATES = { // fallback grossier si offline (base = USD)
+  USD:1, EUR:0.92, GBP:0.79, XOF:610, XAF:610, NGN:1600, KES:130, GHS:15,
+  MAD:10, EGP:48, ZAR:18, BRL:5.4, INR:84, CNY:7.2, JPY:155
+};
+async function fetchRate(from,to){
+  if(from===to) return 1;
+  try{
+    const r=await _origFetch('https://open.er-api.com/v6/latest/'+encodeURIComponent(from),{cache:'no-store'});
+    if(r.ok){
+      const j=await r.json();
+      const v=j&&j.rates&&j.rates[to];
+      if(typeof v==='number'&&isFinite(v)&&v>0) return v;
+    }
+  }catch(e){}
+  // Fallback offline via USD pivot
+  if(STATIC_RATES[from]&&STATIC_RATES[to]) return STATIC_RATES[to]/STATIC_RATES[from];
+  return null;
+}
+
+async function convertAllAmounts(rate){
+  // accounts
+  if(Array.isArray(window.accs)){
+    for(const a of window.accs){
+      if(typeof a.balance==='number') a.balance = a.balance * rate;
+      try{await dbPut('accounts',a)}catch(e){}
+    }
+  }
+  // transactions
+  if(Array.isArray(window.txs)){
+    for(const tx of window.txs){
+      if(typeof tx.amount==='number') tx.amount = tx.amount * rate;
+      try{await dbPut('transactions',tx)}catch(e){}
+    }
+  }
+  // goals
+  if(Array.isArray(window.goals)){
+    for(const g of window.goals){
+      if(typeof g.target==='number') g.target = g.target * rate;
+      if(typeof g.saved==='number')  g.saved  = g.saved  * rate;
+      try{await dbPut('goals',g)}catch(e){}
+    }
+  }
+}
+
+const _origSaveCurrency = window.saveCurrency;
+window.saveCurrency = async function(){
+  const inp=document.getElementById('curInp');
+  const newCur=(inp&&inp.value||'').trim().toUpperCase();
+  const oldCur=safeCur();
+  if(!newCur||newCur===oldCur){ if(typeof _origSaveCurrency==='function') return _origSaveCurrency.apply(this,arguments); return; }
+  const wantConvert = confirm(
+    `Convertir tous les montants de ${oldCur} vers ${newCur} ?\n\n`+
+    `OK = convertir (taux actuels)\nAnnuler = changer la devise sans toucher aux montants`
+  );
+  if(wantConvert){
+    try{
+      const rate = await fetchRate(oldCur,newCur);
+      if(!rate){ alert('Taux indisponible (hors-ligne sans table de secours). Devise changée sans conversion.'); }
+      else{
+        await convertAllAmounts(rate);
+        log('Converted',oldCur,'→',newCur,'rate=',rate);
+      }
+    }catch(e){ log('convert failed',e); }
+  }
+  // Délègue ensuite à la fonction d'origine (persistance + render)
+  if(typeof _origSaveCurrency==='function'){
+    try{ inp.value = newCur; }catch(e){}
+    return _origSaveCurrency.apply(this,arguments);
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   8. Démarrage : tentative de flush si déjà online
+   ───────────────────────────────────────────────────────────────── */
+setTimeout(()=>{ if(navigator.onLine) flushIntents().catch(()=>{}); }, 4000);
+
+log('Upgrade v5.1 chargé — intents/context/currency/SW prêts');
 })();
 </script>
 </body>

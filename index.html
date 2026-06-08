@@ -2306,24 +2306,12 @@ function detectCurrency(){
 
 function getLocale(){
   const map={'fr':'fr-FR','en':'en-US','es':'es-ES','pt':'pt-BR'};
-  return map[_lang]||'fr-FR';
+  return map[_lang]||navigator.language||'fr-FR';
 }
 
 function getLocaleForDates(){
-  // Retourne la locale correcte pour toLocaleDateString()
-  const map={
-    'fr':'fr-FR',
-    'en':'en-US',
-    'es':'es-ES',
-    'pt':'pt-BR'
-  };
-  const loc = map[_lang]||'fr-FR';
-  console.log('[i18n] getLocaleForDates:', _lang, '→', loc);
-  return loc;
-}
-
-function getLocale(){
-  return navigator.language||'fr-FR';
+  // Aligne les dates sur la langue choisie par l'utilisateur (_lang)
+  return getLocale();
 }
 
 // ════════════════════════════════════════
@@ -4063,12 +4051,49 @@ function localAI(q){
 // ════════════════════════════════════════
 let _lastInsight = '';
 let _lastInsightTime = 0;
+let _lastInsightSource = 'offline'; // 'cloud' | 'offline'
+function buildOfflineInsight(){
+  try{
+    const kpi=computeKPIs();
+    const bv=kpi.behavioralVectors||{};
+    const mode=bv.restrictionMode||'NORMAL';
+    const dopa=Math.round(bv.dopamineIndex||kpi.dopamineIdx||0);
+    const evap=Math.round(bv.evaporationRate||kpi.evaporationRate||0);
+    const surv=bv.survivalDays!=null?bv.survivalDays:kpi.safetyDays;
+    const coh=Math.round(bv.coherenceScore||kpi.frictionScore||0);
+    if(kpi.isSilent && kpi.joursSansSaisie>=3){
+      return `🕳️ Silence comportemental : ${kpi.joursSansSaisie} jours sans saisie. L'évitement est un signal — réouvre la boucle maintenant avec une seule transaction.`;
+    }
+    if(mode==='SURVIE'){
+      return `🚨 Mode SURVIE — autonomie ${surv} j. ALADDIN exige le verrouillage immédiat des dépenses élastiques.`;
+    }
+    if(dopa>40){
+      return `⚠️ Dopamine ${dopa}% : pic d'achats impulsifs détecté. Applique la temporisation 24h avant tout achat plaisir.`;
+    }
+    if(evap>35){
+      return `💸 Évaporation ${evap}% : tes capitaux fuient en 48h post-revenu. Automatise 20% d'épargne dès l'entrée.`;
+    }
+    if(mode==='VOLONTAIRE'){
+      return `🛡️ Restriction volontaire active. Cohérence ${coh}/100 — tiens la ligne, c'est exactement là que se forge la trajectoire.`;
+    }
+    return `🎯 Cohérence ${coh}/100 — trajectoire nominale, autonomie ${surv} j. Continue la saisie quotidienne.`;
+  }catch(e){
+    return `⚡ Diagnostic local — données insuffisantes pour un verdict synaptique.`;
+  }
+}
 async function fetchHomeInsight(){
-  if(!navigator.onLine || !getGroqKey()) return null;
-  // No data yet — don't call API, show prompt to add first transaction
+  // Pas de données : rien à dire
   if(!txs.length) return null;
-  // Cache 10 min
+  // Cache 10 min (toutes sources)
   if(_lastInsight && Date.now()-_lastInsightTime < 600000) return _lastInsight;
+  // === MOTEUR HEURISTIQUE OFFLINE — l'interface reste intelligente ===
+  if(!navigator.onLine || !getGroqKey()){
+    const local=buildOfflineInsight();
+    _lastInsight=local;
+    _lastInsightTime=Date.now();
+    _lastInsightSource='offline';
+    return local;
+  }
   try{
     // Calcul du contexte temporel pour l'insight home
     const nowInsight=new Date();
@@ -4106,9 +4131,14 @@ async function fetchHomeInsight(){
     if(!resp.ok) return null;
     const d = await resp.json();
     const t = d.choices?.[0]?.message?.content?.trim();
-    if(t){_lastInsight=t;_lastInsightTime=Date.now();return t}
+    if(t){_lastInsight=t;_lastInsightTime=Date.now();_lastInsightSource='cloud';return t}
     return null;
-  }catch(e){return null}
+  }catch(e){
+    // Repli heuristique si l'appel cloud échoue
+    const local=buildOfflineInsight();
+    _lastInsight=local;_lastInsightTime=Date.now();_lastInsightSource='offline';
+    return local;
+  }
 }
 async function maybeAutoInsight(){
   if(screen!=='home') return;
@@ -4121,7 +4151,18 @@ async function maybeAutoInsight(){
   }
   const txt = await fetchHomeInsight();
   if(txt && el && screen==='home'){
-    el.innerHTML = '💡 '+txt;
+    const badge = _lastInsightSource==='cloud'
+      ? '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">CLOUD</span>'
+      : '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(251,191,36,.18);color:var(--ylw);margin-right:6px;vertical-align:middle">LOCAL</span>';
+    el.innerHTML = badge+'💡 '+txt;
+    // Rétroaction visuelle ambiante sur le FAB IA
+    try{
+      const fab=document.querySelector('.aifab');
+      if(fab){
+        fab.style.opacity=_lastInsightSource==='cloud'?'1':'.78';
+        fab.setAttribute('data-source',_lastInsightSource);
+      }
+    }catch(e){}
   }
 }
 function openAIQuick(){
@@ -4855,8 +4896,14 @@ function renderAnalytics(){
     const wn=wdShort();subLabels=wn;subData=[0,0,0,0,0,0,0];
     ptxs.filter(t=>t.type==='expense').forEach(t=>subData[new Date(t.date).getDay()]+=t.amount);
   } else if(p==='month'){
-    const wn=wdShort();subLabels=wn;subData=[0,0,0,0,0,0,0];
-    ptxs.filter(t=>t.type==='expense').forEach(t=>subData[new Date(t.date).getDay()]+=t.amount);
+    // Restructuration : 6 segments chronologiques (5/6 jours chacun) pour une vraie vue macro mensuelle
+    subLabels=['1-5','6-10','11-15','16-20','21-25','26+'];
+    subData=[0,0,0,0,0,0];
+    ptxs.filter(t=>t.type==='expense').forEach(t=>{
+      const day=new Date(t.date).getDate();
+      const i=day<=5?0:day<=10?1:day<=15?2:day<=20?3:day<=25?4:5;
+      subData[i]+=t.amount;
+    });
   } else {
     const mn=mnShort();subLabels=mn;subData=new Array(12).fill(0);
     ptxs.filter(t=>t.type==='expense').forEach(t=>subData[new Date(t.date).getMonth()]+=t.amount);
@@ -4934,7 +4981,7 @@ function renderAnalytics(){
       <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(16,185,129,.6);display:inline-block"></span>Revenus</span>
       <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(244,63,94,.6);display:inline-block"></span>Dépenses</span>
     </div>
-    <div class="hg" style="grid-template-columns:repeat(${p==='year'?6:p==='week'?7:7},1fr)">
+    <div class="hg" style="grid-template-columns:repeat(${p==='year'?6:p==='week'?7:p==='month'?6:7},1fr)">
       ${heat.cells.map((c,i)=>{
         const expRatio=heat.max>0?c.amt/heat.max:0;
         const incRatio=heat.maxInc>0?(c.inc||0)/heat.maxInc:0;

@@ -199,18 +199,23 @@ select.fi{cursor:pointer}
 /* DYNAMIC LED AMBIANCE — financial state + connectivity */
 body{transition:background .8s ease,filter .6s ease}
 
-/* Connectivity layer */
-body.online{
+/* Connectivity layer — uses ::before pseudo-element so it doesn't clash with financial state bg */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:0;
+  opacity:0;
+  transition:opacity .7s ease;
+}
+body.online::before{
   background:
-    radial-gradient(1200px 700px at 12% -8%, rgba(139,92,246,.18), transparent 60%),
-    radial-gradient(900px 600px at 100% 110%, rgba(6,182,212,.14), transparent 65%),
-    radial-gradient(600px 400px at 50% 50%, rgba(167,139,250,.06), transparent 70%),
-    var(--bg);
+    radial-gradient(900px 400px at 12% -10%, rgba(139,92,246,.22), transparent 55%),
+    radial-gradient(700px 400px at 100% 110%, rgba(6,182,212,.18), transparent 60%);
+  opacity:1;
 }
-body.offline{
-  background:#06060a;
-  filter:saturate(.85);
-}
+body.offline::before{opacity:0}
+body.offline{filter:saturate(.75) brightness(.92)}
 body.offline .aifab{filter:grayscale(.6)}
 
 /* Financial State Ambiance Layer */
@@ -2570,7 +2575,11 @@ function _computeKPIsImpl(){
   const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   const daysLeft=daysInMonth-daysPassed;
   const projExp=burnRateHistorique*daysInMonth;
-  const projDelta=income-projExp;
+  // Fix: comparer deux projections complètes (revenus extrapolés vs dépenses projetées)
+  // évite le faux-ÉLEVÉ en début de mois quand les revenus ne sont pas encore tous enregistrés
+  const dailyIncome=daysPassed>0?income/daysPassed:0;
+  const projIncome=dailyIncome*daysInMonth;
+  const projDelta=projIncome-projExp;
   // Discipline: en silence, on ne récompense pas l'absence de saisie
   const discipline=isSilent?Math.max(10,retention!==null?Math.min(60,retention):30)
     :retention!==null?Math.min(100,Math.max(0,30+retention)):50;
@@ -4104,18 +4113,21 @@ function periodLabel(p){return t("pl_"+p)}
 function periodPrevLabel(p){return t("pp_"+p)}
 
 // Heatmap adaptative : day=24h / week=7j / month=daysInMonth / year=12mois
+// Chaque cellule contient: amt (dépenses), inc (revenus), net (net)
 function buildHeatmap(period){
   const now=new Date(),y=now.getFullYear(),m=now.getMonth();
-  const cells=[];let max=1;
+  const cells=[];let maxExp=1,maxInc=1;
   if(period==='day'){
     const today=new Date(y,m,now.getDate());
     for(let h=0;h<24;h++){
       const s=new Date(today);s.setHours(h,0,0,0);
       const e=new Date(s);e.setHours(h+1);
       const amt=txs.filter(t=>t.type==='expense'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
+      const inc=txs.filter(t=>t.type==='income'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
       const isNow=h===now.getHours();
-      cells.push({label:String(h).padStart(2,'0')+'h',short:String(h),amt,isNow,key:`hour-${h}`});
-      if(amt>max)max=amt;
+      cells.push({label:String(h),short:String(h),amt,inc,isNow,key:`hour-${h}`});
+      if(amt>maxExp)maxExp=amt;
+      if(inc>maxInc)maxInc=inc;
     }
   } else if(period==='week'){
     const start=new Date(now);start.setDate(now.getDate()-now.getDay());start.setHours(0,0,0,0);
@@ -4124,30 +4136,33 @@ function buildHeatmap(period){
       const s=new Date(start);s.setDate(start.getDate()+i);
       const e=new Date(s);e.setDate(s.getDate()+1);
       const amt=txs.filter(t=>t.type==='expense'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
+      const inc=txs.filter(t=>t.type==='income'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
       const isNow=s.toDateString()===now.toDateString();
-      cells.push({label:wn[i],short:wn[i],amt,isNow,key:`day-${s.toISOString().slice(0,10)}`,date:s});
-      if(amt>max)max=amt;
+      cells.push({label:wn[i],short:wn[i],amt,inc,isNow,key:`day-${s.toISOString().slice(0,10)}`,date:s});
+      if(amt>maxExp)maxExp=amt;if(inc>maxInc)maxInc=inc;
     }
   } else if(period==='month'){
     const dim=new Date(y,m+1,0).getDate();
     for(let d=1;d<=dim;d++){
       const s=new Date(y,m,d),e=new Date(y,m,d+1);
       const amt=txs.filter(t=>t.type==='expense'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
+      const inc=txs.filter(t=>t.type==='income'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
       const isNow=d===now.getDate();
-      cells.push({label:String(d),short:String(d),amt,isNow,key:`day-${s.toISOString().slice(0,10)}`,date:s});
-      if(amt>max)max=amt;
+      cells.push({label:String(d),short:String(d),amt,inc,isNow,key:`day-${s.toISOString().slice(0,10)}`,date:s});
+      if(amt>maxExp)maxExp=amt;if(inc>maxInc)maxInc=inc;
     }
   } else { // year
     const mn=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
     for(let mm=0;mm<12;mm++){
       const s=new Date(y,mm,1),e=new Date(y,mm+1,1);
       const amt=txs.filter(t=>t.type==='expense'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
+      const inc=txs.filter(t=>t.type==='income'&&new Date(t.date)>=s&&new Date(t.date)<e).reduce((a,t)=>a+t.amount,0);
       const isNow=mm===now.getMonth();
-      cells.push({label:mn[mm],short:mn[mm],amt,isNow,key:`month-${y}-${mm}`,date:s});
-      if(amt>max)max=amt;
+      cells.push({label:mn[mm],short:mn[mm],amt,inc,isNow,key:`month-${y}-${mm}`,date:s});
+      if(amt>maxExp)maxExp=amt;if(inc>maxInc)maxInc=inc;
     }
   }
-  return {cells,max};
+  return {cells,max:maxExp,maxInc};
 }
 
 // Couleur nuancée selon intensité : vert (calme) → jaune → orange → rouge (intense)
@@ -4160,9 +4175,14 @@ function intensityColor(ratio){
 }
 
 function periodHeatmapClick(cell,period){
-  if(period==='day') return openHourModal(cell);
-  if(period==='week'||period==='month') return openDayModal(cell.date.getDate(),cell.date.getMonth(),cell.date.getFullYear());
-  if(period==='year') return openMonthModal(cell.date.getMonth(),cell.date.getFullYear());
+  // Reconstituer l'objet date depuis l'ISO string (JSON.stringify transforme Date en string)
+  const cellDate=cell.date?new Date(cell.date):new Date();
+  if(period==='day'){
+    // Pour day: la cellule représente une heure, on passe hour = short (index heure)
+    return openHourModal({date:new Date().toISOString(),hour:parseInt(cell.short)||0});
+  }
+  if(period==='week'||period==='month') return openDayModal(cellDate.getDate(),cellDate.getMonth(),cellDate.getFullYear());
+  if(period==='year') return openMonthModal(cellDate.getMonth(),cellDate.getFullYear());
 }
 
 function renderAnalytics(){
@@ -4278,13 +4298,33 @@ function renderAnalytics(){
   <!-- HEATMAP ADAPTATIVE -->
   <div class="card">
     <div class="ch">${heatTitle} <span class="tm">${t('clickable')}</span></div>
+    <div style="display:flex;gap:8px;margin-bottom:6px;font-size:10px;color:var(--mut)">
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(16,185,129,.6);display:inline-block"></span>Revenus</span>
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:3px;background:rgba(244,63,94,.6);display:inline-block"></span>Dépenses</span>
+    </div>
     <div class="hg" style="grid-template-columns:repeat(${p==='year'?6:p==='week'?7:7},1fr)">
       ${heat.cells.map((c,i)=>{
-        const ratio=heat.max>0?c.amt/heat.max:0;
-        const bg=intensityColor(ratio);
+        const expRatio=heat.max>0?c.amt/heat.max:0;
+        const incRatio=heat.maxInc>0?(c.inc||0)/heat.maxInc:0;
+        // Priorité couleur: si les deux → dégradé bicolore; sinon la couleur dominante
+        let bg;
+        if(c.amt>0&&(c.inc||0)>0){
+          // Les deux: fond split - dépense gagne si elle est plus haute
+          bg=expRatio>incRatio
+            ?`rgba(244,63,94,${.25+expRatio*.6})`
+            :`rgba(16,185,129,${.25+incRatio*.6})`;
+        } else if(c.amt>0){
+          bg=intensityColor(expRatio);
+        } else if((c.inc||0)>0){
+          bg=`rgba(16,185,129,${.20+incRatio*.65})`;
+        } else {
+          bg='var(--surf2)';
+        }
         const brd=c.isNow?'2px solid var(--acc3)':'none';
-        const txtCol=ratio>.5?'#fff':'var(--txt2)';
-        return`<div class="hd" style="background:${bg};border:${brd};color:${txtCol};font-weight:${c.isNow?800:600}" onclick='periodHeatmapClick(${JSON.stringify({...c,date:c.date?c.date.toISOString():null})},"${p}")'>${c.short}</div>`;
+        const hasData=c.amt>0||(c.inc||0)>0;
+        const txtCol=hasData&&(expRatio>.5||incRatio>.5)?'#fff':'var(--txt2)';
+        const cellData=JSON.stringify({...c,date:c.date?c.date.toISOString():null});
+        return`<div class="hd" style="background:${bg};border:${brd};color:${txtCol};font-weight:${c.isNow?800:600};position:relative" onclick='periodHeatmapClick(${cellData},"${p}")'>${c.short}${c.amt>0&&(c.inc||0)>0?'<span style="position:absolute;top:1px;right:2px;font-size:6px;opacity:.8">⇄</span>':''}</div>`;
       }).join('')}
     </div>
     <div style="font-size:10px;color:var(--mut);margin-top:8px;display:flex;align-items:center;gap:6px">
@@ -5519,10 +5559,15 @@ function openHourModal(cell){
   const e=new Date(s);e.setHours(h+1);
   const list=txs.filter(t=>new Date(t.date)>=s&&new Date(t.date)<e);
   const total=list.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
+  const inc=list.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
   openModal(`
     <h3>⏰ ${String(h).padStart(2,'0')}h — ${s.toLocaleDateString(getLocaleForDates(),{weekday:'short',day:'numeric',month:'short'})}</h3>
-    <div style="font-size:18px;font-weight:800;font-family:var(--mono);color:var(--red);margin-bottom:10px">-${fmtFull(total)}</div>
-    ${list.length?list.map(txItem).join(''):`<div class="tm">${t('no_tx_hour')}</div>`}
+    <div style="display:flex;gap:14px;margin-bottom:10px">
+      ${total>0?`<div><div class="tm" style="font-size:10px">DÉPENSES</div><div class="mono fw8" style="color:var(--red);font-size:18px">-${fmtFull(total)}</div></div>`:''}
+      ${inc>0?`<div><div class="tm" style="font-size:10px">REVENUS</div><div class="mono fw8" style="color:var(--grn);font-size:18px">+${fmtFull(inc)}</div></div>`:''}
+      ${total===0&&inc===0?`<div class="tm" style="font-size:13px">${t('no_tx_hour')}</div>`:''}
+    </div>
+    ${list.length?list.map(txItem).join(''):''}
   `);
 }
 

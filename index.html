@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script>
-// EARLY ERROR CAPTURE v4.13.0
+// EARLY ERROR CAPTURE v5.0.0 ALADDIN
 (function(){
   window.__earlyErrors = [];
   window.addEventListener('error', function(e){
@@ -2331,14 +2331,14 @@ function getLocale(){
 // ════════════════════════════════════════
 const DB='FinOS_v3';let db=null;
 function openDB(){return new Promise((res,rej)=>{
-  const r=indexedDB.open(DB,2);
+  const r=indexedDB.open(DB,3);
   r.onerror=()=>rej(r.error);
   r.onsuccess=()=>{db=r.result;res(db)};
   r.onupgradeneeded=e=>{
     const d=e.target.result;
-    ['transactions','accounts','categories','goals','settings'].forEach(s=>{
+    ['transactions','accounts','categories','goals','settings','ivy_state','income_profile'].forEach(s=>{
       if(!d.objectStoreNames.contains(s)){
-        const st=d.createObjectStore(s,{keyPath:s==='settings'?'key':'id'});
+        const st=d.createObjectStore(s,{keyPath:(s==='settings')?'key':'id'});
         if(s==='transactions'){st.createIndex('date','date');st.createIndex('type','type')}
       }
     });
@@ -2454,6 +2454,522 @@ function txsInWindow(days){
   const cutoff=new Date(Date.now()-days*86400000);
   return txs.filter(t=>new Date(t.date)>=cutoff);
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ALADDIN ENGINE v5.0 — Cycle-Aware Behavioral Finance Layer
+   ─────────────────────────────────────────────────────────────────────────────
+   Implémente les 5 piliers du blueprint v5.0 :
+     1. Typage strict des transactions (heuristique rétro-compat)
+     2. Détection automatique de cycle de revenu (clustering 90j)
+     3. cycleContext + capital projeté + revenus manqués
+     4. 3 projections probabilistes parallèles (stress / baseline / optimal)
+     5. Matrice comportementale vectorielle + mémoire Ivy + preFlightCheck
+
+   Architecture additive : 0 réécriture de l'existant. Tout est lu/calculé en
+   surcouche au-dessus de `txs`, `accs`, `cats`, `settings`, `goals` déjà en
+   scope global. Si l'engine échoue, le système retombe sur l'ancien chemin.
+   ════════════════════════════════════════════════════════════════════════════ */
+const ALADDIN = (function(){
+  const MS_DAY = 86400000;
+  const TX_TYPES = {
+    EXPENSE_FIXED:'fixed_survival', EXPENSE_VARIABLE:'variable_daily',
+    EXPENSE_ELASTIC:'elastic_pleasure', EXPENSE_IMPULSIVE:'impulsive_dopamine',
+    TRANSFER_SAVINGS:'transfer_savings', TRANSFER_GOAL:'transfer_goal',
+    INCOME_PRIMARY:'income_primary', INCOME_SECONDARY:'income_secondary',
+    INCOME_EXCEPTIONAL:'income_exceptional'
+  };
+
+  /* ─── Pilier 1 : typage strict avec migration auto par heuristique ─── */
+  function classifyTx(tx){
+    if(tx.txType) return tx.txType;
+    if(tx.type==='income'){
+      // Salaire = INCOME_PRIMARY ; freelance/business = SECONDARY ; reste = EXCEPTIONAL/SECONDARY
+      const cid=(tx.categoryId||'').toLowerCase();
+      if(cid==='salary') return TX_TYPES.INCOME_PRIMARY;
+      if(['freelance','business','youtube','invest_inc'].includes(cid)) return TX_TYPES.INCOME_SECONDARY;
+      return TX_TYPES.INCOME_EXCEPTIONAL;
+    }
+    if(tx.type!=='expense') return null;
+    // Transfert épargne : catégorie 'transfer' OU compte cible = savings
+    const acc = (typeof accs!=='undefined') ? accs.find(a=>a.id===tx.accountId) : null;
+    if(tx.categoryId==='transfer' || (acc && acc.type==='savings')) return TX_TYPES.TRANSFER_SAVINGS;
+    // Heuristique rigid/elastic/invest existante
+    const role = (typeof classifyCategoryRole==='function') ? classifyCategoryRole(tx.categoryId) : 'elastic';
+    if(role==='rigid'){
+      // Loyer/factures = FIXED ; alimentation/transport = VARIABLE
+      if(['housing','bills'].includes(tx.categoryId)) return TX_TYPES.EXPENSE_FIXED;
+      return TX_TYPES.EXPENSE_VARIABLE;
+    }
+    if(role==='invest') return TX_TYPES.EXPENSE_VARIABLE; // formation/outils = utilitaire
+    // elastic : raffiner via heure + note
+    const h = new Date(tx.date).getHours();
+    const note = (tx.note||'').toLowerCase();
+    const IMPULSE_KW = /snack|fast.?food|livraison|delivery|impulsion|envie|burger|pizza|glace|bonbon/i;
+    if((h>=22 || h<5) && (tx.categoryId==='leisure' || tx.categoryId==='clothes' || IMPULSE_KW.test(note)))
+      return TX_TYPES.EXPENSE_IMPULSIVE;
+    if(['leisure','clothes','unforeseen'].includes(tx.categoryId) || IMPULSE_KW.test(note))
+      return TX_TYPES.EXPENSE_IMPULSIVE;
+    return TX_TYPES.EXPENSE_ELASTIC;
+  }
+  function isExpenseInBurn(tx){
+    const tt=classifyTx(tx);
+    return tt===TX_TYPES.EXPENSE_FIXED||tt===TX_TYPES.EXPENSE_VARIABLE||
+           tt===TX_TYPES.EXPENSE_ELASTIC||tt===TX_TYPES.EXPENSE_IMPULSIVE;
+  }
+  function isEssential(tx){
+    const tt=classifyTx(tx);
+    return tt===TX_TYPES.EXPENSE_FIXED||tt===TX_TYPES.EXPENSE_VARIABLE;
+  }
+  function isElasticLike(tx){
+    const tt=classifyTx(tx);
+    return tt===TX_TYPES.EXPENSE_ELASTIC||tt===TX_TYPES.EXPENSE_IMPULSIVE;
+  }
+
+  /* ─── Pilier 2 : détection cycle par clustering 90j ─── */
+  function detectIncomeCycle(){
+    if(typeof txs==='undefined' || !txs.length) return {mode:'IRREGULAR',confidence:'LOW'};
+    const cutoff = Date.now() - 90*MS_DAY;
+    const primaries = txs.filter(t=>t.type==='income' && classifyTx(t)===TX_TYPES.INCOME_PRIMARY && new Date(t.date).getTime()>=cutoff)
+                         .sort((a,b)=>new Date(a.date)-new Date(b.date));
+    if(primaries.length<2) return {mode:'IRREGULAR',confidence:'LOW',reason:'<2 revenus primaires'};
+    // Clustering par montant (±15%)
+    const clusters=[];
+    for(const tx of primaries){
+      const c = clusters.find(cl => Math.abs(cl.avg-tx.amount)/cl.avg <= 0.15);
+      if(c){ c.items.push(tx); c.avg = c.items.reduce((s,x)=>s+x.amount,0)/c.items.length; }
+      else clusters.push({avg:tx.amount,items:[tx]});
+    }
+    clusters.sort((a,b)=>b.items.length-a.items.length);
+    const top = clusters[0];
+    if(top.items.length<2) return {mode:'IRREGULAR',confidence:'LOW',reason:'pas de cluster récurrent'};
+    // Analyse des deltas
+    const deltas=[];
+    for(let i=1;i<top.items.length;i++){
+      deltas.push((new Date(top.items[i].date)-new Date(top.items[i-1].date))/MS_DAY);
+    }
+    const avgDelta = deltas.reduce((s,d)=>s+d,0)/deltas.length;
+    const variance = deltas.reduce((s,d)=>s+Math.pow(d-avgDelta,2),0)/deltas.length;
+    const stddev = Math.sqrt(variance);
+    let cycleType='IRREGULAR', cycleLength=30;
+    if(Math.abs(avgDelta-30)<=3 && stddev<5){ cycleType='MONTHLY'; cycleLength=30; }
+    else if(Math.abs(avgDelta-14)<=2 && stddev<3){ cycleType='BIWEEKLY'; cycleLength=14; }
+    else if(Math.abs(avgDelta-7)<=1.5 && stddev<2){ cycleType='WEEKLY'; cycleLength=7; }
+    else return {mode:'IRREGULAR',confidence:'LOW',reason:'deltas chaotiques',avgDelta:Math.round(avgDelta)};
+    const confidence = top.items.length>=3 ? 'HIGH' : 'MEDIUM';
+    const lastIncome = top.items[top.items.length-1];
+    return {
+      mode:'DETECTED', cycleType, cycleLength,
+      avgAmount: Math.round(top.avg),
+      occurrences: top.items.length,
+      confidence,
+      lastIncomeDate: lastIncome.date,
+      lastIncomeAmount: lastIncome.amount,
+      avgDeltaDays: Math.round(avgDelta*10)/10
+    };
+  }
+
+  /* ─── Profil déclaré (Mode C) ─── */
+  function getDeclaredProfile(){
+    try{
+      if(typeof settings==='undefined') return null;
+      const p = settings.incomeProfile;
+      if(!p || !p.type || p.type==='irregular') return null;
+      return p; // {type:'monthly'|'biweekly'|'weekly'|'daily', amount, dayOfMonth?, dayOfWeek?}
+    }catch(e){return null;}
+  }
+
+  /* ─── Pilier 3 : cycleContext ─── */
+  function buildCycleContext(){
+    const declared = getDeclaredProfile();
+    const detected = detectIncomeCycle();
+    let cycleType, cycleLength, expectedAmount, confidence, mode, lastIncomeDate, lastIncomeAmount;
+
+    if(declared){
+      mode='DECLARED'; confidence='HIGH';
+      cycleType = declared.type.toUpperCase();
+      cycleLength = cycleType==='MONTHLY'?30:cycleType==='BIWEEKLY'?14:cycleType==='WEEKLY'?7:1;
+      expectedAmount = parseFloat(declared.amount)||0;
+      // Dernier revenu primary
+      const lastP = txs.filter(t=>t.type==='income' && classifyTx(t)===TX_TYPES.INCOME_PRIMARY)
+                       .sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      lastIncomeDate = lastP ? lastP.date : null;
+      lastIncomeAmount = lastP ? lastP.amount : 0;
+    } else if(detected.mode==='DETECTED' && detected.confidence!=='LOW'){
+      mode='DETECTED';
+      cycleType = detected.cycleType;
+      cycleLength = detected.cycleLength;
+      expectedAmount = detected.avgAmount;
+      confidence = detected.confidence;
+      lastIncomeDate = detected.lastIncomeDate;
+      lastIncomeAmount = detected.lastIncomeAmount;
+    } else {
+      return {
+        mode:'IRREGULAR', cycleType:'IRREGULAR', confidence:'LOW',
+        cycleDay:null, cycleProgress:null, phase:'IRREGULAR',
+        expectedAmount:0, receivedThisCycle:0, expectedCycleIncome:0,
+        missedPaycheck:false, missedDays:0
+      };
+    }
+
+    const now = Date.now();
+    const daysSinceLast = lastIncomeDate ? Math.floor((now - new Date(lastIncomeDate).getTime())/MS_DAY) : cycleLength;
+    const cycleDay = Math.min(cycleLength, daysSinceLast);
+    const cycleProgress = cycleLength>0 ? cycleDay/cycleLength : 0;
+
+    // Reçu ce cycle : toutes les transactions PRIMARY depuis cycleLength jours
+    const cycleStart = now - cycleLength*MS_DAY;
+    const receivedThisCycle = txs.filter(t=>t.type==='income' && classifyTx(t)===TX_TYPES.INCOME_PRIMARY && new Date(t.date).getTime()>=cycleStart)
+                                 .reduce((s,t)=>s+t.amount,0);
+
+    // Retard de revenu : si daysSinceLast > cycleLength
+    const missedDays = Math.max(0, daysSinceLast - cycleLength);
+    const missedPaycheck = missedDays >= 1;
+
+    // expectedCycleIncome = ce qui reste à recevoir
+    let expectedCycleIncome;
+    if(missedDays >= 7){
+      // Bascule auto en Mode A
+      expectedCycleIncome = 0;
+    } else if(receivedThisCycle >= expectedAmount*0.85){
+      expectedCycleIncome = 0; // déjà reçu
+    } else {
+      expectedCycleIncome = Math.max(0, expectedAmount - receivedThisCycle);
+    }
+
+    // Phase
+    let phase;
+    if(daysSinceLast<=3) phase='POST_RECEPTION';
+    else if(cycleProgress<0.2) phase='DEBUT';
+    else if(cycleProgress<0.7) phase='MILIEU';
+    else phase='FIN';
+
+    return {
+      mode, cycleType, cycleLength, cycleDay, cycleProgress, phase,
+      expectedAmount, receivedThisCycle, expectedCycleIncome,
+      missedPaycheck, missedDays, confidence,
+      daysSinceLast, lastIncomeDate, lastIncomeAmount,
+      daysToNextExpected: Math.max(0, cycleLength - daysSinceLast)
+    };
+  }
+
+  /* ─── Pilier 4 : 3 projections parallèles ─── */
+  function buildProjections(kpi, ctx){
+    const win = Math.max(7, kpi.dataDays||30);
+    const w30 = txs.filter(t=>new Date(t.date).getTime() >= Date.now()-30*MS_DAY);
+    const essentialExp = w30.filter(t=>t.type==='expense' && isEssential(t)).reduce((s,t)=>s+t.amount,0);
+    const elasticExp   = w30.filter(t=>t.type==='expense' && isElasticLike(t)).reduce((s,t)=>s+t.amount,0);
+    const dailyEssential = essentialExp / Math.min(30, win);
+    const dailyElastic   = elasticExp / Math.min(30, win);
+    const dailyTotal     = dailyEssential + dailyElastic;
+    // Burn max sur 30j (jour le plus dépensier)
+    const byDay={};
+    w30.filter(t=>t.type==='expense' && isExpenseInBurn(t)).forEach(t=>{
+      const k=new Date(t.date).toDateString();
+      byDay[k]=(byDay[k]||0)+t.amount;
+    });
+    const maxDaily = Math.max(dailyTotal, ...Object.values(byDay), 1);
+
+    const confFactor = ctx.confidence==='HIGH'?0.9:ctx.confidence==='MEDIUM'?0.55:0;
+    const projectedIncome = ctx.expectedCycleIncome * confFactor;
+
+    const balance = kpi.activeBalance||0;
+
+    return {
+      stress: {
+        runwayDays: dailyEssential>0 ? Math.floor(balance / dailyEssential) : (balance>0?9999:0),
+        burnRate: Math.round(dailyEssential),
+        label:'Si aucun revenu n\'arrive (essentiel uniquement)'
+      },
+      baseline: {
+        runwayDays: dailyTotal>0 ? Math.floor((balance + projectedIncome) / dailyTotal) : (balance>0?9999:0),
+        cycleEndBalance: Math.round(balance + projectedIncome - dailyTotal*Math.max(0,ctx.daysToNextExpected||0)),
+        burnRate: Math.round(dailyTotal),
+        label:'Au rythme actuel (revenu attendu inclus)'
+      },
+      optimal: {
+        savingsPotential: Math.round(elasticExp),
+        cycleEndOptimal: Math.round(balance + projectedIncome - dailyEssential*Math.max(0,ctx.daysToNextExpected||0)),
+        label:'Si tu coupes tout l\'élastique maintenant'
+      },
+      _internals:{dailyEssential,dailyElastic,dailyTotal,maxDaily,elasticExp,confFactor,projectedIncome}
+    };
+  }
+
+  /* ─── Pilier 5 : matrice vectorielle ─── */
+  function buildBehavioralVectors(kpi, ctx, proj){
+    const now = Date.now();
+    const w30 = txs.filter(t=>new Date(t.date).getTime() >= now-30*MS_DAY);
+    const w90 = txs.filter(t=>new Date(t.date).getTime() >= now-90*MS_DAY);
+
+    // V1 — Évaporation pulsatile (72h post-revenu)
+    const primaries = w30.filter(t=>t.type==='income' && classifyTx(t)===TX_TYPES.INCOME_PRIMARY);
+    let evaporation = 0;
+    if(primaries.length){
+      const samples = primaries.map(inc=>{
+        const t0=new Date(inc.date).getTime();
+        const spent = txs.filter(t=>t.type==='expense' && new Date(t.date).getTime()>=t0 && new Date(t.date).getTime()<=t0+3*MS_DAY)
+                         .reduce((s,t)=>s+t.amount,0);
+        return inc.amount>0 ? spent/inc.amount : 0;
+      });
+      evaporation = samples.reduce((s,v)=>s+v,0)/samples.length;
+    }
+
+    // V2 — Index dopamine sémantique
+    const impulsive = w30.filter(t=>t.type==='expense' && classifyTx(t)===TX_TYPES.EXPENSE_IMPULSIVE).reduce((s,t)=>s+t.amount,0);
+    const totalExp = w30.filter(t=>t.type==='expense' && isExpenseInBurn(t)).reduce((s,t)=>s+t.amount,0);
+    const dopamineIndex = totalExp>0 ? Math.round((impulsive/totalExp)*100) : 0;
+
+    // V3 — Indice de gravité (runway essentiel)
+    const survivalDays = proj.stress.runwayDays;
+
+    // V4 — Cohérence personnelle (cette semaine vs médiane 90j par catégorie)
+    const catMedians={};
+    for(let i=0;i<12;i++){
+      const wstart = now - (i+1)*7*MS_DAY;
+      const wend   = now - i*7*MS_DAY;
+      const week = w90.filter(t=>t.type==='expense' && new Date(t.date).getTime()>=wstart && new Date(t.date).getTime()<wend);
+      week.forEach(t=>{
+        catMedians[t.categoryId] = catMedians[t.categoryId]||[];
+        // accumule par semaine
+      });
+    }
+    // simplification : médiane par catégorie sur les sommes hebdo
+    const catWeekSums = {};
+    for(let i=0;i<12;i++){
+      const wstart=now-(i+1)*7*MS_DAY, wend=now-i*7*MS_DAY;
+      const sums={};
+      w90.filter(t=>t.type==='expense' && new Date(t.date).getTime()>=wstart && new Date(t.date).getTime()<wend)
+         .forEach(t=>{sums[t.categoryId]=(sums[t.categoryId]||0)+t.amount;});
+      Object.keys(sums).forEach(cid=>{
+        catWeekSums[cid]=catWeekSums[cid]||[];
+        catWeekSums[cid].push(sums[cid]);
+      });
+    }
+    const median = arr => { if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+    const thisWeek={};
+    w30.filter(t=>t.type==='expense' && new Date(t.date).getTime()>=now-7*MS_DAY)
+       .forEach(t=>{thisWeek[t.categoryId]=(thisWeek[t.categoryId]||0)+t.amount;});
+    let divergences=[];
+    Object.keys(thisWeek).forEach(cid=>{
+      const med = median(catWeekSums[cid]||[]);
+      if(med>0 && thisWeek[cid] > med*1.4){
+        divergences.push({cat:cid, week:Math.round(thisWeek[cid]), median:Math.round(med), excess: Math.round((thisWeek[cid]/med-1)*100)});
+      }
+    });
+    const coherence = Math.max(0, 100 - divergences.length*15);
+
+    // V5 — Index de restriction volontaire / survie
+    const w7 = w30.filter(t=>new Date(t.date).getTime() >= now-7*MS_DAY);
+    const elastic7 = w7.filter(t=>t.type==='expense' && isElasticLike(t)).reduce((s,t)=>s+t.amount,0);
+    const elasticMedian = median(catWeekSums['leisure']||[]) + median(catWeekSums['clothes']||[]) + median(catWeekSums['unforeseen']||[]);
+    const total7 = w7.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const totalMedian = (kpi.exp30||0)/4;
+    let restrictionMode='NORMAL';
+    if(elasticMedian>0 && elastic7 < elasticMedian*0.2 && (kpi.activeBalance||0) > totalMedian*0.3){
+      restrictionMode='VOLONTAIRE';
+    } else if(totalMedian>0 && total7 < totalMedian*0.3 && (proj.stress.runwayDays<7)){
+      restrictionMode='SURVIE';
+    }
+
+    return {
+      evaporationRate: Math.round(evaporation*100),
+      dopamineIndex,
+      survivalDays,
+      coherenceScore: coherence,
+      divergences,
+      restrictionMode
+    };
+  }
+
+  /* ─── Pilier 5 bis : mémoire Ivy (IndexedDB ivy_state) ─── */
+  let _ivyState = null;
+  async function getIvyState(){
+    if(_ivyState) return _ivyState;
+    try{
+      if(typeof db==='undefined' || !db) return _defaultIvyState();
+      if(!db.objectStoreNames.contains('ivy_state')) return _defaultIvyState();
+      const result = await new Promise((res,rej)=>{
+        const tx = db.transaction('ivy_state','readonly');
+        const r = tx.objectStore('ivy_state').get('main');
+        r.onsuccess = ()=>res(r.result);
+        r.onerror = ()=>rej(r.error);
+      });
+      _ivyState = result || _defaultIvyState();
+      return _ivyState;
+    }catch(e){ return _defaultIvyState(); }
+  }
+  function _defaultIvyState(){
+    return {
+      id:'main',
+      activeDirectives:[],
+      learnedPatterns:{},
+      toneProfile:{complianceRate:1,tone:'GENTLE'},
+      recentAssessments:[]
+    };
+  }
+  async function saveIvyState(state){
+    try{
+      _ivyState = state;
+      if(typeof db==='undefined' || !db) return;
+      if(!db.objectStoreNames.contains('ivy_state')) return;
+      await new Promise((res,rej)=>{
+        const tx = db.transaction('ivy_state','readwrite');
+        const r = tx.objectStore('ivy_state').put(state);
+        r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);
+      });
+    }catch(e){}
+  }
+  async function issueDirective(type, threshold, expiresInDays){
+    const state = await getIvyState();
+    state.activeDirectives = (state.activeDirectives||[]).filter(d=>d.type!==type);
+    state.activeDirectives.push({
+      id:'dir_'+Date.now(), issued:new Date().toISOString(),
+      expiresAt: new Date(Date.now()+expiresInDays*MS_DAY).toISOString(),
+      type, threshold, status:'ACTIVE', violationsCount:0
+    });
+    await saveIvyState(state);
+  }
+  async function preFlightCheck(newTx){
+    try{
+      const state = await getIvyState();
+      const dirs = (state.activeDirectives||[]).filter(d=>new Date(d.expiresAt)>new Date());
+      const violations=[];
+      const h = new Date(newTx.date||Date.now()).getHours();
+      for(const d of dirs){
+        if(d.type==='NIGHT_SPENDING' && newTx.type==='expense' && h>=(d.threshold||22)){
+          violations.push(d.type); d.violationsCount=(d.violationsCount||0)+1;
+        }
+        if(d.type==='ELASTIC_CAP' && newTx.type==='expense'){
+          const role = (typeof classifyCategoryRole==='function') ? classifyCategoryRole(newTx.categoryId) : 'elastic';
+          if(role==='elastic'){ violations.push(d.type); d.violationsCount++; }
+        }
+      }
+      if(violations.length){
+        newTx.complianceFlag='VIOLATION';
+        newTx.violatedDirectives=violations;
+        state.activeDirectives = dirs;
+        await saveIvyState(state);
+      }
+      return {ok:true, violations};
+    }catch(e){ return {ok:true, violations:[]}; }
+  }
+
+  /* ─── API publique : snapshot complet pour buildCtx et risk ─── */
+  function snapshot(kpi){
+    try{
+      const ctx = buildCycleContext();
+      const proj = buildProjections(kpi, ctx);
+      const vectors = buildBehavioralVectors(kpi, ctx, proj);
+      // safety effectif cycle-aware
+      const safetyReal = proj.stress.runwayDays;
+      const safetyProj = proj.baseline.runwayDays;
+      let effectiveRisk;
+      if(ctx.missedDays>=7 || ctx.mode==='IRREGULAR'){
+        // mode A : ne pas écraser
+        effectiveRisk = null;
+      } else if(safetyReal>15){
+        effectiveRisk='STABLE';
+      } else if(safetyReal<7 && safetyProj>15){
+        effectiveRisk='MODERATE_PENDING_INCOME';
+      } else if(safetyReal<7 && safetyProj<7){
+        effectiveRisk='CRITICAL';
+      } else if(ctx.phase==='FIN'){
+        effectiveRisk='HIGH_NORMAL_END_CYCLE';
+      } else {
+        effectiveRisk='HIGH';
+      }
+      return {ctx, proj, vectors, effectiveRisk, safetyReal, safetyProj};
+    }catch(e){ console.warn('[ALADDIN] snapshot fail',e); return null; }
+  }
+
+  return {
+    TX_TYPES, classifyTx, isExpenseInBurn, isEssential, isElasticLike,
+    detectIncomeCycle, getDeclaredProfile, buildCycleContext,
+    buildProjections, buildBehavioralVectors,
+    getIvyState, saveIvyState, issueDirective, preFlightCheck,
+    snapshot
+  };
+})();
+
+/* ─── Helpers globaux exposés pour l'UI ─── */
+async function setIncomeProfile(profile){
+  try{
+    if(typeof settings==='undefined') return;
+    settings.incomeProfile = profile;
+    await dbPut('settings',{key:'incomeProfile',value:profile});
+    invalidateKPICache();
+    if(typeof render==='function') render();
+  }catch(e){ console.warn('setIncomeProfile',e); }
+}
+function openIncomeProfileModal(){
+  const cur = (settings && settings.incomeProfile) || {type:'irregular'};
+  const html = `
+    <div class="ch">📊 Profil de revenu</div>
+    <div style="font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:14px">
+      Déclare ton cycle pour des alertes intelligentes qui tiennent compte de tes revenus à venir.
+    </div>
+    <div style="display:grid;gap:8px">
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surf2);border-radius:10px;cursor:pointer">
+        <input type="radio" name="ipType" value="irregular" ${cur.type==='irregular'?'checked':''}>
+        <div><div style="font-weight:700;font-size:13px">Revenus irréguliers</div><div style="font-size:11px;color:var(--mut)">Mode actuel — aucune projection</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surf2);border-radius:10px;cursor:pointer">
+        <input type="radio" name="ipType" value="monthly" ${cur.type==='monthly'?'checked':''}>
+        <div><div style="font-weight:700;font-size:13px">Salaire mensuel</div><div style="font-size:11px;color:var(--mut)">Un revenu fixe chaque mois</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surf2);border-radius:10px;cursor:pointer">
+        <input type="radio" name="ipType" value="biweekly" ${cur.type==='biweekly'?'checked':''}>
+        <div><div style="font-weight:700;font-size:13px">Bi-hebdo (tous les 15j)</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--surf2);border-radius:10px;cursor:pointer">
+        <input type="radio" name="ipType" value="weekly" ${cur.type==='weekly'?'checked':''}>
+        <div><div style="font-weight:700;font-size:13px">Hebdomadaire</div><div style="font-size:11px;color:var(--mut)">Un revenu chaque semaine</div></div>
+      </label>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:11px;color:var(--mut);font-weight:700;margin-bottom:5px;text-transform:uppercase">Montant attendu (${cur && cur.amount?cur.amount:'—'})</div>
+      <input id="ip-amount" class="fi" type="number" placeholder="ex: 50000" value="${cur.amount||''}">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn" style="background:var(--acc);color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700" onclick="(async()=>{
+        const t=document.querySelector('input[name=ipType]:checked').value;
+        const a=parseFloat(document.getElementById('ip-amount').value)||0;
+        await setIncomeProfile({type:t,amount:a});
+        closeModal();
+        if(typeof showToast==='function') showToast('Profil enregistré');
+      })()">Enregistrer</button>
+    </div>
+  `;
+  if(typeof openModal==='function') openModal(html);
+}
+async function maybeOfferCycleSuggestion(){
+  try{
+    if(!settings || settings.incomeProfile) return;
+    if(settings.cycleSuggestionDismissed) return;
+    const det = ALADDIN.detectIncomeCycle();
+    if(det.mode==='DETECTED' && det.confidence!=='LOW'){
+      const lbl = det.cycleType==='MONTHLY'?'~chaque mois':det.cycleType==='WEEKLY'?'~chaque semaine':'~tous les 15j';
+      const html = `
+        <div class="ch">🔍 Pattern détecté</div>
+        <div style="font-size:13px;line-height:1.6;margin-bottom:14px">
+          On dirait que tu reçois <strong>${det.avgAmount} ${cur()}</strong> ${lbl} (${det.occurrences} occurrences observées).
+          <br><br>Confirmer ce profil pour activer les projections et alertes cycle-aware ?
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-ghost" onclick="(async()=>{settings.cycleSuggestionDismissed=true;await dbPut('settings',{key:'cycleSuggestionDismissed',value:true});closeModal();})()">Plus tard</button>
+          <button class="btn" style="background:var(--acc);color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700" onclick="(async()=>{
+            await setIncomeProfile({type:'${det.cycleType.toLowerCase()}',amount:${det.avgAmount}});
+            closeModal();
+            if(typeof showToast==='function') showToast('Profil cycle activé');
+          })()">Confirmer</button>
+        </div>
+      `;
+      if(typeof openModal==='function') openModal(html);
+    }
+  }catch(e){}
+}
+
 
 // Mémoïsation par tick de render — invalidée par invalidateKPICache()
 let _kpiCache=null;
@@ -2610,7 +3126,7 @@ function _computeKPIsImpl(){
     }
   }catch(e){}
 
-  return{
+  const result={
     balance,activeBalance,savingsBalance,expectedIncome7d,
     dataDays,isShortHistory,isEndOfMonth,
     antTotal,antCount,antThreshold:ANT_THRESHOLD,
@@ -2627,12 +3143,37 @@ function _computeKPIsImpl(){
     // Silence
     isSilent,joursSansSaisie,
   };
+  try{
+    const snap = (typeof ALADDIN!=='undefined') ? ALADDIN.snapshot({
+      activeBalance, savingsBalance, exp30, inc30, burnRate, dataDays
+    }) : null;
+    if(snap){
+      result.aladdin = snap;
+      result.cycleContext = snap.ctx;
+      result.projections = snap.proj;
+      result.behavioralVectors = snap.vectors;
+      result.effectiveRisk = snap.effectiveRisk;
+    }
+  }catch(e){ console.warn('[ALADDIN] enrich fail',e); }
+  return result;
 }
 
 // ════════════════════════════════════════
 // RISK
 // ════════════════════════════════════════
 function riskLevel(kpi){
+  // ── ALADDIN v5 : cycle-aware override ──
+  try{
+    if(kpi.effectiveRisk && kpi.cycleContext && kpi.cycleContext.mode!=='IRREGULAR'){
+      const r = kpi.effectiveRisk;
+      if(r==='STABLE')   return{l:t('risk_stable'),c:'var(--grn)'};
+      if(r==='MODERATE_PENDING_INCOME') return{l:t('risk_moderate'),c:'var(--ylw)'};
+      if(r==='HIGH_NORMAL_END_CYCLE')   return{l:t('risk_moderate'),c:'var(--ylw)'};
+      if(r==='HIGH')     return{l:t('risk_high'),c:'var(--org)'};
+      if(r==='CRITICAL') return{l:t('risk_critical'),c:'var(--red)'};
+    }
+  }catch(e){}
+  // Fallback : logique d'origine (Mode A irrégulier)
   if(kpi.safetyDays<7||kpi.projDelta<-kpi.income*.3)return{l:t('risk_critical'),c:'var(--red)'};
   if(kpi.safetyDays<15||kpi.projDelta<0)return{l:t('risk_high'),c:'var(--org)'};
   if(kpi.safetyDays<30)return{l:t('risk_moderate'),c:'var(--ylw)'};
@@ -2653,6 +3194,13 @@ function updateFinancialAmbiance(){
     const eff = kpi.safetyDaysWithSavings;
     if(!txs.length){
       body.classList.add('state-zero');
+    } else if(kpi.effectiveRisk && kpi.cycleContext && kpi.cycleContext.mode!=='IRREGULAR'){
+      // ALADDIN v5 cycle-aware ambiance
+      const r=kpi.effectiveRisk;
+      if(r==='CRITICAL') body.classList.add('state-critical');
+      else if(r==='HIGH') body.classList.add('state-high');
+      else if(r==='MODERATE_PENDING_INCOME'||r==='HIGH_NORMAL_END_CYCLE') body.classList.add('state-moderate');
+      else body.classList.add('state-stable');
     } else if(kpi.safetyDays<7 && eff<7){
       body.classList.add('state-critical');
     } else if(eff<15 || kpi.projDelta<-kpi.income*.3){
@@ -2961,7 +3509,7 @@ function getGroqKey(){
   return safeStorage.getItem('groq_api_key')||'';
 }
 
-function buildCtx(){
+async function buildCtx(){
   const k=computeKPIs();
 
   // ── CONTEXTE TEMPOREL RÉEL (injecté à chaque appel) ──────────────────────
@@ -3225,6 +3773,61 @@ function buildCtx(){
     },
   };
 
+  // ── ALADDIN v5 : couche cycle-aware injectée dans le contexte IA ──
+  try{
+    if(k.aladdin){
+      const ctx=k.cycleContext, proj=k.projections, vec=k.behavioralVectors;
+      payload.aladdinV5 = {
+        cycle: {
+          mode: ctx.mode,
+          type: ctx.cycleType,
+          jour_dans_cycle: ctx.cycleDay,
+          progression: ctx.cycleProgress!==null ? Math.round(ctx.cycleProgress*100)+'%' : 'N/A',
+          phase: ctx.phase,
+          revenu_attendu: ctx.expectedAmount,
+          revenu_recu_ce_cycle: ctx.receivedThisCycle,
+          revenu_restant_attendu: ctx.expectedCycleIncome,
+          retard_revenu_jours: ctx.missedDays,
+          jours_avant_prochain_revenu: ctx.daysToNextExpected,
+          confiance: ctx.confidence
+        },
+        projections: {
+          pessimiste_runway: proj.stress.runwayDays,
+          baseline_runway: proj.baseline.runwayDays,
+          fin_de_cycle_solde: proj.baseline.cycleEndBalance,
+          potentiel_epargne_optimal: proj.optimal.savingsPotential
+        },
+        vecteurs_comportementaux: {
+          evaporation_pct: vec.evaporationRate,
+          dopamine_index: vec.dopamineIndex,
+          jours_survie_essentiel: vec.survivalDays,
+          coherence_personnelle: vec.coherenceScore,
+          mode_restriction: vec.restrictionMode,
+          divergences_categories: vec.divergences
+        },
+        risque_effectif: k.effectiveRisk,
+        directive_explicite_pour_ivy: (
+          k.effectiveRisk==='CRITICAL' ? 'Capital + revenu projeté insuffisants. Frappe fort.' :
+          k.effectiveRisk==='MODERATE_PENDING_INCOME' ? 'Capital bas mais revenu confirmé arrive. NE PAS paniquer. Contextualise.' :
+          k.effectiveRisk==='HIGH_NORMAL_END_CYCLE' ? 'Fin de cycle normale. Capital bas attendu. NE PAS dramatiser.' :
+          ctx.phase==='POST_RECEPTION' ? 'Revenu reçu récemment. Fenêtre evaporation. Protège le capital frais.' :
+          ctx.phase==='DEBUT' ? 'Début de cycle. Pousse l\'allocation épargne avant les élastiques.' :
+          'Pilotage normal.'
+        )
+      };
+    }
+    // Mémoire Ivy
+    try{
+      const ivy = await ALADDIN.getIvyState();
+      payload.aladdinV5 = payload.aladdinV5 || {};
+      payload.aladdinV5.memoire_ivy = {
+        directives_actives: (ivy.activeDirectives||[]).map(d=>({type:d.type,violations:d.violationsCount||0,expire:d.expiresAt})),
+        ton_calibré: ivy.toneProfile?.tone || 'GENTLE',
+        derniers_assessments: (ivy.recentAssessments||[]).slice(-5)
+      };
+    }catch(_){}
+  }catch(e){ console.warn('[ALADDIN] ctx inject fail',e); }
+
   return JSON.stringify(payload,null,0);
 }
 
@@ -3296,7 +3899,7 @@ H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dép
 
 Tu es la voix qui empêche cette personne de mourir médiocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
-      const prompt = 'BEHAVIORAL DATA:\n'+buildCtx()+'\n\nQuestion: '+userMsg;
+      const prompt = 'BEHAVIORAL DATA:\n'+(await buildCtx())+'\n\nQuestion: '+userMsg;
       const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
@@ -3489,7 +4092,7 @@ async function fetchHomeInsight(){
     const _todayCtx=_todayTxsI.length>0?`Today: ${_todayTxsI.length} tx, ${Math.round(_todayExpTotal)} ${cur()} spent${_todayNotes?' (notes: '+_todayNotes+')':''}${_todayFoodCount>=2?' — '+_todayFoodCount+' food expenses':''}.`:'No transactions today.';
     const _pgI=(()=>{const pg=getPriorityGoal();return pg?`Goal "${pg.name}": ${Math.round((pg.saved/pg.target)*100)}%.`:'';})();
     const sys = `You are IVY, brutal financial coach. ${hInsight}h (${momentInsight}). ${silenceCtx} ${_todayCtx} ${_pgI} ONE sentence max 30 words: silence→break it, notes with food/impulse→cite them, goal behind→flag it, all good→specific insight. Real numbers. No jargon. No greeting. ${langInstr()}`;
-    const ctx = buildCtx();
+    const ctx = (await buildCtx());
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
@@ -3563,6 +4166,32 @@ function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()
 function getAlerts(kpi){
   const pool=[];
   const critical=[];
+
+  // ── ALADDIN v5 : alertes cycle-aware (haute priorité, AVANT les randoms) ──
+  try{
+    const ctx = kpi.cycleContext;
+    if(ctx && ctx.mode!=='IRREGULAR'){
+      if(ctx.missedDays>=7){
+        critical.push({t:'d',m:`🚨 Revenu attendu en retard de ${ctx.missedDays}j — bascule en mode prudent. Capital réel uniquement.`});
+      } else if(ctx.missedDays>=3){
+        critical.push({t:'w',m:`⚠️ Revenu attendu en retard de ${ctx.missedDays}j. Recalcul prudent activé.`});
+      } else if(ctx.missedDays>=1){
+        pool.push({t:'i',m:`📅 Revenu attendu hier non reçu. Tout va bien ?`,prio:1});
+      }
+      if(ctx.phase==='POST_RECEPTION' && kpi.behavioralVectors && kpi.behavioralVectors.evaporationRate>40){
+        pool.push({t:'w',m:`💸 Évaporation ${kpi.behavioralVectors.evaporationRate}% sur les 72h post-revenu. Bloque maintenant 20% en épargne.`,prio:1});
+      }
+      if(ctx.phase==='DEBUT' && ctx.daysSinceLast<=2 && kpi.savingsBalance>0===false){
+        pool.push({t:'i',m:`🎯 Début de cycle — fenêtre idéale pour allouer l'épargne avant les dépenses.`,prio:1});
+      }
+      if(ctx.phase==='FIN' && kpi.effectiveRisk==='HIGH_NORMAL_END_CYCLE'){
+        pool.push({t:'i',m:`🧭 Fin de cycle normale — capital bas attendu. Prochain revenu dans ${ctx.daysToNextExpected}j (${ctx.expectedCycleIncome} ${cur()}).`,prio:1});
+      }
+      if(kpi.behavioralVectors && kpi.behavioralVectors.restrictionMode==='VOLONTAIRE'){
+        pool.push({t:'g',m:`✨ Mode restriction volontaire détecté. Tu maîtrises ton rythme — garde le cap.`,prio:2});
+      }
+    }
+  }catch(e){ console.warn('[ALADDIN] alerts fail',e); }
 
   // ── CAS 0 : Aucune donnée ──────────────────────────────────────────────
   if(!txs.length){
@@ -3831,7 +4460,10 @@ function go(s){screen=s;render()}
 // ════════════════════════════════════════
 // RENDER ROUTER
 // ════════════════════════════════════════
+let _cycleSuggestionShown=false;
 async function render(){
+  if(!_cycleSuggestionShown){_cycleSuggestionShown=true;setTimeout(()=>{try{maybeOfferCycleSuggestion()}catch(e){}},2500);}
+
   try{await loadAll()}catch(e){console.warn('loadAll',e)}
   invalidateKPICache(); // tout render = nouveau tick = nouveau cache KPI
   const screens={home:renderHome,txlist:renderTxList,analytics:renderAnalytics,ai:renderAI,settings:renderSettings};
@@ -5035,6 +5667,31 @@ function renderSettings(){
       <button class="btn btn-ghost" onclick="clearGroqKey()">${t('cfg_groq_del_btn')}</button>
     </div>
     <div id="groq-test-result" style="font-size:12px;margin-top:8px;padding:10px;border-radius:8px;display:none;line-height:1.5"></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">📊 Profil de revenu (ALADDIN v5)</div>
+    <div style="font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:12px">
+      Déclare ton cycle (mensuel, hebdo, bi-hebdo) pour activer les projections cycle-aware. Mode irrégulier = comportement actuel.
+    </div>
+    ${(()=>{
+      const p=settings.incomeProfile;
+      if(p && p.type && p.type!=='irregular'){
+        return `<div style="padding:10px;background:var(--surf2);border-radius:10px;font-size:13px;margin-bottom:10px">
+          <strong>${p.type==='monthly'?'Mensuel':p.type==='biweekly'?'Bi-hebdo':p.type==='weekly'?'Hebdo':p.type}</strong> · ${fmtFull(p.amount||0)}
+        </div>`;
+      }
+      try{
+        const det=ALADDIN.detectIncomeCycle();
+        if(det.mode==='DETECTED' && det.confidence!=='LOW'){
+          return `<div style="padding:10px;background:var(--surf2);border-radius:10px;font-size:12px;margin-bottom:10px;color:var(--acc3)">
+            🔍 Détecté auto : ${det.cycleType} ~${det.avgAmount} ${cur()} (confiance ${det.confidence})
+          </div>`;
+        }
+      }catch(e){}
+      return `<div style="padding:10px;background:var(--surf2);border-radius:10px;font-size:12px;margin-bottom:10px;color:var(--mut)">Mode irrégulier (aucun profil déclaré)</div>`;
+    })()}
+    <button class="btn" style="width:100%;background:var(--acc);color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700" onclick="openIncomeProfileModal()">Configurer le profil</button>
   </div>
 
   <div class="card">
@@ -6665,3 +7322,16 @@ function tutAttachSwipe(){ wAttachSwipe(); }
 </script>
 </body>
 </html>
+
+<script>
+/* ALADDIN v5 — wrapper transactional save to enforce preFlightCheck */
+window.__originalDbPut = window.__originalDbPut || dbPut;
+async function _dbPutWithCompliance(store,data){
+  if(store==='transactions' && typeof ALADDIN!=='undefined' && data){
+    try{ await ALADDIN.preFlightCheck(data); }catch(_){}
+  }
+  return window.__originalDbPut(store,data);
+}
+// Best-effort override
+try{ dbPut = _dbPutWithCompliance; }catch(_){}
+</script>

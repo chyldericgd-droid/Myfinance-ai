@@ -756,7 +756,7 @@ const I18N={
     heat_year:"Heatmap mensuelle",
     sub_day:"Dépenses par tranche horaire",
     sub_week:"Dépenses par jour",
-    sub_month:"Dépenses par jour de semaine",
+    sub_month:"Dépenses par période du mois",
     sub_year:"Dépenses par mois",
     tr_morning:"Matin",
     tr_afternoon:"Aprem",
@@ -1177,7 +1177,7 @@ const I18N={
     heat_year:"Monthly heatmap",
     sub_day:"Spend by time of day",
     sub_week:"Spend by day",
-    sub_month:"Spend by weekday",
+    sub_month:"Spend by period of month",
     sub_year:"Spend by month",
     tr_morning:"Morn.",
     tr_afternoon:"Aftn.",
@@ -1588,7 +1588,7 @@ const I18N={
     heat_year:"Mapa mensual",
     sub_day:"Gastos por franja horaria",
     sub_week:"Gastos por día",
-    sub_month:"Gastos por día de la semana",
+    sub_month:"Gastos por período del mes",
     sub_year:"Gastos por mes",
     tr_morning:"Mañana",
     tr_afternoon:"Tarde",
@@ -1990,7 +1990,7 @@ const I18N={
     heat_year:"Mapa mensal",
     sub_day:"Gastos por faixa horária",
     sub_week:"Gastos por dia",
-    sub_month:"Gastos por dia da semana",
+    sub_month:"Despesas por período do mês",
     sub_year:"Gastos por mês",
     tr_morning:"Manhã",
     tr_afternoon:"Tarde",
@@ -5025,6 +5025,7 @@ function renderAnalytics(){
   </div>
 
   ${renderTrendChartAdaptive(p,ptxs)}
+  ${typeof renderProjectionCard==='function'?renderProjectionCard(kpi):''}
 
   <!-- HEATMAP ADAPTATIVE -->
   <div class="card">
@@ -5233,12 +5234,12 @@ function renderTrendChartAdaptive(p,ptxs){
   const W=320,H=150,pad=24,n=buckets.length;
   const xs=i=>pad+((W-pad*2)*i/Math.max(1,n-1));
   const ys=v=>H-pad-((H-pad*2)*v/max);
-  const ptsExp=buckets.map((p,i)=>xs(i)+','+ys(p.exp)).join(' ');
-  const ptsInc=buckets.map((p,i)=>xs(i)+','+ys(p.inc)).join(' ');
+  const ptsExp=buckets.map((b,i)=>xs(i)+','+ys(b.exp)).join(' ');
+  const ptsInc=buckets.map((b,i)=>xs(i)+','+ys(b.inc)).join(' ');
   const areaExp=`M${xs(0)},${H-pad} L${ptsExp.split(' ').join(' L')} L${xs(n-1)},${H-pad} Z`;
   const lineExp='M'+ptsExp.split(' ').join(' L');
   const lineInc='M'+ptsInc.split(' ').join(' L');
-  const avg=buckets.reduce((s,p)=>s+p.exp,0)/n;
+  const avg=buckets.reduce((s,b)=>s+b.exp,0)/n;
   const yAvg=ys(avg);
   return`<div class="card">
     <div class="ch">📊 ${t('trend_label')} — ${periodLabel(p)} <span class="tm" style="font-weight:600">${t('an_avg')} ${fmtFull(avg)}</span></div>
@@ -5247,21 +5248,20 @@ function renderTrendChartAdaptive(p,ptxs){
       <span><span style="display:inline-block;width:10px;height:3px;background:var(--grn);vertical-align:middle;margin-right:4px"></span>${t('an_entrees')}</span>
     </div>
     <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:150px">
-      <defs><linearGradient id="trendGrad" x1="0" x2="0" y1="0" y2="1">
+      <defs><linearGradient id="trendGradAdaptive" x1="0" x2="0" y1="0" y2="1">
         <stop offset="0%" stop-color="var(--acc3)" stop-opacity=".35"/>
         <stop offset="100%" stop-color="var(--acc3)" stop-opacity="0"/>
       </linearGradient></defs>
       <line class="axis" x1="${pad}" y1="${yAvg}" x2="${W-pad}" y2="${yAvg}"/>
       <text class="lbl" x="${W-pad}" y="${yAvg-3}" text-anchor="end">${L('moy','avg','prom','méd')}</text>
-      <path class="area" d="${areaExp}"/>
+      <path class="area" d="${areaExp}" fill="url(#trendGradAdaptive)"/>
       <path class="line" d="${lineExp}"/>
       <path d="${lineInc}" fill="none" stroke="var(--grn)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"/>
-      ${buckets.map((p,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(p.exp)}" r="2.5"><title>${p.lbl}: ${fmtFull(p.exp)} sorti, ${fmtFull(p.inc)} entré</title></circle>`).join('')}
+      ${buckets.map((b,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(b.exp)}" r="2.5"><title>${b.lbl}: ${fmtFull(b.exp)} ${L('sorti','out','salida','saída')}, ${fmtFull(b.inc)} ${L('entré','in','entrada','entrada')}</title></circle>`).join('')}
       <text class="lbl" x="${pad}" y="${H-6}">${buckets[0].lbl}</text>
       <text class="lbl" x="${W-pad}" y="${H-6}" text-anchor="end">${buckets[n-1].lbl}</text>
     </svg>
   </div>
-  ${typeof renderProjectionCard==='function'?renderProjectionCard(kpi):''}
   ${renderCategoryBarsAdaptive(p,ptxs)}`;
 }
 
@@ -5274,7 +5274,7 @@ function renderCategoryBarsAdaptive(p,ptxs){
   const top=Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const colors=['var(--acc3)','var(--acc2)','var(--org)','var(--ylw)','var(--grn)','var(--red)'];
   return`<div class="card">
-    <div class="ch">🍰 Où va ton argent · ${periodLabel(p)}</div>
+    <div class="ch">🍰 ${L('Où va ton argent','Where your money goes','Dónde va tu dinero','Para onde vai o teu dinheiro')} · ${periodLabel(p)}</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
       ${top.map(([k,v],i)=>{
         const pct=Math.round(v/sum*100);

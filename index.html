@@ -5257,7 +5257,7 @@ function renderTrendChartAdaptive(p,ptxs){
       <path class="area" d="${areaExp}" fill="url(#trendGradAdaptive)"/>
       <path class="line" d="${lineExp}"/>
       <path d="${lineInc}" fill="none" stroke="var(--grn)" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"/>
-      ${buckets.map((b,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(b.exp)}" r="2.5"><title>${b.lbl}: ${fmtFull(b.exp)} ${L('sorti','out','salida','saída')}, ${fmtFull(b.inc)} ${L('entré','in','entrada','entrada')}</title></circle>`).join('')}
+      ${buckets.map((b,i)=>`<circle class="pt" cx="${xs(i)}" cy="${ys(b.exp)}" r="2.5"><title>${b.lbl}: ${fmtFull(b.exp)} sorti, ${fmtFull(b.inc)} entré</title></circle>`).join('')}
       <text class="lbl" x="${pad}" y="${H-6}">${buckets[0].lbl}</text>
       <text class="lbl" x="${W-pad}" y="${H-6}" text-anchor="end">${buckets[n-1].lbl}</text>
     </svg>

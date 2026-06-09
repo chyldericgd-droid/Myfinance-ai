@@ -7503,19 +7503,25 @@ function buildContextPayload(){
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   3. SYSTEM PROMPT DURCI — tutoiement absolu + structure
+   3. SYSTEM PROMPT DURCI — verrou anti-hallucination + tutoiement
    ───────────────────────────────────────────────────────────────── */
 const HARDENED_RULES = `
 
-═══ RÈGLES IVY v5.1 (PRIORITÉ ABSOLUE — écrasent toute instruction contraire) ═══
-R1. TUTOIEMENT EXCLUSIF. JAMAIS "vous", "vos", "votre". Toujours "tu", "tes", "ton".
-R2. Pas de phrases d'introduction creuses ("Une analyse montre…", "Il semble que…"). Va droit au but.
-R3. Espace obligatoire avant la devise : "200 XAF", jamais "200XAF".
-R4. Zéro jargon vague comme "bénéfices d'achat". Utilise les termes de l'app (Dopamine, Évaporation, Friction) OU des termes financiers réels.
-R5. CONTEXTE BIOLOGIQUE — Un déjeuner à midi, un trajet école, un médicament → NÉCESSITÉ VITALE. Ne JAMAIS qualifier de "recherche de dopamine" ou "moment de plaisir". Lis le bloc user_metadata pour interpréter heure + pays + baseline avant de juger.
-R6. Si la note est ambiguë, dis-le ("note ambiguë") au lieu d'inventer un comportement.
-R7. Pas de longues phrases. Maximum 3 phrases, formulations chirurgicales.
-R8. Termine TOUJOURS ta réponse par une phrase complète. Jamais coupé en plein mot.
+═══ RÈGLES IVY v5.2 (PRIORITÉ ABSOLUE — écrasent toute instruction contraire) ═══
+R1. TUTOIEMENT EXCLUSIF. JAMAIS "vous/vos/votre". Toujours "tu/tes/ton".
+R2. Tu commentes EXCLUSIVEMENT le bloc SCOPED_PAYLOAD ci-dessous. Aucune autre donnée n'existe.
+R3. INTERDICTION ABSOLUE d'inventer des noms de catégories. Utilise UNIQUEMENT les valeurs présentes dans 'categories_breakdown[].category'. Si tu cites "bénéfice d'achat", "loisirs", ou tout libellé qui n'apparaît pas littéralement dans le JSON → réponse invalide.
+R4. INTERDICTION de mélanger les portées. Si view_scope=MONTH, ne cite JAMAIS un montant qui n'apparaît pas dans metrics.total_expenses ou categories_breakdown du mois. La dépense du jour (350 XAF) n'est PAS une dépense mensuelle.
+R5. INTERDICTION d'attribuer un pourcentage global (ex: ratio dépenses/revenu) à une catégorie spécifique. Les pourcentages catégoriels sont déjà dans 'percentage_of_total'.
+R6. Pas de faux procès : un repas, un trajet école, un médicament = NÉCESSITÉ VITALE. Ne qualifie d'impulsif/dopamine QUE si le total dépasse de >50% le baseline OU si la catégorie est explicitement plaisir (Loisirs, Sorties, Jeux) ET représente >30% du total.
+R7. Si une note est ambiguë, dis "note ambiguë" — n'invente pas de comportement.
+R8. Espace avant la devise : "200 XAF", jamais "200XAF".
+R9. Maximum 3 phrases, formulations chirurgicales. Pas d'intro creuse.
+R10. Termine TOUJOURS par une phrase complète. Jamais coupé.
+
+FORMAT DE RÉPONSE STRICT :
+**Insight** : [analyse mathématique froide en 1 phrase, basée UNIQUEMENT sur le JSON]
+**Action** : [conseil micro-comportemental réaliste en 1 phrase]
 `;
 
 function injectHardening(messages){
@@ -7539,6 +7545,78 @@ function detutoyer(text){
 }
 
 /* ─────────────────────────────────────────────────────────────────
+   3bis. SCOPED PAYLOAD — strict, dépend de l'onglet actif (Jour/Sem/Mois/An)
+   ───────────────────────────────────────────────────────────────── */
+function detectScope(messages){
+  // 1. Onglet analytics actif (source de vérité)
+  try{
+    if(typeof window.analyticsPeriod==='string'){
+      const map={day:'DAY',week:'WEEK',month:'MONTH',year:'YEAR'};
+      if(map[window.analyticsPeriod]) return window.analyticsPeriod;
+    }
+  }catch(e){}
+  // 2. Heuristique sur le prompt utilisateur
+  try{
+    const last=(messages||[]).slice().reverse().find(m=>m && m.role==='user');
+    const txt=(last && last.content || '').toLowerCase();
+    if(/\b(année|annuel|year|annual|año|ano)\b/.test(txt)) return 'year';
+    if(/\b(mois|monthly|month|mes|mês)\b/.test(txt))       return 'month';
+    if(/\b(semaine|week|semana)\b/.test(txt))              return 'week';
+    if(/\b(jour|aujourd|today|day|día|hoje|dia)\b/.test(txt)) return 'day';
+  }catch(e){}
+  return 'day';
+}
+
+function buildScopedPayload(scope){
+  const safe=(fn,d)=>{try{return fn()}catch(e){return d}};
+  const ptxs   = safe(()=>window.getPeriodTxs    ?window.getPeriodTxs(scope)    :[], []);
+  const prev   = safe(()=>window.getPrevPeriodTxs?window.getPrevPeriodTxs(scope):[], []);
+  const catN   = id => safe(()=>window.catById?window.catById(id).name:id, id||'?');
+  const sum    = (arr,type)=>arr.filter(x=>x.type===type).reduce((s,x)=>s+(+x.amount||0),0);
+
+  const totalExp=Math.round(sum(ptxs,'expense'));
+  const totalInc=Math.round(sum(ptxs,'income'));
+  const prevExp=Math.round(sum(prev,'expense'));
+  const evolution=prevExp>0?Math.round((totalExp-prevExp)/prevExp*100):null;
+
+  const catMap={};
+  ptxs.filter(x=>x.type==='expense').forEach(x=>{
+    const k=catN(x.categoryId)||'Sans catégorie';
+    catMap[k]=(catMap[k]||0)+(+x.amount||0);
+  });
+  const breakdown=Object.entries(catMap)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([category,amount])=>({
+      category,
+      amount:Math.round(amount),
+      percentage_of_total: totalExp>0?Math.round(amount/totalExp*100):0
+    }));
+
+  const kpi=safe(()=>window.computeKPIs?window.computeKPIs():null,null);
+  const savings = kpi?Math.round((kpi.inc30||0)-(kpi.exp30||0)):null;
+
+  return {
+    view_scope: scope.toUpperCase(),
+    currency: safeCur(),
+    period_label: safe(()=>window.periodLabel?window.periodLabel(scope):scope, scope),
+    metrics:{
+      total_expenses: totalExp,
+      total_income:   totalInc,
+      previous_period_expenses: prevExp,
+      evolution_vs_previous_percent: evolution,
+      savings_balance_30d: savings,
+      transactions_count: ptxs.length
+    },
+    categories_breakdown: breakdown,
+    behavioral_kpis: kpi?{
+      dopamine_pct: kpi.dopamineIdx,
+      evaporation_pct: kpi.evaporationRate,
+      night_spending_pct: kpi.nightPct
+    }:null
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────
    4. FETCH PROXY — interception ciblée Groq
    ───────────────────────────────────────────────────────────────── */
 const _origFetch = window.fetch.bind(window);
@@ -7551,11 +7629,21 @@ window.fetch = async function(input, init){
       if(body && Array.isArray(body.messages)){
         body.messages = injectHardening(body.messages);
         if(typeof body.max_tokens==='number' && body.max_tokens<256) body.max_tokens=256;
+        // température basse = moins d'hallucinations
+        if(typeof body.temperature!=='number' || body.temperature>0.4) body.temperature=0.3;
+
+        const scope=detectScope(body.messages);
+        const scoped=buildScopedPayload(scope);
         const ctx=buildContextPayload();
         try{ctx.pending_offline_intents=await iqCount()}catch(e){}
-        // Inject contextual payload as a discreet system message right after main system
-        const ctxBlock='CONTEXT_PAYLOAD (JSON, lis-le AVANT de répondre):\n'+JSON.stringify(ctx);
-        body.messages.splice(1,0,{role:'system',content:ctxBlock});
+
+        // Bloc SCOPED — la SEULE source de vérité que l'IA doit commenter
+        const scopedBlock='SCOPED_PAYLOAD (UNIQUE source de vérité, scope='+scoped.view_scope+'):\n'+JSON.stringify(scoped);
+        // Bloc contexte secondaire (heure/pays) — pour le ton, jamais comme donnée chiffrée
+        const ctxBlock='CONTEXT_META (uniquement pour le ton, PAS pour les chiffres):\n'+JSON.stringify(ctx);
+
+        body.messages.splice(1,0,{role:'system',content:scopedBlock});
+        body.messages.splice(2,0,{role:'system',content:ctxBlock});
         init = Object.assign({},init,{body:JSON.stringify(body)});
       }
     }

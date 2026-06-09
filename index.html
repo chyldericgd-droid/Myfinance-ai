@@ -3921,7 +3921,8 @@ H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dép
 Tu es la voix qui empêche cette personne de mourir médiocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
       const prompt = 'BEHAVIORAL DATA:\n'+(await buildCtx())+'\n\nQuestion: '+userMsg;
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      // BUG 7 — bypass interceptor: askAI a déjà son contexte complet via buildCtx()
+      const resp = await _origFetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
         body:JSON.stringify({
@@ -4147,11 +4148,19 @@ async function fetchHomeInsight(){
     const _todayFoodCount=_todayTxsI.filter(tx=>tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger/i.test(tx.note||''))).length;
     const _todayExpTotal=_todayTxsI.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0);
     const _kpiI=computeKPIs();
-    const _todayCtx=_todayTxsI.length>0?`Today: ${_todayTxsI.length} tx, ${Math.round(_todayExpTotal)} ${cur()} spent${_todayNotes?' (notes: '+_todayNotes+')':''}${_todayFoodCount>=2?' — '+_todayFoodCount+' food expenses':''}.`:'No transactions today.';
+    // BUG 2 — distinguer "0 dépense + revenu" vs "0 transaction du tout"
+    const _todayExpenses=_todayTxsI.filter(tx=>tx.type==='expense');
+    const _todayIncomeTotal=_todayTxsI.filter(tx=>tx.type==='income').reduce((s,tx)=>s+tx.amount,0);
+    const _todayCtx=_todayExpenses.length>0
+      ? `Today: ${_todayExpenses.length} expense(s), ${Math.round(_todayExpTotal)} ${cur()} spent${_todayNotes?' (notes: '+_todayNotes+')':''}${_todayFoodCount>=2?' — '+_todayFoodCount+' food expenses':''}.`
+      : _todayIncomeTotal>0
+        ? `Today: 0 expenses. Income received: ${Math.round(_todayIncomeTotal)} ${cur()}. IMPORTANT: Do NOT comment on spending — there is none today. Comment only on income retention or goal progress.`
+        : 'No transactions today.';
     const _pgI=(()=>{const pg=getPriorityGoal();return pg?`Goal "${pg.name}": ${Math.round((pg.saved/pg.target)*100)}%.`:'';})();
-    const sys = `You are IVY, brutal financial coach. ${hInsight}h (${momentInsight}). ${silenceCtx} ${_todayCtx} ${_pgI} ONE sentence max 30 words: silence→break it, notes with food/impulse→cite them, goal behind→flag it, all good→specific insight. Real numbers. No jargon. No greeting. ${langInstr()}`;
+    const sys = `You are IVY, brutal financial coach. ${hInsight}h (${momentInsight}). ${silenceCtx} ${_todayCtx} ${_pgI} CRITICAL: if 0 expenses today, DO NOT invent or infer spending behavior. Only comment what the data explicitly shows. ONE sentence max 30 words: silence→break it, notes with food/impulse→cite them, goal behind→flag it, all good→specific insight. Real numbers. No jargon. No greeting. ${langInstr()}`;
     const ctx = (await buildCtx());
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    // BUG 1 — bypass fetch interceptor pour préserver max_tokens:60 et sys prompt ciblé
+    const resp = await _origFetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
       body:JSON.stringify({
@@ -4237,7 +4246,13 @@ function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()
 // Basées sur les indicateurs dynamiques,
 // pas sur le calendrier mensuel.
 // ════════════════════════════════════════
+function dismissAlert(type){
+  try{ safeStorage.setItem('alert_dismissed_'+type+'_'+new Date().toDateString(),'1'); }catch(e){}
+  try{ render(); }catch(e){}
+}
 function getAlerts(kpi){
+  // BUG 3 — dismiss par type, valable pour la journée
+  const isDismissed=(type)=>{try{return !!safeStorage.getItem('alert_dismissed_'+type+'_'+new Date().toDateString());}catch(e){return false;}};
   const pool=[];
   const critical=[];
 
@@ -4301,8 +4316,8 @@ function getAlerts(kpi){
     critical.push({t:'d',m:t('alert_safety_low').replace('{n}',kpi.safetyDays).replace('{s}',s).replace('{ext}',extStr).replace('{br}',fmtFull(kpi.burnRate||kpi.burnRateHistorique))});
   }
   // Pression uniquement si les données sont fiables (pressureDataOK)
-  if(kpi.pressureDataOK && kpi.pressureIdx>40)
-    critical.push({t:'d',m:t('alert_pressure_high').replace('{n}',kpi.pressureIdx)});
+  if(kpi.pressureDataOK && kpi.pressureIdx>40 && !isDismissed('pressure'))
+    critical.push({t:'d',dt:'pressure',m:t('alert_pressure_high').replace('{n}',kpi.pressureIdx)});
   if(kpi.isEndOfMonth)
     critical.push({t:'w',m:t('alert_end_month')});
 
@@ -4329,12 +4344,12 @@ function getAlerts(kpi){
   }
 
   // ── ALERTES MODÉRÉES ─────────────────────────────────────────────────
-  if(kpi.pressureDataOK && kpi.pressureIdx>20 && kpi.pressureIdx<=40)
-    pool.push({t:'w',m:t('alert_pressure_mid').replace('{n}',kpi.pressureIdx),prio:2});
+  if(kpi.pressureDataOK && kpi.pressureIdx>20 && kpi.pressureIdx<=40 && !isDismissed('pressure_mid'))
+    pool.push({t:'w',dt:'pressure_mid',m:t('alert_pressure_mid').replace('{n}',kpi.pressureIdx),prio:2});
   if(kpi.exp7>kpi.inc7 && kpi.inc7>0)
     pool.push({t:'w',m:t('alert_weekly_deficit').replace('{exp}',fmtFull(kpi.exp7)).replace('{inc}',fmtFull(kpi.inc7)),prio:2});
-  if(kpi.evaporationRate>50)
-    pool.push({t:'w',m:t('alert_evaporation').replace('{n}',kpi.evaporationRate),prio:3});
+  if(kpi.evaporationRate>50 && !isDismissed('evaporation'))
+    pool.push({t:'w',dt:'evaporation',m:t('alert_evaporation').replace('{n}',kpi.evaporationRate),prio:3});
   if(kpi.nightPct>20)
     pool.push({t:'w',m:t('alert_night').replace('{n}',kpi.nightPct),prio:3});
   if(kpi.dopamineIdx>60)
@@ -4563,6 +4578,7 @@ function renderHome(){
   const burnPct=kpi.income>0?Math.min(100,(kpi.expense/kpi.income)*100):0;
 
   return`
+  ${typeof renderHealthScoreCard==='function'?renderHealthScoreCard(kpi):''}
   <!-- HERO -->
   <div class="card card-hero" style="padding:18px;margin-bottom:12px">
     <div class="flex sb mb8">
@@ -4635,6 +4651,7 @@ function renderHome(){
   <!-- EFFET FOURMI -->
   ${kpi.antCount>=8?`<div style="margin-bottom:12px;padding:10px 14px;background:var(--surf2);border:1px solid var(--brd);border-radius:12px;font-size:12px;color:var(--txt2);display:flex;justify-content:space-between;align-items:center"><span>🐜 <strong>${kpi.antCount}</strong> petites dépenses (≤${fmtFull(kpi.antThreshold)})</span><span class="mono fw8" style="color:var(--org)">${fmtFull(kpi.antTotal)}</span></div>`:''}
 
+  ${typeof renderNBACard==='function'?renderNBACard(kpi):''}
   <!-- AI INSIGHT (online only) -->
   ${navigator.onLine && getGroqKey()?`<div class="ai-insight" onclick="openAIQuick()" style="cursor:pointer">
     <div class="ai-h">✨ ${t('ai_assistant')} <span style="margin-left:auto;font-size:10px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0">${t('ai_tap_chat')}</span></div>
@@ -4648,10 +4665,11 @@ function renderHome(){
     <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
       <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
     </div>
-    ${alerts.map(a=>`<div class="al al-${a.t}">${a.m}</div>`).join('')}
+    ${alerts.map(a=>`<div class="al al-${a.t}">${a.m}${a.dt?`<button onclick="dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer aujourd'hui">✕</button>`:''}</div>`).join('')}
     ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j — alertes comportementales actives à 14j+</div>`:'')}
   </div>
 
+  ${typeof renderRecurringCard==='function'?renderRecurringCard(kpi):''}
   <!-- RECENT TX -->
   <div class="card">
     <div class="ch">${t('tx_recent')} <button class="btn btn-ghost btn-sm" onclick="go('txlist')">${t('tx_see_all')}</button></div>
@@ -4695,6 +4713,7 @@ function renderHome(){
       </div>`;
     }).join('')}
   </div>`:''}
+  <div style="margin:14px 0;text-align:center"><button class="btn btn-ghost" onclick="openStressTestModal()" style="font-size:13px">🔬 ${typeof t==='function'?t('stress_title')||'Stress Test':'Stress Test'}</button></div>
   `;
 }
 
@@ -4798,7 +4817,7 @@ function getPeriodTxs(period){
   const now=new Date();
   let s,e;
   if(period==='day'){s=new Date(now);s.setHours(0,0,0,0);e=new Date(now);e.setHours(23,59,59,999);}
-  else if(period==='week'){s=new Date(now);s.setDate(now.getDate()-now.getDay());s.setHours(0,0,0,0);e=new Date(now);e.setHours(23,59,59,999);}
+  else if(period==='week'){s=new Date(now);s.setDate(now.getDate()-((now.getDay()+6)%7));s.setHours(0,0,0,0);e=new Date(now);e.setHours(23,59,59,999);}/* BUG 5 lundi */
   else if(period==='month'){s=new Date(now.getFullYear(),now.getMonth(),1);e=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59);}
   else{s=new Date(now.getFullYear(),0,1);e=new Date(now.getFullYear(),11,31,23,59,59);}
   return txs.filter(t=>new Date(t.date)>=s&&new Date(t.date)<=e);
@@ -4808,7 +4827,7 @@ function getPrevPeriodTxs(period){
   const now=new Date();
   let s,e;
   if(period==='day'){s=new Date(now);s.setDate(s.getDate()-1);s.setHours(0,0,0,0);e=new Date(s);e.setHours(23,59,59,999);}
-  else if(period==='week'){s=new Date(now);s.setDate(now.getDate()-now.getDay()-7);s.setHours(0,0,0,0);e=new Date(s);e.setDate(s.getDate()+6);e.setHours(23,59,59,999);}
+  else if(period==='week'){s=new Date(now);s.setDate(now.getDate()-((now.getDay()+6)%7)-7);s.setHours(0,0,0,0);e=new Date(s);e.setDate(s.getDate()+6);e.setHours(23,59,59,999);}/* BUG 5 lundi */
   else if(period==='month'){s=new Date(now.getFullYear(),now.getMonth()-1,1);e=new Date(now.getFullYear(),now.getMonth(),0,23,59,59);}
   else{s=new Date(now.getFullYear()-1,0,1);e=new Date(now.getFullYear()-1,11,31,23,59,59);}
   return txs.filter(t=>new Date(t.date)>=s&&new Date(t.date)<=e);
@@ -4836,8 +4855,8 @@ function buildHeatmap(period){
       if(inc>maxInc)maxInc=inc;
     }
   } else if(period==='week'){
-    const start=new Date(now);start.setDate(now.getDate()-now.getDay());start.setHours(0,0,0,0);
-    const wn=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    const start=new Date(now);start.setDate(now.getDate()-((now.getDay()+6)%7));start.setHours(0,0,0,0);/* BUG 5 lundi */
+    const wn=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
     for(let i=0;i<7;i++){
       const s=new Date(start);s.setDate(start.getDate()+i);
       const e=new Date(s);e.setDate(s.getDate()+1);
@@ -4993,8 +5012,8 @@ function renderAnalytics(){
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
       <div><div class="tm" style="font-size:10px">${pPrev[p].toUpperCase()}</div><div class="mono fw8" style="font-size:16px">${fmtFull(prevExp)}</div></div>
       <div style="text-align:center;padding:0 6px">
-        <div style="font-size:20px">${expDelta>=0?'↑':'↓'}</div>
-        <div style="font-size:11px;color:${expDelta>=0?'var(--red)':'var(--grn)'};font-weight:700">${expDelta>=0?'+':''}${expDpct}%</div>
+        <div style="font-size:20px">${curExp===0&&prevExp>0?'✓':(expDelta>=0?'↑':'↓')}</div>
+        <div style="font-size:11px;color:${curExp===0&&prevExp>0?'var(--grn)':(expDelta>=0?'var(--red)':'var(--grn)')};font-weight:700">${curExp===0&&prevExp>0?'✓ 0':((expDelta>=0?'+':'')+expDpct+'%')}</div>
       </div>
       <div style="text-align:right"><div class="tm" style="font-size:10px">${pCurrent[p].toUpperCase()}</div><div class="mono fw8" style="font-size:16px">${fmtFull(curExp)}</div></div>
     </div>
@@ -5242,6 +5261,7 @@ function renderTrendChartAdaptive(p,ptxs){
       <text class="lbl" x="${W-pad}" y="${H-6}" text-anchor="end">${buckets[n-1].lbl}</text>
     </svg>
   </div>
+  ${typeof renderProjectionCard==='function'?renderProjectionCard(kpi):''}
   ${renderCategoryBarsAdaptive(p,ptxs)}`;
 }
 
@@ -6214,15 +6234,31 @@ async function saveEditTx(id){
   const newCat=document.getElementById('etxCat')?.value||tx.categoryId;
   const newDate=document.getElementById('etxDate')?.value;
   const newNote=document.getElementById('etxNote')?.value||'';
-  // Revert old balance impact
+  // BUG 4 — Revert old balance impact (gère transfer)
   const oldAcc=accs.find(a=>a.id===tx.accountId);
-  if(oldAcc){oldAcc.balance+=tx.type==='expense'?tx.amount:-tx.amount;await dbPut('accounts',oldAcc);}
+  if(tx.type==='transfer'){
+    if(oldAcc){ oldAcc.balance+=tx.amount; await dbPut('accounts',oldAcc); }
+    if(tx.toAccountId){
+      const oldTo=accs.find(a=>a.id===tx.toAccountId);
+      if(oldTo){ oldTo.balance-=tx.amount; await dbPut('accounts',oldTo); }
+    }
+  } else {
+    if(oldAcc){ oldAcc.balance+=tx.type==='expense'?tx.amount:-tx.amount; await dbPut('accounts',oldAcc); }
+  }
   // Apply new
   tx.amount=newAmt; tx.accountId=newAcc; tx.categoryId=newCat;
   if(newDate) tx.date=new Date(newDate).toISOString();
   tx.note=newNote;
   const a=accs.find(x=>x.id===newAcc);
-  if(a){a.balance-=tx.type==='expense'?newAmt:-newAmt;await dbPut('accounts',a);}
+  if(tx.type==='transfer'){
+    if(a){ a.balance-=newAmt; await dbPut('accounts',a); }
+    if(tx.toAccountId){
+      const newTo=accs.find(x=>x.id===tx.toAccountId);
+      if(newTo){ newTo.balance+=newAmt; await dbPut('accounts',newTo); }
+    }
+  } else {
+    if(a){ a.balance-=tx.type==='expense'?newAmt:-newAmt; await dbPut('accounts',a); }
+  }
   await dbPut('transactions',tx);
   closeModal();await render();
 }
@@ -7628,7 +7664,8 @@ window.fetch = async function(input, init){
       let body; try{body=JSON.parse(init.body)}catch(e){body=null}
       if(body && Array.isArray(body.messages)){
         body.messages = injectHardening(body.messages);
-        if(typeof body.max_tokens==='number' && body.max_tokens<256) body.max_tokens=256;
+        // BUG 1 — ne pas écraser max_tokens:60 (signature de fetchHomeInsight)
+        if(typeof body.max_tokens==='number' && body.max_tokens<256 && body.max_tokens!==60) body.max_tokens=256;
         // température basse = moins d'hallucinations
         if(typeof body.temperature!=='number' || body.temperature>0.4) body.temperature=0.3;
 
@@ -7847,4 +7884,670 @@ async function _dbPutWithCompliance(store,data){
 }
 // Best-effort override
 try{ dbPut = _dbPutWithCompliance; }catch(_){}
+</script>
+
+<script>
+/* ============================================================
+   FINANCE AI OS v5.3 — Modules institutionnels (additifs)
+   1. NBA  2. Stress Test  3. Health Score
+   4. Recurring patterns  5. Cashflow projection  6. Ivy memory
+   ============================================================ */
+(function(){
+'use strict';
+
+/* ---------- Traductions additionnelles ---------- */
+const ADD_I18N = {
+  fr: {
+    health_score:'Santé financière',
+    health_critique:'Critique', health_fragile:'Fragile',
+    health_stable:'Stable', health_solide:'Solide', health_elite:'Élite',
+    health_axis_reserve:'Réserve', health_axis_retention:'Rétention',
+    health_axis_regular:'Régularité', health_axis_goal:'Objectif',
+    health_axis_behavior:'Comportement',
+    nba_title:'Action prioritaire du jour',
+    stress_title:'Stress Test — 30 jours',
+    stress_choc:'Scénario choc', stress_base:'Rythme actuel',
+    stress_optimal:'Scénario optimal',
+    stress_short:'Données < 14j — simulation approximative',
+    stress_msg:"Ce test ne prédit pas l'avenir — il révèle ta marge de manœuvre.",
+    recurring_title:'Dépenses récurrentes détectées',
+    recurring_weekly:'hebdo', recurring_monthly:'mensuel',
+    recurring_total:'Total récurrent détecté',
+    projection_title:'Projection cashflow — 30j',
+    projection_alert:'Solde projeté négatif dans {n}j au rythme actuel.',
+    streak_label:'jours consécutifs'
+  },
+  en: {
+    health_score:'Financial Health',
+    health_critique:'Critical', health_fragile:'Fragile',
+    health_stable:'Stable', health_solide:'Solid', health_elite:'Elite',
+    health_axis_reserve:'Reserve', health_axis_retention:'Retention',
+    health_axis_regular:'Regularity', health_axis_goal:'Goal',
+    health_axis_behavior:'Behavior',
+    nba_title:"Today's priority action",
+    stress_title:'Stress Test — 30 days',
+    stress_choc:'Shock scenario', stress_base:'Current pace',
+    stress_optimal:'Optimal scenario',
+    stress_short:'Data < 14d — rough simulation',
+    stress_msg:"This test doesn't predict the future — it reveals your margin.",
+    recurring_title:'Recurring expenses detected',
+    recurring_weekly:'weekly', recurring_monthly:'monthly',
+    recurring_total:'Total recurring',
+    projection_title:'Cashflow projection — 30d',
+    projection_alert:'Projected negative balance in {n}d at current pace.',
+    streak_label:'consecutive days'
+  },
+  es: {
+    health_score:'Salud financiera',
+    health_critique:'Crítico', health_fragile:'Frágil',
+    health_stable:'Estable', health_solide:'Sólido', health_elite:'Élite',
+    health_axis_reserve:'Reserva', health_axis_retention:'Retención',
+    health_axis_regular:'Regularidad', health_axis_goal:'Objetivo',
+    health_axis_behavior:'Comportamiento',
+    nba_title:'Acción prioritaria del día',
+    stress_title:'Stress Test — 30 días',
+    stress_choc:'Escenario de choque', stress_base:'Ritmo actual',
+    stress_optimal:'Escenario óptimo',
+    stress_short:'Datos < 14d — simulación aproximada',
+    stress_msg:'Esta prueba no predice el futuro — revela tu margen.',
+    recurring_title:'Gastos recurrentes detectados',
+    recurring_weekly:'semanal', recurring_monthly:'mensual',
+    recurring_total:'Total recurrente',
+    projection_title:'Proyección de flujo — 30d',
+    projection_alert:'Saldo proyectado negativo en {n}d al ritmo actual.',
+    streak_label:'días consecutivos'
+  },
+  pt: {
+    health_score:'Saúde financeira',
+    health_critique:'Crítico', health_fragile:'Frágil',
+    health_stable:'Estável', health_solide:'Sólido', health_elite:'Elite',
+    health_axis_reserve:'Reserva', health_axis_retention:'Retenção',
+    health_axis_regular:'Regularidade', health_axis_goal:'Objetivo',
+    health_axis_behavior:'Comportamento',
+    nba_title:'Ação prioritária do dia',
+    stress_title:'Stress Test — 30 dias',
+    stress_choc:'Cenário de choque', stress_base:'Ritmo atual',
+    stress_optimal:'Cenário ótimo',
+    stress_short:'Dados < 14d — simulação aproximada',
+    stress_msg:'Este teste não prevê o futuro — revela a tua margem.',
+    recurring_title:'Despesas recorrentes detectadas',
+    recurring_weekly:'semanal', recurring_monthly:'mensal',
+    recurring_total:'Total recorrente',
+    projection_title:'Projeção de cashflow — 30d',
+    projection_alert:'Saldo projetado negativo em {n}d ao ritmo atual.',
+    streak_label:'dias consecutivos'
+  }
+};
+try{
+  if(typeof I18N==='object' && I18N){
+    Object.keys(ADD_I18N).forEach(lg=>{
+      if(I18N[lg]){
+        Object.keys(ADD_I18N[lg]).forEach(k=>{
+          if(I18N[lg][k]===undefined) I18N[lg][k]=ADD_I18N[lg][k];
+        });
+      }
+    });
+  }
+}catch(e){ console.warn('[v5.3 i18n] fail',e); }
+
+function T(k){ try{ return (typeof t==='function')?t(k):k; }catch(e){return k;} }
+function fmt(v){ try{ return fmtFull(v); }catch(e){ return Math.round(v||0); } }
+function curU(){ try{ return cur(); }catch(e){ return 'XAF'; } }
+
+/* ============================================================
+   MODULE 1 — NEXT BEST ACTION
+   ============================================================ */
+window.computeNextBestAction = function computeNextBestAction(){
+  try{
+    if(typeof computeKPIs!=='function') return null;
+    const k = computeKPIs();
+    if(k.isSilent) return null;
+
+    // 1. Runway critique
+    if(k.safetyDays!==9999 && k.safetyDays<7){
+      return {priority:1, action:'Stoppe toute dépense élastique.', reason:'Runway: '+k.safetyDays+' jour'+(k.safetyDays>1?'s':'')+' au rythme actuel.', impact:'critical'};
+    }
+
+    // 2. Evaporation post-revenu
+    try{
+      const recentInc = (txs||[]).filter(t=>t.type==='income').sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      if(recentInc){
+        const hSince = (Date.now()-new Date(recentInc.date).getTime())/3600000;
+        if(hSince<48 && (k.evaporationRate||0)>60){
+          const block = Math.round(recentInc.amount*0.20);
+          return {priority:2, action:'Bloque '+fmt(block)+' '+curU()+' en épargne maintenant.', reason:'Évaporation '+k.evaporationRate+'% détectée sur revenu récent.', impact:'high'};
+        }
+      }
+    }catch(e){}
+
+    // 3. Objectif prioritaire + surplus
+    try{
+      const pg = (typeof getPriorityGoal==='function')?getPriorityGoal():null;
+      if(pg){
+        const gap = pg.target - pg.saved;
+        const surplus = Math.max(0,(k.inc30/30) - k.burnRate);
+        if(gap>0 && surplus>0){
+          const transfer = Math.min(Math.round(surplus), Math.round(gap));
+          return {priority:3, action:'Vire '+fmt(transfer)+' '+curU()+' vers "'+pg.name+'" aujourd\'hui.', reason:'Surplus journalier disponible: '+fmt(surplus)+' '+curU()+'.', impact:'medium'};
+        }
+      }
+    }catch(e){}
+
+    // 4. Pression élevée
+    if(k.pressureDataOK && k.pressureIdx>40){
+      return {priority:4, action:'Pause 24h sur dépenses non essentielles.', reason:'Indice de pression à +'+k.pressureIdx+'%.', impact:'medium'};
+    }
+
+    // 5. Pas de saisie + soir
+    const today = (txs||[]).filter(tx=>new Date(tx.date).toDateString()===new Date().toDateString());
+    if(today.length===0 && new Date().getHours()>=18){
+      return {priority:5, action:'Note tes dépenses du jour avant de dormir.', reason:'Aucune saisie depuis ce matin — ton cerveau oublie 60% des dépenses.', impact:'low'};
+    }
+
+    // 6. Rétention élevée
+    if(k.retention!==null && k.retention>=70){
+      const invest = Math.round(((k.inc30||0)*0.10));
+      return {priority:6, action:'Investis 10% de tes revenus du mois ('+fmt(invest)+' '+curU()+').', reason:'Tu retiens '+k.retention+'% — capitalise.', impact:'low'};
+    }
+    return null;
+  }catch(e){ console.warn('[NBA] fail',e); return null; }
+};
+
+window.renderNBACard = function renderNBACard(kpi){
+  try{
+    const nba = window.computeNextBestAction();
+    if(!nba) return '';
+    return `<div class="card" style="border-color:rgba(99,102,241,.35);background:linear-gradient(135deg,rgba(99,102,241,.10),rgba(16,185,129,.05));margin-bottom:12px">
+      <div class="ch">⚡ ${T('nba_title').toUpperCase()}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--acc3);line-height:1.5;margin-bottom:6px">${nba.action}</div>
+      <div class="tm" style="font-size:11px">${nba.reason}</div>
+    </div>`;
+  }catch(e){ console.warn('[NBA render] fail',e); return ''; }
+};
+
+/* ============================================================
+   MODULE 2 — STRESS TEST
+   ============================================================ */
+window.runStressTest = function runStressTest(){
+  try{
+    const k = computeKPIs();
+    const burn = Math.max(0, k.burnRate||0);
+    const incDaily = Math.max(0, (k.inc30||0)/30);
+    const start = (k.activeBalance||0) + (k.savingsBalance||0);
+
+    function simulate(incFactor, expFactor){
+      const incJ = incDaily*incFactor;
+      const expJ = burn*expFactor;
+      let solde = start, runway = '30j+', soldeFin = start;
+      for(let j=1;j<=30;j++){
+        solde = solde + incJ - expJ;
+        if(solde<=0 && runway==='30j+') runway = j+'j';
+      }
+      soldeFin = solde;
+      return {runway, soldeFin};
+    }
+    const choc = simulate(0.70, 1.20);
+    const baseline = {runway: k.safetyDays===9999?'30j+':(k.safetyDays>=30?'30j+':k.safetyDays+'j')};
+    const optimal = simulate(1.20, 0.90);
+    const epargneGen = Math.max(0, optimal.soldeFin - start);
+    return {choc, baseline, optimal:{...optimal, epargneGeneree:epargneGen}, isShort:k.isShortHistory};
+  }catch(e){ console.warn('[StressTest] fail',e); return null; }
+};
+
+window.openStressTestModal = function openStressTestModal(){
+  try{
+    const r = window.runStressTest();
+    if(!r){ openModal('<h3>🔬 Stress Test</h3><p class="tm">Données insuffisantes.</p>'); return; }
+    function bar(label, color){
+      const n = parseInt(label)||30;
+      const w = Math.min(100, (n/30)*100);
+      return `<div style="height:4px;background:var(--surf3);border-radius:2px;overflow:hidden;margin-top:6px"><div style="height:100%;width:${w}%;background:${color}"></div></div>`;
+    }
+    const narrow = (window.innerWidth||400)<380;
+    const grid = narrow?'1fr':'1fr 1fr 1fr';
+    openModal(`
+      <h3>🔬 ${T('stress_title')}</h3>
+      ${r.isShort?`<div class="al al-w" style="margin-bottom:10px">⚠️ ${T('stress_short')}</div>`:''}
+      <div style="display:grid;grid-template-columns:${grid};gap:8px;margin:10px 0">
+        <div class="card" style="padding:10px;border-color:rgba(244,63,94,.35)">
+          <div style="font-size:18px">🔴</div>
+          <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_choc')}</div>
+          <div class="mono fw8" style="font-size:18px;color:var(--red);margin-top:4px">${r.choc.runway}</div>
+          <div class="tm" style="font-size:10px;margin-top:3px">-30% revenus · +20% dépenses</div>
+          ${bar(r.choc.runway,'var(--red)')}
+        </div>
+        <div class="card" style="padding:10px;border-color:rgba(251,191,36,.35)">
+          <div style="font-size:18px">🟡</div>
+          <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_base')}</div>
+          <div class="mono fw8" style="font-size:18px;color:var(--ylw);margin-top:4px">${r.baseline.runway}</div>
+          <div class="tm" style="font-size:10px;margin-top:3px">Rythme observé</div>
+          ${bar(r.baseline.runway,'var(--ylw)')}
+        </div>
+        <div class="card" style="padding:10px;border-color:rgba(16,185,129,.35)">
+          <div style="font-size:18px">🟢</div>
+          <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_optimal')}</div>
+          <div class="mono fw8" style="font-size:14px;color:var(--grn);margin-top:4px">+${fmt(r.optimal.epargneGeneree)} ${curU()}</div>
+          <div class="tm" style="font-size:10px;margin-top:3px">+20% rev · -10% dép</div>
+          ${bar('30j','var(--grn)')}
+        </div>
+      </div>
+      <div class="tm" style="font-size:11px;text-align:center;margin-top:8px;font-style:italic">${T('stress_msg')}</div>
+      <button class="btn" onclick="closeModal()" style="margin-top:12px">OK</button>
+    `);
+  }catch(e){ console.warn('[StressTest modal] fail',e); }
+};
+
+/* ============================================================
+   MODULE 3 — HEALTH SCORE
+   ============================================================ */
+window.computeFinancialHealthScore = function computeFinancialHealthScore(kpi){
+  try{
+    const k = kpi || computeKPIs();
+    const safetyDays = k.safetyDays===9999?9999:k.safetyDays;
+    const reserve = safetyDays>=30?20:safetyDays>=14?15:safetyDays>=7?10:safetyDays>=3?5:0;
+    const retention = k.retention===null?10
+      :k.retention>=50?20:k.retention>=30?15:k.retention>=10?10:k.retention>=0?5:0;
+    const regular = k.isSilent?0
+      :k.dataDays>=21?20:k.dataDays>=14?15:k.dataDays>=7?10:k.dataDays>=3?5:2;
+    let goal = 8;
+    try{
+      const pg = (typeof getPriorityGoal==='function')?getPriorityGoal():null;
+      if(pg){
+        const pct = pg.target>0?(pg.saved/pg.target)*100:0;
+        goal = pct>=75?20:pct>=50?15:pct>=25?10:pct>0?5:2;
+      }
+    }catch(e){}
+    let behavior;
+    if(k.isShortHistory){ behavior=10; }
+    else {
+      const d = k.dopamineIdx||0;
+      behavior = d<20?20:d<40?15:d<60?10:d<80?5:0;
+    }
+    const total = reserve+retention+regular+goal+behavior;
+    const label = total<40?T('health_critique'):total<60?T('health_fragile'):total<75?T('health_stable'):total<90?T('health_solide'):T('health_elite');
+    const color = total<40?'var(--red)':total<60?'#f59e0b':total<75?'var(--ylw)':total<90?'var(--acc3)':'var(--grn)';
+    return {score:total, label, color, axes:{reserve, retention, regular, goal, behavior}};
+  }catch(e){ console.warn('[HealthScore] fail',e); return null; }
+};
+
+window.renderHealthScoreCard = function renderHealthScoreCard(kpi){
+  try{
+    if(!(txs||[]).length) return '';
+    const h = window.computeFinancialHealthScore(kpi);
+    if(!h) return '';
+    const axes = [
+      {k:'reserve', l:T('health_axis_reserve'), v:h.axes.reserve},
+      {k:'retention', l:T('health_axis_retention'), v:h.axes.retention},
+      {k:'regular', l:T('health_axis_regular'), v:h.axes.regular},
+      {k:'goal', l:T('health_axis_goal'), v:h.axes.goal},
+      {k:'behavior', l:T('health_axis_behavior'), v:h.axes.behavior}
+    ];
+    const bars = axes.map(a=>{
+      const pct = Math.round((a.v/20)*100);
+      const c = a.v>=15?'var(--grn)':a.v>=10?'var(--ylw)':a.v>=5?'var(--org)':'var(--red)';
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="height:36px;width:6px;background:var(--surf3);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden">
+          <div style="width:100%;height:${pct}%;background:${c};border-radius:3px"></div>
+        </div>
+        <div style="font-size:9px;color:var(--mut);font-weight:600;text-align:center;line-height:1.1">${a.l}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card" onclick="openHealthDetailModal()" style="text-align:center;padding:16px 12px;margin-bottom:12px;cursor:pointer">
+      <div style="font-size:11px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${T('health_score')}</div>
+      <div style="font-size:48px;font-weight:900;font-family:var(--mono);color:${h.color};line-height:1">${h.score}</div>
+      <div style="font-size:12px;color:${h.color};font-weight:700;margin:4px 0 10px">${h.label}</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;justify-items:center">${bars}</div>
+    </div>`;
+  }catch(e){ console.warn('[HealthScore render] fail',e); return ''; }
+};
+
+window.openHealthDetailModal = function openHealthDetailModal(){
+  try{
+    const h = window.computeFinancialHealthScore();
+    if(!h){ return; }
+    const labels = {
+      reserve:T('health_axis_reserve'), retention:T('health_axis_retention'),
+      regular:T('health_axis_regular'), goal:T('health_axis_goal'),
+      behavior:T('health_axis_behavior')
+    };
+    const tips = {
+      reserve:'Augmente ton coussin de sécurité — vise 30j de runway.',
+      retention:'Garde ≥30% de tes revenus pour viser un meilleur score.',
+      regular:'Saisis chaque jour pendant 14j pour stabiliser tes KPIs.',
+      goal:'Définis un objectif prioritaire et progresse régulièrement.',
+      behavior:'Réduis les achats impulsifs et nocturnes.'
+    };
+    const rows = Object.keys(h.axes).map(k=>{
+      const v = h.axes[k];
+      const c = v>=15?'var(--grn)':v>=10?'var(--ylw)':v>=5?'var(--org)':'var(--red)';
+      return `<div style="margin:10px 0;padding:10px;background:var(--surf2);border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:700;font-size:13px">${labels[k]}</span>
+          <span class="mono fw8" style="color:${c}">${v}/20</span>
+        </div>
+        <div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:6px">
+          <div style="height:100%;width:${(v/20)*100}%;background:${c}"></div>
+        </div>
+        ${v<15?`<div class="tm" style="font-size:11px">${tips[k]}</div>`:''}
+      </div>`;
+    }).join('');
+    openModal(`
+      <h3>${T('health_score')} — <span style="color:${h.color}">${h.score}/100</span></h3>
+      <div style="font-size:12px;color:${h.color};font-weight:700;margin-bottom:8px">${h.label}</div>
+      ${rows}
+      <button class="btn" onclick="closeModal()" style="margin-top:8px">OK</button>
+    `);
+  }catch(e){ console.warn('[Health modal] fail',e); }
+};
+
+/* ============================================================
+   MODULE 4 — RECURRING PATTERNS
+   ============================================================ */
+window.detectRecurringPatterns = function detectRecurringPatterns(){
+  try{
+    if(!(txs||[]).length) return [];
+    const exp = txs.filter(t=>t.type==='expense');
+    if(exp.length<3) return [];
+    // Group by categoryId + amount bucket (±5%)
+    const groups = {};
+    exp.forEach(t=>{
+      const bucket = Math.round(t.amount/10)*10;
+      const key = t.categoryId+'|'+bucket;
+      if(!groups[key]) groups[key]={txs:[],catId:t.categoryId,amounts:[]};
+      groups[key].txs.push(t);
+      groups[key].amounts.push(t.amount);
+    });
+    const results = [];
+    Object.values(groups).forEach(g=>{
+      if(g.txs.length<2) return;
+      const sorted = g.txs.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+      const intervals=[];
+      for(let i=1;i<sorted.length;i++){
+        intervals.push((new Date(sorted[i].date)-new Date(sorted[i-1].date))/86400000);
+      }
+      const avg = intervals.reduce((s,v)=>s+v,0)/intervals.length;
+      const amount = g.amounts.reduce((s,v)=>s+v,0)/g.amounts.length;
+      const total = g.amounts.reduce((s,v)=>s+v,0);
+      let freq=null;
+      if(avg>=6 && avg<=8 && sorted.length>=3) freq='weekly';
+      else if(avg>=27 && avg<=33 && sorted.length>=2) freq='monthly';
+      if(!freq) return;
+      const last = new Date(sorted[sorted.length-1].date);
+      const next = new Date(last.getTime() + avg*86400000);
+      let catName = g.catId;
+      try{ catName = catById(g.catId).name; }catch(e){}
+      let catIcon = '💸';
+      try{ catIcon = catById(g.catId).icon||'💸'; }catch(e){}
+      results.push({
+        categoryId:g.catId, categoryName:catName, categoryIcon:catIcon,
+        amount, frequency:freq, occurrences:sorted.length,
+        totalSpent:total, nextExpectedDate:next
+      });
+    });
+    return results.sort((a,b)=>b.totalSpent-a.totalSpent).slice(0,8);
+  }catch(e){ console.warn('[Recurring] fail',e); return []; }
+};
+
+window.renderRecurringCard = function renderRecurringCard(kpi){
+  try{
+    if(kpi && kpi.isShortHistory) return '';
+    const list = window.detectRecurringPatterns();
+    if(!list.length) return '';
+    const monthlyTotal = list.reduce((s,p)=>s + (p.frequency==='weekly'?p.amount*4.33:p.amount), 0);
+    const rows = list.map(p=>{
+      const nxt = p.nextExpectedDate.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      const freqLbl = p.frequency==='weekly'?T('recurring_weekly'):T('recurring_monthly');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--surf3)">
+        <div>
+          <div style="font-weight:700;font-size:13px">${p.categoryIcon} ${p.categoryName}</div>
+          <div class="tm" style="font-size:11px">${freqLbl} · ${p.occurrences}× · Prochaine: ${nxt}</div>
+        </div>
+        <div style="font-weight:800;font-family:var(--mono);color:var(--red)">-${fmt(p.amount)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card">
+      <div class="ch">🔁 ${T('recurring_title').toUpperCase()}</div>
+      ${rows}
+      <div style="font-size:11px;color:var(--mut);margin-top:8px">${T('recurring_total')} : <strong>${fmt(monthlyTotal)} ${curU()}</strong> / mois</div>
+    </div>`;
+  }catch(e){ console.warn('[Recurring render] fail',e); return ''; }
+};
+
+/* ============================================================
+   MODULE 5 — CASHFLOW PROJECTION
+   ============================================================ */
+window.buildCashflowProjection = function buildCashflowProjection(){
+  try{
+    const k = computeKPIs();
+    const burn = Math.max(0, k.burnRate||0);
+    const incDaily = Math.max(0, (k.inc30||0)/30);
+    const start = (k.activeBalance||0);
+    const incomeEvents = {}; // dayOffset -> amount
+    const expenseEvents = {}; // dayOffset -> amount
+    // Inject cycle-based expected income
+    try{
+      if(k.cycleContext && k.cycleContext.daysToNextExpected>0 && k.cycleContext.expectedCycleIncome){
+        const j = Math.min(29, Math.max(0, k.cycleContext.daysToNextExpected));
+        incomeEvents[j] = (incomeEvents[j]||0) + k.cycleContext.expectedCycleIncome;
+      }
+    }catch(e){}
+    // Inject recurring expenses
+    try{
+      const rec = window.detectRecurringPatterns();
+      const now = Date.now();
+      rec.forEach(r=>{
+        const days = Math.round((r.nextExpectedDate.getTime()-now)/86400000);
+        if(days>=0 && days<30){
+          expenseEvents[days] = (expenseEvents[days]||0) + r.amount;
+        }
+      });
+    }catch(e){}
+    const series = [];
+    let solde = start;
+    for(let j=0;j<30;j++){
+      solde += incDaily - burn;
+      if(incomeEvents[j]) solde += incomeEvents[j];
+      if(expenseEvents[j]) solde -= expenseEvents[j];
+      series.push({day:j, solde, incEvent:!!incomeEvents[j], expEvent:!!expenseEvents[j]});
+    }
+    return {series, start, incomeEvents, expenseEvents};
+  }catch(e){ console.warn('[Projection] fail',e); return null; }
+};
+
+window.renderProjectionCard = function renderProjectionCard(kpi){
+  try{
+    if(!(txs||[]).length || (txs||[]).length<5) return '';
+    if(kpi && kpi.isShortHistory) return '';
+    const proj = window.buildCashflowProjection();
+    if(!proj) return '';
+    const W=300, H=80, pad=8;
+    const vals = proj.series.map(p=>p.solde);
+    const minV = Math.min(0, ...vals), maxV = Math.max(0, ...vals, proj.start);
+    const range = (maxV-minV)||1;
+    const xs = (i)=> pad + (i/(29||1))*(W-2*pad);
+    const ys = (v)=> pad + (1 - (v-minV)/range)*(H-2*pad);
+    const yZero = ys(0);
+    let line='', area='';
+    proj.series.forEach((p,i)=>{
+      const x = xs(i), y = ys(p.solde);
+      line += (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' ';
+    });
+    // Area under zero for risk
+    let negArea = '';
+    proj.series.forEach((p,i)=>{
+      const x = xs(i);
+      if(p.solde<0){
+        const y = ys(p.solde);
+        negArea += (negArea===''?'M':'L')+x.toFixed(1)+','+yZero.toFixed(1)+' L'+x.toFixed(1)+','+y.toFixed(1)+' ';
+      }
+    });
+    // Markers
+    const markers = proj.series.map((p,i)=>{
+      let m='';
+      if(p.incEvent) m += `<polygon points="${xs(i)},${ys(p.solde)-5} ${xs(i)-3},${ys(p.solde)+1} ${xs(i)+3},${ys(p.solde)+1}" fill="var(--grn)"/>`;
+      if(p.expEvent) m += `<circle cx="${xs(i)}" cy="${ys(p.solde)}" r="2.5" fill="var(--red)"/>`;
+      return m;
+    }).join('');
+    const negDay = proj.series.findIndex(p=>p.solde<0);
+    const negAlert = (negDay>=0 && negDay<15) ? `<div class="al al-d" style="margin-top:8px">⚠️ ${T('projection_alert').replace('{n}',negDay)}</div>` : '';
+    const finalSolde = proj.series[29].solde;
+    return `<div class="card">
+      <div class="ch">📈 ${T('projection_title').toUpperCase()}</div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
+        <line x1="${pad}" y1="${yZero}" x2="${W-pad}" y2="${yZero}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+        <path d="${negArea}" fill="rgba(239,68,68,.15)"/>
+        <path d="${line}" fill="none" stroke="var(--acc3)" stroke-width="2" stroke-linejoin="round"/>
+        ${markers}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:4px">
+        <span>J+0 : ${fmt(proj.start)} ${curU()}</span>
+        <span style="color:${finalSolde>=0?'var(--grn)':'var(--red)'};font-weight:700">J+30 : ${fmt(finalSolde)} ${curU()}</span>
+      </div>
+      ${negAlert}
+    </div>`;
+  }catch(e){ console.warn('[Projection render] fail',e); return ''; }
+};
+
+/* ============================================================
+   MODULE 6 — IVY MEMORY ENRICHED
+   ============================================================ */
+function computeStreak(){
+  try{
+    const days = new Set((txs||[]).map(tx=>new Date(tx.date).toDateString()));
+    let cur=0, longest=0;
+    // currentStreak: starting today going back
+    let d = new Date(); d.setHours(0,0,0,0);
+    while(days.has(d.toDateString())){ cur++; d.setDate(d.getDate()-1); }
+    // longestStreak: sorted unique days
+    const sorted = [...days].map(s=>new Date(s).getTime()).sort((a,b)=>a-b);
+    let run=1;
+    for(let i=1;i<sorted.length;i++){
+      const diff = Math.round((sorted[i]-sorted[i-1])/86400000);
+      if(diff===1) run++; else { if(run>longest) longest=run; run=1; }
+    }
+    if(run>longest) longest=run;
+    return {currentStreak:cur, longestStreak:longest};
+  }catch(e){ return {currentStreak:0, longestStreak:0}; }
+}
+
+function computeWeeklyRetentions(){
+  try{
+    const buckets = {};
+    (txs||[]).forEach(tx=>{
+      const d = new Date(tx.date);
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((d.getDay()+6)%7));
+      monday.setHours(0,0,0,0);
+      const key = monday.toISOString().slice(0,10);
+      if(!buckets[key]) buckets[key]={inc:0,exp:0};
+      if(tx.type==='income') buckets[key].inc+=tx.amount;
+      else if(tx.type==='expense') buckets[key].exp+=tx.amount;
+    });
+    const weeks = Object.entries(buckets).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8);
+    let best={pct:-Infinity,week:null}, worst={pct:Infinity,week:null};
+    weeks.forEach(([k,v])=>{
+      if(v.inc<=0) return;
+      const pct = Math.round(((v.inc-v.exp)/v.inc)*100);
+      if(pct>best.pct) best={pct, week:k};
+      if(pct<worst.pct) worst={pct, week:k};
+    });
+    return {bestWeek:best.week?best:null, worstWeek:worst.week?worst:null};
+  }catch(e){ return {bestWeek:null, worstWeek:null}; }
+}
+
+window.updateIvyMemory = async function updateIvyMemory(){
+  try{
+    if(typeof ALADDIN==='undefined' || !ALADDIN.getIvyState) return;
+    const state = await ALADDIN.getIvyState();
+    const streaks = computeStreak();
+    const weeks = computeWeeklyRetentions();
+    let avgBurn = 0;
+    try{ avgBurn = computeKPIs().burnRate||0; }catch(e){}
+    const profile = state.userProfile || {};
+    profile.currentStreak = streaks.currentStreak;
+    profile.longestStreak = Math.max(streaks.longestStreak, profile.longestStreak||0);
+    profile.bestWeekRetention = weeks.bestWeek?weeks.bestWeek.pct:(profile.bestWeekRetention||null);
+    profile.worstWeekRetention = weeks.worstWeek?weeks.worstWeek.pct:(profile.worstWeekRetention||null);
+    profile.avgDailyBurn = Math.round(avgBurn);
+    // Personal record: best single-day savings (income-expense)
+    try{
+      const byDay = {};
+      (txs||[]).forEach(tx=>{
+        const key = new Date(tx.date).toDateString();
+        if(!byDay[key]) byDay[key]={inc:0,exp:0};
+        if(tx.type==='income') byDay[key].inc+=tx.amount;
+        else if(tx.type==='expense') byDay[key].exp+=tx.amount;
+      });
+      let recAmt = 0, recDate = null;
+      Object.entries(byDay).forEach(([k,v])=>{
+        const net = v.inc - v.exp;
+        if(net>recAmt){ recAmt=net; recDate=k; }
+      });
+      if(recAmt > (profile.personalRecordEpargne?.amount||0)){
+        profile.personalRecordEpargne = {amount:Math.round(recAmt), date:recDate};
+      }
+    }catch(e){}
+    state.userProfile = profile;
+    await ALADDIN.saveIvyState(state);
+  }catch(e){ console.warn('[IvyMemory] fail',e); }
+};
+
+window.getIvyMemorySnapshot = async function getIvyMemorySnapshot(){
+  try{
+    if(typeof ALADDIN==='undefined' || !ALADDIN.getIvyState) return null;
+    const state = await ALADDIN.getIvyState();
+    return state.userProfile || null;
+  }catch(e){ return null; }
+};
+
+/* Hook saveTx to update memory after each save */
+try{
+  if(typeof saveTx==='function'){
+    const _origSaveTx = saveTx;
+    window.saveTx = async function(){
+      const r = await _origSaveTx.apply(this, arguments);
+      try{ await window.updateIvyMemory(); }catch(e){}
+      return r;
+    };
+  }
+}catch(e){ console.warn('[IvyMemory hook] fail',e); }
+
+/* Wrap buildCtx to inject ivyMemoire + depensesRecurrentes */
+try{
+  if(typeof buildCtx==='function'){
+    const _origBuildCtx = buildCtx;
+    window.buildCtx = async function(){
+      const json = await _origBuildCtx.apply(this, arguments);
+      try{
+        const p = JSON.parse(json);
+        const mem = await window.getIvyMemorySnapshot();
+        if(mem){
+          p.ivyMemoire = {
+            currentStreak: mem.currentStreak||0,
+            longestStreak: mem.longestStreak||0,
+            bestWeekRetention: mem.bestWeekRetention,
+            worstWeekRetention: mem.worstWeekRetention,
+            avgDailyBurn: mem.avgDailyBurn,
+            personalRecordEpargne: mem.personalRecordEpargne||null
+          };
+        }
+        try{
+          const rec = window.detectRecurringPatterns().slice(0,5).map(r=>({
+            categorie:r.categoryName, montant:Math.round(r.amount),
+            frequence:r.frequency, occurrences:r.occurrences,
+            prochaineDate:r.nextExpectedDate.toISOString().slice(0,10)
+          }));
+          if(rec.length) p.depensesRecurrentes = rec;
+        }catch(e){}
+        return JSON.stringify(p);
+      }catch(e){ return json; }
+    };
+  }
+}catch(e){ console.warn('[buildCtx wrap] fail',e); }
+
+/* Initial memory update on boot */
+setTimeout(()=>{ try{ window.updateIvyMemory(); }catch(e){} }, 2000);
+
+console.log('[v5.3] 6 modules institutionnels chargés');
+})();
 </script>

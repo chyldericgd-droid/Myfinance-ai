@@ -23,7 +23,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="6.1.0">
+<meta name="version" content="6.2.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -4003,8 +4003,8 @@ Tu es la voix qui empêche cette personne de mourir médiocre.`;
         const advice = isKey ? t('groq_advice_invalid') : '';
         return{text:'⚠️ Groq: '+msg+advice+'\n\n'+localAI(userMsg), src:'Erreur'};
       }
-      const t = d.choices?.[0]?.message?.content;
-      if(t) return{text:t, src:'Groq AI'};
+      const aiResponse = d.choices?.[0]?.message?.content;
+      if(aiResponse) return{text:aiResponse, src:'Groq AI'};
     }catch(e){
       console.warn('Groq failed:',e);
       const isSandbox = window.location.href.includes('claude.ai');
@@ -4232,8 +4232,8 @@ async function fetchHomeInsight(){
     });
     if(!resp.ok) return null;
     const d = await resp.json();
-    const t = d.choices?.[0]?.message?.content?.trim();
-    if(t){_lastInsight=t;_lastInsightTime=Date.now();_lastInsightSource='cloud';return t}
+    const aiResponse = d.choices?.[0]?.message?.content?.trim();
+    if(aiResponse){_lastInsight=aiResponse;_lastInsightTime=Date.now();_lastInsightSource='cloud';return aiResponse}
     return null;
   }catch(e){
     // Repli heuristique si l'appel cloud échoue
@@ -4249,6 +4249,14 @@ function updateInsightUI(txt){
     ? '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">CLOUD</span>'
     : '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(251,191,36,.18);color:var(--ylw);margin-right:6px;vertical-align:middle">LOCAL</span>';
   el.innerHTML = badge+'💡 '+txt;
+  // NOUVEAU — synchroniser homeAIBadge avec la source réelle
+  const headerBadge = document.getElementById('homeAIBadge');
+  if(headerBadge){
+    const isCloud = _lastInsightSource === 'cloud';
+    headerBadge.textContent = isCloud ? 'GROQ AI' : 'LOCAL';
+    headerBadge.style.color = isCloud ? 'var(--acc3)' : 'var(--ylw)';
+    headerBadge.style.background = isCloud ? 'rgba(99,102,241,.15)' : 'rgba(251,191,36,.15)';
+  }
   try{
     const fab=document.querySelector('.aifab');
     if(fab){
@@ -4735,7 +4743,7 @@ function renderHome(){
   ${typeof renderNBACard==='function'?renderNBACard(kpi):''}
   <!-- AI INSIGHT (online only) -->
   <div class="ai-insight" id="homeAICard" onclick="openAIQuick()" style="cursor:pointer">
-    <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${navigator.onLine && getGroqKey()?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)'};color:${navigator.onLine && getGroqKey()?'var(--acc3)':'var(--ylw)'}">${navigator.onLine && getGroqKey()?'GROQ AI':'LOCAL'}</span></div>
+    <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${_lastInsightSource==='cloud'?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)'};color:${_lastInsightSource==='cloud'?'var(--acc3)':'var(--ylw)'}">${_lastInsightSource==='cloud'?'GROQ AI':'LOCAL'}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
     <div style="margin-top:8px;display:flex;gap:6px">
       <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>

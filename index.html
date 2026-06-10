@@ -23,6 +23,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
+<meta name="version" content="6.0.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -4612,7 +4613,7 @@ function renderHome(){
       </div>
       <div class="kt" onclick="openKPIModal('safety')">
         <div class="kl">${t('safety_days')}</div>
-        <div class="kv" style="color:${kpi.safetyDays<7&&kpi.safetyDaysWithSavings<7?'var(--red)':kpi.safetyDays<7?'var(--ylw)':kpi.safetyDays<15?'var(--org)':'var(--grn)'}">
+        <div class="kv" style="color:${kpi.safetyDays<7&&kpi.safetyDaysWithSavings<7?'var(--red)':kpi.safetyDays===0&&kpi.safetyDaysWithSavings>0?'var(--org)':kpi.safetyDays<7?'var(--ylw)':kpi.safetyDays<15?'var(--org)':'var(--grn)'}">
           ${kpi.safetyDays===9999?'∞':kpi.safetyDays}
           ${kpi.safetyDays<7&&kpi.safetyDaysWithSavings>kpi.safetyDays?`<span style="font-size:10px;color:var(--grn);font-weight:600"> +${kpi.safetyDaysWithSavings-kpi.safetyDays}🔒</span>`:''}
         </div>
@@ -4676,44 +4677,6 @@ function renderHome(){
     ${txs.slice(0,5).map(txItem).join('')||`<div class="tm" style="font-size:12px;padding:8px 0">${t('tx_none')}</div>`}
   </div>
 
-  <!-- ACCOUNTS -->
-  <div class="card">
-    <div class="ch">${t('home_accounts')} <button class="btn btn-ghost btn-sm" onclick="openAddAccountModal()">${t('add_short')}</button></div>
-    ${accs.map(a=>`<div class="ach" onclick="openEditAccountModal('${a.id}')">
-      <span style="font-size:20px">${a.icon}</span>
-      <div style="flex:1"><div style="font-size:13px;font-weight:700">${displayAcc(a).name}</div><div style="font-size:10px;color:var(--mut)">${a.type.toUpperCase()}</div></div>
-      <div class="mono fw8 ${a.balance<0?'tr':'tg'}">${fmtFull(a.balance)}</div>
-    </div>`).join('')}
-  </div>
-
-  <!-- GOALS QUICK -->
-  ${goals.length?`<div class="card">
-    <div class="ch">${t('home_goals')} <button class="btn btn-ghost btn-sm" onclick="go('settings')">${t('manage')}</button></div>
-    ${goals.slice(0,3).map(g=>{
-      const pct=Math.min(100,(g.saved/g.target)*100);
-      const gap=g.target-g.saved;
-      const dailySurplus=Math.max(0,(kpi.inc30/30)-kpi.burnRate);
-      const joursNec=dailySurplus>0?Math.ceil(gap/dailySurplus):null;
-      const joursDeadline=g.deadline?Math.ceil((new Date(g.deadline)-Date.now())/86400000):null;
-      const enRetard=joursNec&&joursDeadline&&joursNec>joursDeadline;
-      const isPriority=getPriorityGoal()?.id===g.id;
-      return`<div class="gi" style="${isPriority?'border-left:3px solid var(--acc3);padding-left:10px;margin-left:-2px':''}">
-        <div class="gh">
-          <div class="gn">${isPriority?'⚡ ':''}${g.icon||'🎯'} ${g.name}</div>
-          <div style="font-size:11px;font-weight:800;color:${enRetard?'var(--red)':pct>=100?'var(--grn)':'var(--mut)'}">${Math.round(pct)}%</div>
-        </div>
-        <div class="bar"><div class="bf" style="width:${pct}%;background:${pct>=100?'var(--grn)':enRetard?'var(--red)':'var(--acc2)'}"></div></div>
-        <div class="flex sb" style="font-size:10px;color:var(--mut);margin-top:3px">
-          <span>${fmtFull(g.saved)} / ${fmtFull(g.target)}</span>
-          ${enRetard?`<span style="color:var(--red)">⚠️ ${t('late_short')} ${joursNec-joursDeadline}j</span>`
-            :joursNec?`<span style="color:var(--acc3)">~${joursNec}j</span>`:''}
-        </div>
-        ${(()=>{const eta=goalETA(g);if(!eta||eta.done)return'';if(eta.impossible)return`<div style="font-size:10px;color:var(--red);margin-top:4px;font-weight:700">${t('goal_destiny_imp').replace('⛔ ','')}</div>`;const ds=eta.date.toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short',year:'numeric'});return`<div style="font-size:10px;color:var(--acc3);margin-top:4px;font-weight:700">${t('goal_destiny_reach').replace('🎯 ','')} <strong>${ds}</strong> (${eta.days}j)</div>`;})()}
-        ${(()=>{const m=goalMonthly(g);if(!m||m.done)return'';const c=m.pct>=100?'var(--grn)':m.pct>=50?'var(--ylw)':'var(--mut)';return`<div style="margin-top:6px;padding:6px 8px;background:var(--surf2);border-radius:8px"><div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--mut);margin-bottom:3px"><span>${t('goal_milestone').replace('📅 ','')}</span><span style="color:${c}">${fmtFull(m.savedThisMonth)} / ${fmtFull(m.monthlyTarget)}</span></div><div style="height:3px;background:var(--surf3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${m.pct}%;background:${c};transition:width .5s"></div></div></div>`;})()}
-      </div>`;
-    }).join('')}
-  </div>`:''}
-  <div style="margin:14px 0;text-align:center"><button class="btn btn-ghost" onclick="openStressTestModal()" style="font-size:13px">🔬 ${typeof t==='function'?t('stress_title')||'Stress Test':'Stress Test'}</button></div>
   `;
 }
 
@@ -4790,6 +4753,15 @@ function renderTxList(){
 
   return`
   <div class="stitle">Transactions</div>
+  <!-- ACCOUNTS (déplacé depuis HOME en v6) -->
+  <div class="card">
+    <div class="ch">${t('home_accounts')} <button class="btn btn-ghost btn-sm" onclick="openAddAccountModal()">${t('add_short')}</button></div>
+    ${accs.map(a=>`<div class="ach" onclick="openEditAccountModal('${a.id}')">
+      <span style="font-size:20px">${a.icon}</span>
+      <div style="flex:1"><div style="font-size:13px;font-weight:700">${displayAcc(a).name}</div><div style="font-size:10px;color:var(--mut)">${a.type.toUpperCase()}</div></div>
+      <div class="mono fw8 ${a.balance<0?'tr':'tg'}">${fmtFull(a.balance)}</div>
+    </div>`).join('')}
+  </div>
   <div class="search-box">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="searchInput" placeholder="${t('tx_search')}" value="${searchQ}" oninput="searchQ=this.value;render()">
@@ -5025,7 +4997,7 @@ function renderAnalytics(){
   </div>
 
   ${renderTrendChartAdaptive(p,ptxs)}
-  ${typeof renderProjectionCard==='function'?renderProjectionCard(kpi):''}
+  ${typeof renderProjectionCard==='function'?renderProjectionCard(kpi, p):''}
 
   <!-- HEATMAP ADAPTATIVE -->
   <div class="card">
@@ -5107,6 +5079,8 @@ function renderAnalytics(){
     </div>
     <div style="font-size:11px;color:var(--mut);margin-top:4px;text-align:center">${t('discipline_help').replace('{p}',periodLabel(p))}</div>
   </div>
+  <!-- STRESS TEST 30J (déplacé depuis HOME en v6) -->
+  <div style="margin:14px 0;text-align:center"><button class="btn btn-ghost" onclick="openStressTestModal()" style="font-size:13px">🔬 ${typeof t==='function'?t('stress_title')||'Stress Test':'Stress Test'} 30j</button></div>
   `;
 }
 
@@ -8003,9 +7977,19 @@ window.computeNextBestAction = function computeNextBestAction(){
     const k = computeKPIs();
     if(k.isSilent) return null;
 
-    // 1. Runway critique
-    if(k.safetyDays!==9999 && k.safetyDays<7){
-      return {priority:1, action:'Stoppe toute dépense élastique.', reason:'Runway: '+k.safetyDays+' jour'+(k.safetyDays>1?'s':'')+' au rythme actuel.', impact:'critical'};
+    // 1. Runway critique (Bug 1: ne déclencher que sur données réelles)
+    if(
+      k.safetyDays!==9999 &&
+      k.safetyDays<7 &&
+      !k.isShortHistory &&
+      k.burnRate>0 &&
+      (txs||[]).length>=5
+    ){
+      const s=k.safetyDays>1?'s':'';
+      return {priority:1,
+        action: L('Stoppe toute dépense élastique.','Stop all discretionary spending.','Para todos los gastos discrecionales.','Para todos os gastos discricionários.'),
+        reason: L('Runway: '+k.safetyDays+' jour'+s+' au rythme actuel.','Runway: '+k.safetyDays+'d at current pace.','Autonomía: '+k.safetyDays+'d al ritmo actual.','Autonomia: '+k.safetyDays+'d ao ritmo atual.'),
+        impact:'critical'};
     }
 
     // 2. Evaporation post-revenu
@@ -8015,7 +7999,10 @@ window.computeNextBestAction = function computeNextBestAction(){
         const hSince = (Date.now()-new Date(recentInc.date).getTime())/3600000;
         if(hSince<48 && (k.evaporationRate||0)>60){
           const block = Math.round(recentInc.amount*0.20);
-          return {priority:2, action:'Bloque '+fmt(block)+' '+curU()+' en épargne maintenant.', reason:'Évaporation '+k.evaporationRate+'% détectée sur revenu récent.', impact:'high'};
+          return {priority:2,
+            action: L('Bloque '+fmt(block)+' '+curU()+' en épargne maintenant.','Lock '+fmt(block)+' '+curU()+' into savings now.','Bloquea '+fmt(block)+' '+curU()+' en ahorros ahora.','Bloqueia '+fmt(block)+' '+curU()+' em poupança agora.'),
+            reason: L('Évaporation '+k.evaporationRate+'% détectée sur revenu récent.','Evaporation '+k.evaporationRate+'% detected on recent income.','Evaporación '+k.evaporationRate+'% detectada sobre ingreso reciente.','Evaporação '+k.evaporationRate+'% detectada na receita recente.'),
+            impact:'high'};
         }
       }
     }catch(e){}
@@ -8028,26 +8015,38 @@ window.computeNextBestAction = function computeNextBestAction(){
         const surplus = Math.max(0,(k.inc30/30) - k.burnRate);
         if(gap>0 && surplus>0){
           const transfer = Math.min(Math.round(surplus), Math.round(gap));
-          return {priority:3, action:'Vire '+fmt(transfer)+' '+curU()+' vers "'+pg.name+'" aujourd\'hui.', reason:'Surplus journalier disponible: '+fmt(surplus)+' '+curU()+'.', impact:'medium'};
+          return {priority:3,
+            action: L('Vire '+fmt(transfer)+' '+curU()+' vers "'+pg.name+'" aujourd\'hui.','Transfer '+fmt(transfer)+' '+curU()+' to "'+pg.name+'" today.','Transfiere '+fmt(transfer)+' '+curU()+' a "'+pg.name+'" hoy.','Transfere '+fmt(transfer)+' '+curU()+' para "'+pg.name+'" hoje.'),
+            reason: L('Surplus journalier disponible: '+fmt(surplus)+' '+curU()+'.','Daily surplus available: '+fmt(surplus)+' '+curU()+'.','Excedente diario: '+fmt(surplus)+' '+curU()+'.','Excedente diário: '+fmt(surplus)+' '+curU()+'.'),
+            impact:'medium'};
         }
       }
     }catch(e){}
 
     // 4. Pression élevée
     if(k.pressureDataOK && k.pressureIdx>40){
-      return {priority:4, action:'Pause 24h sur dépenses non essentielles.', reason:'Indice de pression à +'+k.pressureIdx+'%.', impact:'medium'};
+      return {priority:4,
+        action: L('Pause 24h sur dépenses non essentielles.','24h pause on non-essential spending.','Pausa 24h en gastos no esenciales.','Pausa 24h em gastos não essenciais.'),
+        reason: L('Indice de pression à +'+k.pressureIdx+'%.','Pressure index at +'+k.pressureIdx+'%.','Índice de presión +'+k.pressureIdx+'%.','Índice de pressão +'+k.pressureIdx+'%.'),
+        impact:'medium'};
     }
 
     // 5. Pas de saisie + soir
     const today = (txs||[]).filter(tx=>new Date(tx.date).toDateString()===new Date().toDateString());
     if(today.length===0 && new Date().getHours()>=18){
-      return {priority:5, action:'Note tes dépenses du jour avant de dormir.', reason:'Aucune saisie depuis ce matin — ton cerveau oublie 60% des dépenses.', impact:'low'};
+      return {priority:5,
+        action: L('Note tes dépenses du jour avant de dormir.','Log today\'s expenses before sleeping.','Anota tus gastos del día antes de dormir.','Anota as despesas do dia antes de dormir.'),
+        reason: L('Aucune saisie depuis ce matin — ton cerveau oublie 60% des dépenses.','No entries since this morning — your brain forgets 60% of expenses.','Sin entradas desde la mañana — tu cerebro olvida 60% de los gastos.','Sem registros desde a manhã — o cérebro esquece 60% das despesas.'),
+        impact:'low'};
     }
 
     // 6. Rétention élevée
     if(k.retention!==null && k.retention>=70){
       const invest = Math.round(((k.inc30||0)*0.10));
-      return {priority:6, action:'Investis 10% de tes revenus du mois ('+fmt(invest)+' '+curU()+').', reason:'Tu retiens '+k.retention+'% — capitalise.', impact:'low'};
+      return {priority:6,
+        action: L('Investis 10% de tes revenus du mois ('+fmt(invest)+' '+curU()+').','Invest 10% of monthly income ('+fmt(invest)+' '+curU()+').','Invierte 10% de tus ingresos del mes ('+fmt(invest)+' '+curU()+').','Investe 10% das receitas do mês ('+fmt(invest)+' '+curU()+').'),
+        reason: L('Tu retiens '+k.retention+'% — capitalise.','You retain '+k.retention+'% — capitalize.','Retienes '+k.retention+'% — capitaliza.','Retém '+k.retention+'% — capitalize.'),
+        impact:'low'};
     }
     return null;
   }catch(e){ console.warn('[NBA] fail',e); return null; }
@@ -8097,7 +8096,8 @@ window.runStressTest = function runStressTest(){
 window.openStressTestModal = function openStressTestModal(){
   try{
     const r = window.runStressTest();
-    if(!r){ openModal('<h3>🔬 Stress Test</h3><p class="tm">Données insuffisantes.</p>'); return; }
+    if(!r){ openModal('<h3>🔬 Stress Test</h3><p class="tm">'+L('Données insuffisantes.','Insufficient data.','Datos insuficientes.','Dados insuficientes.')+'</p>'); return; }
+    const k = computeKPIs();
     function bar(label, color){
       const n = parseInt(label)||30;
       const w = Math.min(100, (n/30)*100);
@@ -8105,32 +8105,45 @@ window.openStressTestModal = function openStressTestModal(){
     }
     const narrow = (window.innerWidth||400)<380;
     const grid = narrow?'1fr':'1fr 1fr 1fr';
+    const recommandedBuffer = Math.round((k.burnRate||0)*30);
+    const dataDays = k.dataDays||0;
+    const subChoc = L('-30% revenus, +20% dépenses — ex: perte d\'un client, urgence médicale.','-30% income, +20% expenses — e.g. lost client, medical emergency.','-30% ingresos, +20% gastos — ej: pérdida de cliente, urgencia médica.','-30% receitas, +20% despesas — ex: perda de cliente, urgência médica.');
+    const subBase = L('Si tu continues exactement comme ces 30 derniers jours.','If you continue exactly as the last 30 days.','Si continúas igual que los últimos 30 días.','Se continuares como nos últimos 30 dias.');
+    const subOpt  = L('+20% revenus, -10% dépenses — ex: nouvelle mission, coupe du superflu.','+20% income, -10% expenses — e.g. new gig, cutting fluff.','+20% ingresos, -10% gastos — ej: nueva misión, recorte de lo superfluo.','+20% receitas, -10% despesas — ex: nova missão, corte do supérfluo.');
+    const meanings = `<div class="card" style="margin-top:12px;padding:12px;background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3)">
+      <div style="font-size:11px;font-weight:800;color:var(--acc3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">💡 ${L('Ce que ça signifie pour toi','What this means for you','Lo que significa para ti','O que isto significa para ti')}</div>
+      <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:6px">🔴 ${L('Si le pire arrive : tu tiens','If the worst happens: you last','Si pasa lo peor: aguantas','Se o pior acontecer: aguentas')} <strong>${r.choc.runway}</strong>. ${L('Vise un fond d\'urgence de','Target an emergency fund of','Apunta a un fondo de emergencia de','Apontar a um fundo de emergência de')} <strong style="color:var(--acc3)">${fmtFull(recommandedBuffer)}</strong> (≈30j ${L('de dépenses','of expenses','de gastos','de despesas')}).</div>
+      <div style="font-size:12px;color:var(--txt2);line-height:1.6">🟢 ${L('Si tu optimises : tu peux générer','If you optimize: you can generate','Si optimizas: puedes generar','Se otimizares: podes gerar')} <strong style="color:var(--grn)">+${fmtFull(r.optimal.epargneGeneree)}</strong> ${L('ce mois.','this month.','este mes.','este mês.')}</div>
+    </div>`;
     openModal(`
       <h3>🔬 ${T('stress_title')}</h3>
-      ${r.isShort?`<div class="al al-w" style="margin-bottom:10px">⚠️ ${T('stress_short')}</div>`:''}
+      ${r.isShort?`<div class="al al-w" style="margin-bottom:10px">⚠️ ${L('Les chiffres se baseront sur seulement '+dataDays+' jours — résultats indicatifs.','Numbers based on only '+dataDays+' days — indicative results.','Los números se basan en solo '+dataDays+' días — resultados indicativos.','Os números baseiam-se em apenas '+dataDays+' dias — resultados indicativos.')}</div>`:''}
       <div style="display:grid;grid-template-columns:${grid};gap:8px;margin:10px 0">
         <div class="card" style="padding:10px;border-color:rgba(244,63,94,.35)">
           <div style="font-size:18px">🔴</div>
           <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_choc')}</div>
           <div class="mono fw8" style="font-size:18px;color:var(--red);margin-top:4px">${r.choc.runway}</div>
-          <div class="tm" style="font-size:10px;margin-top:3px">-30% revenus · +20% dépenses</div>
+          <div class="tm" style="font-size:10px;margin-top:3px">${L('Solde J+30','Bal D+30','Saldo D+30','Saldo D+30')} : <strong style="color:${r.choc.soldeFin>=0?'var(--grn)':'var(--red)'}">${fmtFull(r.choc.soldeFin)}</strong></div>
+          <div class="tm" style="font-size:10px;margin-top:3px;font-style:italic">${subChoc}</div>
           ${bar(r.choc.runway,'var(--red)')}
         </div>
         <div class="card" style="padding:10px;border-color:rgba(251,191,36,.35)">
           <div style="font-size:18px">🟡</div>
           <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_base')}</div>
           <div class="mono fw8" style="font-size:18px;color:var(--ylw);margin-top:4px">${r.baseline.runway}</div>
-          <div class="tm" style="font-size:10px;margin-top:3px">Rythme observé</div>
+          <div class="tm" style="font-size:10px;margin-top:3px;font-style:italic">${subBase}</div>
           ${bar(r.baseline.runway,'var(--ylw)')}
         </div>
         <div class="card" style="padding:10px;border-color:rgba(16,185,129,.35)">
           <div style="font-size:18px">🟢</div>
           <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase">${T('stress_optimal')}</div>
-          <div class="mono fw8" style="font-size:14px;color:var(--grn);margin-top:4px">+${fmt(r.optimal.epargneGeneree)} ${curU()}</div>
-          <div class="tm" style="font-size:10px;margin-top:3px">+20% rev · -10% dép</div>
+          <div class="mono fw8" style="font-size:14px;color:var(--grn);margin-top:4px">+${fmtFull(r.optimal.epargneGeneree)}</div>
+          <div class="tm" style="font-size:10px;margin-top:3px">${L('Solde J+30','Bal D+30','Saldo D+30','Saldo D+30')} : <strong style="color:var(--grn)">${fmtFull(r.optimal.soldeFin)}</strong></div>
+          <div class="tm" style="font-size:10px;margin-top:3px;font-style:italic">${subOpt}</div>
           ${bar('30j','var(--grn)')}
         </div>
       </div>
+      ${meanings}
       <div class="tm" style="font-size:11px;text-align:center;margin-top:8px;font-style:italic">${T('stress_msg')}</div>
       <button class="btn" onclick="closeModal()" style="margin-top:12px">OK</button>
     `);
@@ -8316,63 +8329,82 @@ window.renderRecurringCard = function renderRecurringCard(kpi){
 /* ============================================================
    MODULE 5 — CASHFLOW PROJECTION
    ============================================================ */
-window.buildCashflowProjection = function buildCashflowProjection(){
+window.buildCashflowProjection = function buildCashflowProjection(period){
   try{
+    period = period || 'month';
+    const STEPS = period==='day' ? 24 : period==='week' ? 7 : 30;
     const k = computeKPIs();
     const burn = Math.max(0, k.burnRate||0);
     const incDaily = Math.max(0, (k.inc30||0)/30);
+    const burnPerStep = period==='day' ? burn/24 : burn;
+    const incPerStep  = period==='day' ? incDaily/24 : incDaily;
     const start = (k.activeBalance||0);
-    const incomeEvents = {}; // dayOffset -> amount
-    const expenseEvents = {}; // dayOffset -> amount
-    // Inject cycle-based expected income
+    const incomeEvents = {};
+    const expenseEvents = {};
+    const now = Date.now();
+    // Expected cycle income (only inject if it falls in projection window)
     try{
       if(k.cycleContext && k.cycleContext.daysToNextExpected>0 && k.cycleContext.expectedCycleIncome){
-        const j = Math.min(29, Math.max(0, k.cycleContext.daysToNextExpected));
-        incomeEvents[j] = (incomeEvents[j]||0) + k.cycleContext.expectedCycleIncome;
+        const dDays = k.cycleContext.daysToNextExpected;
+        let stepIdx = period==='day' ? -1 /* hors fenêtre 24h */ : Math.min(STEPS-1, Math.max(0, dDays));
+        if(period==='week' && dDays>=7) stepIdx = -1;
+        if(stepIdx>=0) incomeEvents[stepIdx] = (incomeEvents[stepIdx]||0) + k.cycleContext.expectedCycleIncome;
       }
     }catch(e){}
-    // Inject recurring expenses
+    // Recurring expenses
     try{
-      const rec = window.detectRecurringPatterns();
-      const now = Date.now();
+      const rec = (typeof window.detectRecurringPatterns==='function') ? window.detectRecurringPatterns() : [];
       rec.forEach(r=>{
         const days = Math.round((r.nextExpectedDate.getTime()-now)/86400000);
-        if(days>=0 && days<30){
-          expenseEvents[days] = (expenseEvents[days]||0) + r.amount;
+        let stepIdx = -1;
+        if(period==='day'){
+          const hours = Math.round((r.nextExpectedDate.getTime()-now)/3600000);
+          if(hours>=0 && hours<24) stepIdx = hours;
+        } else if(period==='week'){
+          if(days>=0 && days<7) stepIdx = days;
+        } else {
+          if(days>=0 && days<30) stepIdx = days;
         }
+        if(stepIdx>=0) expenseEvents[stepIdx] = (expenseEvents[stepIdx]||0) + r.amount;
       });
     }catch(e){}
     const series = [];
     let solde = start;
-    for(let j=0;j<30;j++){
-      solde += incDaily - burn;
+    for(let j=0;j<STEPS;j++){
+      solde += incPerStep - burnPerStep;
       if(incomeEvents[j]) solde += incomeEvents[j];
       if(expenseEvents[j]) solde -= expenseEvents[j];
       series.push({day:j, solde, incEvent:!!incomeEvents[j], expEvent:!!expenseEvents[j]});
     }
-    return {series, start, incomeEvents, expenseEvents};
+    return {series, start, incomeEvents, expenseEvents, steps:STEPS, period};
   }catch(e){ console.warn('[Projection] fail',e); return null; }
 };
 
-window.renderProjectionCard = function renderProjectionCard(kpi){
+window.renderProjectionCard = function renderProjectionCard(kpi, period){
   try{
-    if(!(txs||[]).length || (txs||[]).length<5) return '';
-    if(kpi && kpi.isShortHistory) return '';
-    const proj = window.buildCashflowProjection();
+    period = period || 'month';
+    const totalTx = (txs||[]).length;
+    if(!totalTx){ return ''; }
+    if(totalTx<5){
+      return `<div class="card"><div class="ch">📈 ${T('projection_title').toUpperCase()}</div>
+        <div class="tm" style="font-size:12px;padding:10px 0;text-align:center">📊 ${L('Ajoute au moins 5 transactions pour activer la projection.','Add at least 5 transactions to activate the projection.','Añade al menos 5 transacciones para activar la proyección.','Adicione pelo menos 5 transações para ativar a projeção.')}</div></div>`;
+    }
+    const proj = window.buildCashflowProjection(period);
     if(!proj) return '';
+    const STEPS = proj.steps;
+    const unitLabel = period==='day' ? 'H' : 'J';
     const W=300, H=80, pad=8;
     const vals = proj.series.map(p=>p.solde);
     const minV = Math.min(0, ...vals), maxV = Math.max(0, ...vals, proj.start);
     const range = (maxV-minV)||1;
-    const xs = (i)=> pad + (i/(29||1))*(W-2*pad);
+    const xs = (i)=> pad + (i/((STEPS-1)||1))*(W-2*pad);
     const ys = (v)=> pad + (1 - (v-minV)/range)*(H-2*pad);
     const yZero = ys(0);
-    let line='', area='';
+    let line='';
     proj.series.forEach((p,i)=>{
       const x = xs(i), y = ys(p.solde);
       line += (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' ';
     });
-    // Area under zero for risk
     let negArea = '';
     proj.series.forEach((p,i)=>{
       const x = xs(i);
@@ -8381,7 +8413,6 @@ window.renderProjectionCard = function renderProjectionCard(kpi){
         negArea += (negArea===''?'M':'L')+x.toFixed(1)+','+yZero.toFixed(1)+' L'+x.toFixed(1)+','+y.toFixed(1)+' ';
       }
     });
-    // Markers
     const markers = proj.series.map((p,i)=>{
       let m='';
       if(p.incEvent) m += `<polygon points="${xs(i)},${ys(p.solde)-5} ${xs(i)-3},${ys(p.solde)+1} ${xs(i)+3},${ys(p.solde)+1}" fill="var(--grn)"/>`;
@@ -8389,10 +8420,11 @@ window.renderProjectionCard = function renderProjectionCard(kpi){
       return m;
     }).join('');
     const negDay = proj.series.findIndex(p=>p.solde<0);
-    const negAlert = (negDay>=0 && negDay<15) ? `<div class="al al-d" style="margin-top:8px">⚠️ ${T('projection_alert').replace('{n}',negDay)}</div>` : '';
-    const finalSolde = proj.series[29].solde;
+    const negAlert = (negDay>=0 && negDay<Math.ceil(STEPS/2)) ? `<div class="al al-d" style="margin-top:8px">⚠️ ${T('projection_alert').replace('{n}',negDay)}</div>` : '';
+    const finalSolde = proj.series[STEPS-1].solde;
+    const shortBanner = (kpi && kpi.isShortHistory) ? `<div class="tm" style="font-size:10px;margin-top:6px;font-style:italic">📊 ${L('Basé sur '+kpi.dataDays+'j — projection indicative.','Based on '+kpi.dataDays+'d — indicative projection.','Basado en '+kpi.dataDays+'d — proyección indicativa.','Baseado em '+kpi.dataDays+'d — projeção indicativa.')}</div>` : '';
     return `<div class="card">
-      <div class="ch">📈 ${T('projection_title').toUpperCase()}</div>
+      <div class="ch">📈 ${T('projection_title').toUpperCase()} · ${unitLabel}+${STEPS}</div>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
         <line x1="${pad}" y1="${yZero}" x2="${W-pad}" y2="${yZero}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
         <path d="${negArea}" fill="rgba(239,68,68,.15)"/>
@@ -8400,9 +8432,10 @@ window.renderProjectionCard = function renderProjectionCard(kpi){
         ${markers}
       </svg>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:4px">
-        <span>J+0 : ${fmt(proj.start)} ${curU()}</span>
-        <span style="color:${finalSolde>=0?'var(--grn)':'var(--red)'};font-weight:700">J+30 : ${fmt(finalSolde)} ${curU()}</span>
+        <span>${unitLabel}+0 : ${fmtFull(proj.start)}</span>
+        <span style="color:${finalSolde>=0?'var(--grn)':'var(--red)'};font-weight:700">${unitLabel}+${STEPS} : ${fmtFull(finalSolde)}</span>
       </div>
+      ${shortBanner}
       ${negAlert}
     </div>`;
   }catch(e){ console.warn('[Projection render] fail',e); return ''; }

@@ -102,7 +102,7 @@
     }
   ],
   "id": "/?v=6.0.0",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "lang": "auto",
   "share_target": {
     "action": "./",

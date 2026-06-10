@@ -23,7 +23,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="6.0.0">
+<meta name="version" content="6.1.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -2404,7 +2404,24 @@ const DEF_CATS=[
 // STATE
 // ════════════════════════════════════════
 let txs=[],accs=[],cats=[],goals=[],settings={};
-let screen='home',aiMsgs=[],aiTyping=false;
+let screen='home',aiTyping=false;
+// v6.1 — historique chat persistant (max 50 msgs, 30 jours)
+let aiMsgs = (()=>{
+  try{
+    const raw = localStorage.getItem('ivy_chat_history');
+    if(!raw) return [];
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed)) return [];
+    const cutoff = Date.now() - 30*24*3600*1000;
+    return parsed.filter(m => !m.ts || m.ts > cutoff).slice(-50);
+  }catch(e){ return []; }
+})();
+function saveChatHistory(){
+  try{
+    const toSave = aiMsgs.slice(-50).map(m => ({...m, ts: m.ts || Date.now()}));
+    localStorage.setItem('ivy_chat_history', JSON.stringify(toSave));
+  }catch(e){}
+}
 let txFilter='all',searchQ='';
 
 async function loadAll(){
@@ -3416,14 +3433,39 @@ async function quickCatchupAdd(catId, estimatedAmt){
 // ════════════════════════════════════════
 function updateOnlineStatus(){
   const on=navigator.onLine;
+  const hasKey=!!getGroqKey();
   const fab=$('aiFab');
   if(fab){
-    const hasKey=!!getGroqKey();
     if(on && hasKey){fab.classList.remove('off');fab.title=t('ai_online')}
     else{fab.classList.add('off');fab.title=on?t('ai_nokey')||t('ai_offline'):t('ai_offline')}
   }
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
+  // v6.1 — mise à jour dynamique sans re-render
+  const badge=document.getElementById('homeAIBadge');
+  if(badge){
+    const isGroq=on && hasKey;
+    badge.textContent=isGroq?'GROQ AI':'LOCAL';
+    badge.style.color=isGroq?'var(--acc3)':'var(--ylw)';
+    badge.style.background=isGroq?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)';
+  }
+  const aiStatusDot=document.getElementById('aiOnlineStatus');
+  if(aiStatusDot){
+    aiStatusDot.textContent='● '+(on?t('ai_online'):t('ai_offline'));
+    aiStatusDot.style.color=on?'var(--grn)':'var(--org)';
+  }
+  const aiChatBadge=document.getElementById('aiChatBadge');
+  if(aiChatBadge){
+    aiChatBadge.textContent=on?'Groq AI':t('ai_local');
+    aiChatBadge.style.color=on?'var(--grn)':'var(--org)';
+  }
+  const aiChatFooter=document.getElementById('aiChatFooter');
+  if(aiChatFooter){
+    aiChatFooter.textContent=t('ai_data_local')+' · '+(on?t('ai_via_groq'):t('ai_via_local'));
+  }
+  if(on && hasKey && screen==='home'){
+    setTimeout(()=>{ try{ maybeAutoInsight(); }catch(e){} }, 800);
+  }
 }
 
 // === v4.13 Fetch wrapper with error handling ===
@@ -3520,8 +3562,25 @@ window.addEventListener('unhandledrejection', (event) => {
   event.preventDefault();
 });
 
-window.addEventListener('online',()=>{try{updateOnlineStatus();haptic(15);if(typeof maybeAutoInsight==='function')maybeAutoInsight()}catch(e){}});
-window.addEventListener('offline',()=>{try{updateOnlineStatus();haptic([10,40,10])}catch(e){}});
+window.addEventListener('online',()=>{
+  try{
+    updateOnlineStatus(); haptic(15);
+    if(screen==='home' && typeof maybeAutoInsight==='function'){
+      _lastInsightTime=0;
+      maybeAutoInsight();
+    }
+  }catch(e){}
+});
+window.addEventListener('offline',()=>{
+  try{
+    updateOnlineStatus(); haptic([10,40,10]);
+    if(screen==='home' && typeof buildOfflineInsight==='function'){
+      const local=buildOfflineInsight();
+      _lastInsight=local; _lastInsightSource='offline';
+      if(typeof updateInsightUI==='function') updateInsightUI(local);
+    }
+  }catch(e){}
+});
 
 // ════════════════════════════════════════
 // AI — GEMINI (hybrid local/cloud)
@@ -4183,30 +4242,51 @@ async function fetchHomeInsight(){
     return local;
   }
 }
+function updateInsightUI(txt){
+  const el = $('aiInsightBody');
+  if(!el || screen!=='home') return;
+  const badge = _lastInsightSource==='cloud'
+    ? '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">CLOUD</span>'
+    : '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(251,191,36,.18);color:var(--ylw);margin-right:6px;vertical-align:middle">LOCAL</span>';
+  el.innerHTML = badge+'💡 '+txt;
+  try{
+    const fab=document.querySelector('.aifab');
+    if(fab){
+      fab.style.opacity=_lastInsightSource==='cloud'?'1':'.78';
+      fab.setAttribute('data-source',_lastInsightSource);
+    }
+  }catch(e){}
+}
+async function checkRealConnectivity(){
+  try{
+    const k=getGroqKey(); if(!k) return false;
+    const r = await (typeof _origFetch==='function'?_origFetch:fetch)('https://api.groq.com/openai/v1/models', {
+      method:'HEAD',
+      headers:{'Authorization':'Bearer '+k},
+      signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    });
+    return r.ok || r.status === 401;
+  }catch(e){ return false; }
+}
 async function maybeAutoInsight(){
   if(screen!=='home') return;
   const el = $('aiInsightBody');
   if(!el) return;
-  // No data yet: show prompt instead of calling API
-  if(!txs.length){
-    el.innerHTML = t('no_tx_first');
+  if(!txs.length){ el.innerHTML = t('no_tx_first'); return; }
+  if(!getGroqKey()){
+    const local = buildOfflineInsight();
+    _lastInsight=local; _lastInsightTime=Date.now(); _lastInsightSource='offline';
+    updateInsightUI(local);
+    return;
+  }
+  if(!navigator.onLine){
+    const local = buildOfflineInsight();
+    _lastInsight=local; _lastInsightTime=Date.now(); _lastInsightSource='offline';
+    updateInsightUI(local);
     return;
   }
   const txt = await fetchHomeInsight();
-  if(txt && el && screen==='home'){
-    const badge = _lastInsightSource==='cloud'
-      ? '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">CLOUD</span>'
-      : '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(251,191,36,.18);color:var(--ylw);margin-right:6px;vertical-align:middle">LOCAL</span>';
-    el.innerHTML = badge+'💡 '+txt;
-    // Rétroaction visuelle ambiante sur le FAB IA
-    try{
-      const fab=document.querySelector('.aifab');
-      if(fab){
-        fab.style.opacity=_lastInsightSource==='cloud'?'1':'.78';
-        fab.setAttribute('data-source',_lastInsightSource);
-      }
-    }catch(e){}
-  }
+  if(txt) updateInsightUI(txt);
 }
 function openAIQuick(){
   if(!navigator.onLine){
@@ -4654,14 +4734,14 @@ function renderHome(){
 
   ${typeof renderNBACard==='function'?renderNBACard(kpi):''}
   <!-- AI INSIGHT (online only) -->
-  ${navigator.onLine && getGroqKey()?`<div class="ai-insight" onclick="openAIQuick()" style="cursor:pointer">
-    <div class="ai-h">✨ ${t('ai_assistant')} <span style="margin-left:auto;font-size:10px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0">${t('ai_tap_chat')}</span></div>
+  <div class="ai-insight" id="homeAICard" onclick="openAIQuick()" style="cursor:pointer">
+    <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${navigator.onLine && getGroqKey()?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)'};color:${navigator.onLine && getGroqKey()?'var(--acc3)':'var(--ylw)'}">${navigator.onLine && getGroqKey()?'GROQ AI':'LOCAL'}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
     <div style="margin-top:8px;display:flex;gap:6px">
       <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
       <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
     </div>
-  </div>`:''}  <!-- ALERTS -->
+  </div>  <!-- ALERTS -->
   <div class="card">
     <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
       <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
@@ -5522,7 +5602,7 @@ function renderAI(){
 
   return`
   <div class="stitle">${t('ai_title')}</div>
-  <div class="ssub" style="color:${isOnline?'var(--grn)':'var(--org)'}">● ${isOnline?t('ai_online'):t('ai_offline')}</div>
+  <div class="ssub" id="aiOnlineStatus" style="color:${isOnline?'var(--grn)':'var(--org)'}">● ${isOnline?t('ai_online'):t('ai_offline')}</div>
 
   ${pulseBanner}
 
@@ -5592,17 +5672,30 @@ function renderAI(){
     </div>`).join('')}
   </div>`:''}
   <div class="card">
-    <div class="ch">${t('ai_chat')} <span class="pill" style="color:${isOnline?'var(--grn)':'var(--org)'}">${isOnline?'Groq AI':t('ai_local')}</span></div>
+    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${isOnline?'var(--grn)':'var(--org)'}">${isOnline?'Groq AI':t('ai_local')}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
     <div class="chat" id="chatArea">
-      ${aiMsgs.length===0?`<div class="bub bai">${t('chat_default')}</div>`:''}
-      ${aiMsgs.map(m=>`<div class="bub ${m.r==='ai'?'bai':'bus'}">${m.c.replace(/\n/g,'<br>')}${m.src&&m.r==='ai'?`<div style="font-size:9px;color:var(--mut);margin-top:4px">${m.src}</div>`:''}</div>`).join('')}
+      ${(()=>{
+        if(!aiMsgs.length) return `<div class="bub bai">${t('chat_default')}</div>`;
+        let lastDate=null;
+        return aiMsgs.map(m=>{
+          const msgDate = m.ts ? new Date(m.ts).toDateString() : null;
+          let sep='';
+          if(msgDate && msgDate!==lastDate){
+            const isToday = msgDate === new Date().toDateString();
+            const label = isToday ? L("Aujourd'hui","Today","Hoy","Hoje") : new Date(m.ts).toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short'});
+            sep = `<div style="text-align:center;font-size:10px;color:var(--mut);padding:6px 0;margin:4px 0;border-top:1px solid var(--brd)">${label}</div>`;
+            lastDate = msgDate;
+          }
+          return sep + `<div class="bub ${m.r==='ai'?'bai':'bus'}">${m.c.replace(/\n/g,'<br>')}${m.src&&m.r==='ai'?`<div style="font-size:9px;color:var(--mut);margin-top:4px">${m.src}</div>`:''}</div>`;
+        }).join('');
+      })()}
       ${aiTyping?'<div class="bub bai ald"><div class="add"></div><div class="add"></div><div class="add"></div></div>':''}
     </div>
     <div class="cirow">
       <input type="text" id="chatInput" class="fi" placeholder="${t('chat_ph')}" autocomplete="off">
       <button class="sbtn" id="sendBtn"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
-    <div style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${isOnline?t('ai_via_groq'):t('ai_via_local')}</div>
+    <div id="aiChatFooter" style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${isOnline?t('ai_via_groq'):t('ai_via_local')}</div>
   </div>
 
   <!-- QUICK Q — contextuels selon l'état réel -->
@@ -5636,10 +5729,12 @@ function setupChat(){
   async function send(){
     const q=ci.value.trim();if(!q||aiTyping)return;
     ci.value='';
-    aiMsgs.push({r:'user',c:q});aiTyping=true;render();
-    try{const res=await askAI(q);aiMsgs.push({r:'ai',c:res.text,src:res.src})}
-    catch(e){aiMsgs.push({r:'ai',c:localAI(q),src:'Local'})}
-    aiTyping=false;render();
+    aiMsgs.push({r:'user',c:q,ts:Date.now()});aiTyping=true;render();
+    try{const res=await askAI(q);aiMsgs.push({r:'ai',c:res.text,src:res.src,ts:Date.now()})}
+    catch(e){aiMsgs.push({r:'ai',c:localAI(q),src:'Local',ts:Date.now()})}
+    aiTyping=false;
+    saveChatHistory();
+    render();
   }
   sb.onclick=send;
   ci.onkeydown=e=>{if(e.key==='Enter')send()};

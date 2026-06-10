@@ -23,7 +23,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="6.2.0">
+<meta name="version" content="6.3.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -3778,6 +3778,44 @@ async function buildCtx(){
       résumé:moodSummary,
       alerteStressFinancier:alerteStressFinancier,
     },
+    // ── FLUX DE REVENUS / ENTRÉES (symétrie revenus↔dépenses — v6.3) ──
+    fluxRevenus:(()=>{
+      const incTxs=txs.filter(t=>t.type==='income').sort((a,b)=>new Date(b.date)-new Date(a.date));
+      const lastInc=incTxs[0]||null;
+      const joursDepuisDernierRevenu=lastInc?Math.floor((now-new Date(lastInc.date))/86400000):null;
+      const incToday=todayTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+      const expMonth=k.expense||0, incMonth=k.income||0;
+      const netMois=incMonth-expMonth;
+      const cyc=k.cycleContext||null;
+      const dernieresEntrees=incTxs.slice(0,5).map(t=>({
+        date:new Date(t.date).toISOString().slice(0,10),
+        montant:t.amount,
+        categorie:catById(t.categoryId).name,
+        note:t.note||'',
+      }));
+      return {
+        aucunRevenuEnregistre:incTxs.length===0,
+        nbEntreesTotal:incTxs.length,
+        revenuRecuAujourdhui:incToday,
+        aEuRevenuAujourdhui:incToday>0,
+        dernierRevenuDate:lastInc?new Date(lastInc.date).toISOString().slice(0,10):'jamais',
+        dernierRevenuMontant:lastInc?lastInc.amount:0,
+        joursDepuisDernierRevenu:joursDepuisDernierRevenu!==null?joursDepuisDernierRevenu:'N/A',
+        revenuCeMois:incMonth,
+        depenseCeMois:expMonth,
+        netCeMois:netMois,
+        statutNet:netMois>=0?'POSITIF — tu épargnes ce mois':'NÉGATIF — tu dépenses plus que tu ne gagnes',
+        revenu30j:k.inc30||0,
+        depense30j:k.exp30||0,
+        tauxRetention:k.retention!==null?k.retention+'%':'N/A',
+        revenusAttendus7j:k.expectedIncome7d||0,
+        prochainRevenuAttenduDansJours:cyc&&cyc.daysToNextExpected!=null?cyc.daysToNextExpected:'inconnu',
+        montantProchainRevenuAttendu:cyc&&cyc.expectedCycleIncome?cyc.expectedCycleIncome:0,
+        retardRevenuJours:cyc&&cyc.missedDays?cyc.missedDays:0,
+        dernieresEntrees,
+        RAPPEL_IVY:'Tu DOIS raisonner sur les ENTRÉES autant que sur les sorties. Si aucun revenu récent, le vrai risque est le manque de rentrée, pas seulement la dépense. Si un revenu vient d\'arriver, protège-le (évaporation). Ne juge JAMAIS une situation sans regarder le solde entrées−sorties.',
+      };
+    })(),
     devise:cur(),
     objectifPrioritaire,
     tousLesObjectifs:allGoals,
@@ -3977,6 +4015,7 @@ H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dép
 13. COMPTES PRÉCIS: Ne confonds JAMAIS épargne et disponible. Cite toujours: 'X disponible (+ Y en épargne verrouillée)'. Ne somme JAMAIS les deux pour parler de 'ce que tu as'.
 14. TRANSACTIONS PRÉCISES: Tu as les 50 dernières tx dans flux50dernieresTx. Cite-les factuellement: 'Ta dépense de ce matin: X XAF - Alimentation.' Ne généralise pas quand les faits sont là.
 15. PARAMÈTRES: Tu connais les objectifs, catégories, comptes réels de l'utilisateur. Réponds SPÉCIFIQUEMENT à sa situation, pas en mode coach générique.
+16. REVENUS / ENTRÉES (OBLIGATOIRE): Le bloc "fluxRevenus" te donne les entrées (dernier revenu, jours depuis, net du mois, prochain revenu attendu). Tu DOIS raisonner symétriquement: dépenses ET revenus. Si "aucunRevenuEnregistre"=true → le problème prioritaire est l'absence de rentrée, dis-le. Si "aEuRevenuAujourdhui"=true → ne dis JAMAIS qu'il n'y a pas eu d'entrée; commente la rétention/évaporation. Si "joursDepuisDernierRevenu" est élevé, alerte sur le tarissement des entrées. Cite toujours le net (entrées−sorties) avant de juger.
 
 Tu es la voix qui empêche cette personne de mourir médiocre.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
@@ -8497,40 +8536,68 @@ window.renderProjectionCard = function renderProjectionCard(kpi, period){
     const STEPS = proj.steps;
     const unitLabel = period==='day' ? 'H' : 'J';
     const W=300, H=80, pad=8;
-    const vals = proj.series.map(p=>p.solde);
-    const minV = Math.min(0, ...vals), maxV = Math.max(0, ...vals, proj.start);
+    // v6.3 — projection enrichie : scénario central + bande pessimiste/optimiste + événements prédits
+    const base = proj.series.map(p=>p.solde);
+    const burnU = Math.max(1, (kpi && kpi.burnRate) || Math.abs((base[STEPS-1]-proj.start)/(STEPS||1)) || 1);
+    const spread = (i)=> burnU*0.4*(i+1); // incertitude cumulée
+    const pess = base.map((v,i)=> v - spread(i));
+    const opt  = base.map((v,i)=> v + spread(i));
+    const vals = [...base, ...pess, ...opt, proj.start, 0];
+    const minV = Math.min(...vals), maxV = Math.max(...vals);
     const range = (maxV-minV)||1;
     const xs = (i)=> pad + (i/((STEPS-1)||1))*(W-2*pad);
     const ys = (v)=> pad + (1 - (v-minV)/range)*(H-2*pad);
     const yZero = ys(0);
-    let line='';
-    proj.series.forEach((p,i)=>{
-      const x = xs(i), y = ys(p.solde);
-      line += (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' ';
-    });
+    const toPath = (arr)=> arr.map((v,i)=> (i===0?'M':'L')+xs(i).toFixed(1)+','+ys(v).toFixed(1)+' ').join('');
+    const line = toPath(base);
+    const pessLine = toPath(pess);
+    const optLine = toPath(opt);
+    // Bande de confiance (entre optimiste et pessimiste)
+    let band = 'M';
+    opt.forEach((v,i)=>{ band += (i===0?'':'L')+xs(i).toFixed(1)+','+ys(v).toFixed(1)+' '; });
+    for(let i=STEPS-1;i>=0;i--){ band += 'L'+xs(i).toFixed(1)+','+ys(pess[i]).toFixed(1)+' '; }
+    band += 'Z';
     let negArea = '';
-    proj.series.forEach((p,i)=>{
+    base.forEach((v,i)=>{
       const x = xs(i);
-      if(p.solde<0){
-        const y = ys(p.solde);
-        negArea += (negArea===''?'M':'L')+x.toFixed(1)+','+yZero.toFixed(1)+' L'+x.toFixed(1)+','+y.toFixed(1)+' ';
-      }
+      if(v<0){ negArea += (negArea===''?'M':'L')+x.toFixed(1)+','+yZero.toFixed(1)+' L'+x.toFixed(1)+','+ys(v).toFixed(1)+' '; }
     });
+    // Événements prédits : revenus (▲ vert) et dépenses (● rouge), avec libellé montant
     const markers = proj.series.map((p,i)=>{
       let m='';
-      if(p.incEvent) m += `<polygon points="${xs(i)},${ys(p.solde)-5} ${xs(i)-3},${ys(p.solde)+1} ${xs(i)+3},${ys(p.solde)+1}" fill="var(--grn)"/>`;
-      if(p.expEvent) m += `<circle cx="${xs(i)}" cy="${ys(p.solde)}" r="2.5" fill="var(--red)"/>`;
+      if(p.incEvent){
+        const amt=proj.incomeEvents[i]||0;
+        m += `<polygon points="${xs(i)},${(ys(p.solde)-6).toFixed(1)} ${(xs(i)-4).toFixed(1)},${(ys(p.solde)+1).toFixed(1)} ${(xs(i)+4).toFixed(1)},${(ys(p.solde)+1).toFixed(1)}" fill="var(--grn)"/>`;
+        if(amt) m += `<text x="${xs(i).toFixed(1)}" y="${(ys(p.solde)-8).toFixed(1)}" fill="var(--grn)" font-size="7" text-anchor="middle" font-family="var(--mono)">+${Math.round(amt/1000)}k</text>`;
+      }
+      if(p.expEvent){
+        const amt=proj.expenseEvents[i]||0;
+        m += `<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.solde).toFixed(1)}" r="2.6" fill="var(--red)"/>`;
+        if(amt) m += `<text x="${xs(i).toFixed(1)}" y="${(ys(p.solde)+12).toFixed(1)}" fill="var(--red)" font-size="7" text-anchor="middle" font-family="var(--mono)">-${Math.round(amt/1000)}k</text>`;
+      }
       return m;
     }).join('');
-    const negDay = proj.series.findIndex(p=>p.solde<0);
+    const nbInc = Object.keys(proj.incomeEvents||{}).length;
+    const nbExp = Object.keys(proj.expenseEvents||{}).length;
+    const negDay = base.findIndex(v=>v<0);
     const negAlert = (negDay>=0 && negDay<Math.ceil(STEPS/2)) ? `<div class="al al-d" style="margin-top:8px">⚠️ ${T('projection_alert').replace('{n}',negDay)}</div>` : '';
-    const finalSolde = proj.series[STEPS-1].solde;
+    const finalSolde = base[STEPS-1];
+    const finalPess = pess[STEPS-1], finalOpt = opt[STEPS-1];
     const shortBanner = (kpi && kpi.isShortHistory) ? `<div class="tm" style="font-size:10px;margin-top:6px;font-style:italic">📊 ${L('Basé sur '+kpi.dataDays+'j — projection indicative.','Based on '+kpi.dataDays+'d — indicative projection.','Basado en '+kpi.dataDays+'d — proyección indicativa.','Baseado em '+kpi.dataDays+'d — projeção indicativa.')}</div>` : '';
+    const legend = `<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:9px;color:var(--mut);margin-top:6px">
+      <span><span style="display:inline-block;width:10px;height:2px;background:var(--acc3);vertical-align:middle"></span> ${L('Scénario central','Central scenario','Escenario central','Cenário central')}</span>
+      <span><span style="display:inline-block;width:10px;height:8px;background:rgba(99,102,241,.18);vertical-align:middle"></span> ${L('Marge basse↔haute','Low↔high range','Margen bajo↔alto','Margem baixa↔alta')}</span>
+      <span style="color:var(--grn)">▲ ${L('Revenu prévu','Predicted income','Ingreso previsto','Receita prevista')} (${nbInc})</span>
+      <span style="color:var(--red)">● ${L('Dépense prévue','Predicted expense','Gasto previsto','Despesa prevista')} (${nbExp})</span>
+    </div>`;
     return `<div class="card">
       <div class="ch">📈 ${T('projection_title').toUpperCase()} · ${unitLabel}+${STEPS}</div>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
         <line x1="${pad}" y1="${yZero}" x2="${W-pad}" y2="${yZero}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+        <path d="${band}" fill="rgba(99,102,241,.14)" stroke="none"/>
         <path d="${negArea}" fill="rgba(239,68,68,.15)"/>
+        <path d="${optLine}" fill="none" stroke="var(--grn)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>
+        <path d="${pessLine}" fill="none" stroke="var(--red)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>
         <path d="${line}" fill="none" stroke="var(--acc3)" stroke-width="2" stroke-linejoin="round"/>
         ${markers}
       </svg>
@@ -8538,6 +8605,8 @@ window.renderProjectionCard = function renderProjectionCard(kpi, period){
         <span>${unitLabel}+0 : ${fmtFull(proj.start)}</span>
         <span style="color:${finalSolde>=0?'var(--grn)':'var(--red)'};font-weight:700">${unitLabel}+${STEPS} : ${fmtFull(finalSolde)}</span>
       </div>
+      <div style="font-size:9px;color:var(--mut);margin-top:2px;text-align:right">${L('fourchette','range','rango','intervalo')}: ${fmtFull(finalPess)} → ${fmtFull(finalOpt)}</div>
+      ${legend}
       ${shortBanner}
       ${negAlert}
     </div>`;

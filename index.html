@@ -3642,7 +3642,7 @@ async function buildCtx(){
     : 'Aucune donnée d\'humeur enregistrée';
 
   // ── 50 dernières transactions avec métadonnées comportementales ──
-  const recentRaw=txs.slice(0,50).map(t=>{
+  const recentRaw=txs.slice(0,15).map(t=>{
     const d=new Date(t.date);
     return{
       montant:t.amount,
@@ -3751,7 +3751,7 @@ async function buildCtx(){
       rythmeAutorise:Math.round(comport.rythmeAutorise),
       tamponAmortissement:Math.round(comport.tamponAmortissement),
       messageContextuel:comport.messageContextuel||'aucun',
-      transactionsAvecContexteSemantique:txs.slice(0,10).filter(tx=>tx.semantique).map(tx=>({
+      transactionsAvecContexteSemantique:txs.slice(0,5).filter(tx=>tx.semantique).map(tx=>({
         montant:tx.amount,
         type:tx.type,
         categorieStyle:tx.semantique?.categorieStyle,
@@ -3798,7 +3798,7 @@ async function buildCtx(){
       const expMonth=k.expense||0, incMonth=k.income||0;
       const netMois=incMonth-expMonth;
       const cyc=k.cycleContext||null;
-      const dernieresEntrees=incTxs.slice(0,5).map(t=>({
+      const dernieresEntrees=incTxs.slice(0,3).map(t=>({
         date:new Date(t.date).toISOString().slice(0,10),
         montant:t.amount,
         categorie:catById(t.categoryId).name,
@@ -3824,7 +3824,7 @@ async function buildCtx(){
         montantProchainRevenuAttendu:cyc&&cyc.expectedCycleIncome?cyc.expectedCycleIncome:0,
         retardRevenuJours:cyc&&cyc.missedDays?cyc.missedDays:0,
         dernieresEntrees,
-        RAPPEL_IVY:'Tu DOIS raisonner sur les ENTRÉES autant que sur les sorties. Si aucun revenu récent, le vrai risque est le manque de rentrée, pas seulement la dépense. Si un revenu vient d\'arriver, protège-le (évaporation). Ne juge JAMAIS une situation sans regarder le solde entrées−sorties.',
+        RAPPEL_IVY:'Raisonner symétriquement: dépenses ET revenus. Net=entrées−sorties.',
       };
     })(),
     devise:cur(),
@@ -3865,7 +3865,7 @@ async function buildCtx(){
     }:{note:'Analyse chronologique impossible — moins de 3 transactions disponibles'},
     effetDomino:dominoEvents.length?dominoEvents:[],
     motsClesNotes:topKeywords.length?topKeywords:[],
-    flux50dernieresTx:recentRaw,
+    flux15dernieresTx:recentRaw,
     statsTotales:{
       nbTransactions:txs.length,
       nbCategoriesUtilisees:Object.keys(catTotals).length,
@@ -3881,12 +3881,7 @@ async function buildCtx(){
       notesAujourdhui:txs.filter(tx=>{
         return new Date(tx.date).toDateString()===new Date().toDateString()&&tx.note&&tx.note.length>1;
       }).map(tx=>({note:tx.note,montant:tx.amount,categorie:catById(tx.categoryId).name,type:tx.type})),
-      alimentationAujourdhui:{
-        count:txs.filter(tx=>{const d=new Date(tx.date);return d.toDateString()===new Date().toDateString()&&tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger|snack/i.test(tx.note||''))}).length,
-        total:txs.filter(tx=>{const d=new Date(tx.date);return d.toDateString()===new Date().toDateString()&&tx.type==='expense'&&(tx.categoryId==='food'||/repas|resto|déj|dîner|manger|pizza|burger|snack/i.test(tx.note||''))}).reduce((s,tx)=>s+tx.amount,0),
-      },
-      motsClesFrequents:topKeywords,
-      dernièresNotes:txs.filter(tx=>tx.note&&tx.note.length>1).slice(0,10).map(tx=>({
+      dernièresNotes:txs.filter(tx=>tx.note&&tx.note.length>1).slice(0,5).map(tx=>({
         date:new Date(tx.date).toISOString().slice(0,10),
         note:tx.note,
         montant:tx.amount,
@@ -3991,44 +3986,19 @@ ${aucuneDonnee
   : 'Données fraîches disponibles.'
 }
 
-═══ MOTEUR ADAPTATIF v4.14 — ANTI-PANIQUE ═══
-${(()=>{try{
-  const comport=analyserComportementFinancier();
-  const medRev=comport.medRev;const medDep=comport.medDep;
-  return `PROFIL COMPORTEMENTAL: ${comport.profilEtat}
-Revenu médian hebdo (4 sem): ${Math.round(medRev)} ${cur()} | Dépense médiane hebdo: ${Math.round(medDep)} ${cur()}
-RÈGLE ANTI-PANIQUE: Si un revenu dépasse 2.5× la médiane, il est EXCEPTIONNEL — ne projette PAS un nouveau rythme de vie. Si les dépenses essentielles baissent de >40%, c'est une restriction volontaire — ne félicite PAS sans vérifier l'équilibre physique. Si pic de plaisir >120% médiane, amortis sur 4 semaines — ne crie PAS à la catastrophe.
-${comport.profilEtat!=='NORMAL'?'MESSAGE CONTEXTUEL ACTIF: '+comport.messageContextuel:''}`;
-}catch(e){return 'Moteur adaptatif: initialisation en cours';}})()}
+PROFIL: ${(()=>{try{const c=analyserComportementFinancier();return c.profilEtat+(c.profilEtat!=='NORMAL'?' — '+c.messageContextuel:'');}catch(e){return 'N/A';}})()}
 
-═══ RÈGLES ANTI-HALLUCINATION (INVIOLABLES) ═══
-H1. JAMAIS inventer ou supposer des dépenses qui ne sont pas dans les données. Si le champ "depensesNocturnes" dit "Données insuffisantes", tu NE PARLES PAS de dépenses nocturnes.
-H2. L'heure actuelle est ${heurePourPrompt}h. Ne parle PAS de comportement nocturne si nous sommes le matin ou l'après-midi. Adapte tout ton discours au moment réel.
-H3. Si "analyseChronologiqueValide" = NON dans les données, ne tire AUCUNE conclusion comportementale sur les heures de dépense.
-H4. Si les données sont vides ou silencieuses, ne fabrique pas de chiffres. L'honnêteté sur l'absence de données est plus utile que l'invention.
-H5. Si "aucuneTransactionJamais" = true ou "aucuneSaisieAujourdhui" = true, NE parle PAS de "tes dépenses aujourd'hui" comme si elles existaient.
-H6. NOUVEAU v4.14: Si une transaction a classificationRevenu="EXCEPTIONNEL", mentionne que c'est exceptionnel et ne recalcule PAS le rythme de vie à la hausse.
-H7. NOUVEAU v4.14: Si semantique.chargeEmotionnelle="pression_subie", cette dépense était une urgence — ne la compte PAS comme impulsion dopaminergique.
+RÈGLES (inviolables):
+A. Ne cite QUE des chiffres présents dans les données. Jamais inventer.
+B. COMPTE_ACTIF = dépensable. EPARGNE_VERROUILLEE = intouchable.
+C. Raisonner entrées ET sorties. Le net (revenu−dépense) prime tout.
+D. Si "aucunRevenuEnregistre"=true → priorité = manque de rentrée, pas dépenses.
+E. 4 phrases max. 1 seul emoji (⚡/🎯/🔥). ${langInstruction}
+F. Structure: chiffre précis → impact en jours sur objectif → 1 action concrète.
+G. Besoin vital (repas/transport/santé) = jamais qualifié d'impulsion.
+H. Si silence >2j sans saisie → interroger l'évitement avant l'analyse.
 
-═══ RÈGLES COMPORTEMENTALES ═══
-1. Tu connais leurs OBJECTIFS DE VIE ("objectifPrioritaire" + "tousLesObjectifs"). Juge chaque dépense contre ces rêves.
-2. CONSCIENCE DES COMPTES: COMPTE_ACTIF = argent disponible. EPARGNE_VERROUILLEE = sacré, intouchable sans raison explicite.
-3. CONSCIENCE DES CATÉGORIES: référence uniquement les catégories réelles de "toutesLesCategories". N'invente jamais de catégorie.
-4. DIRECT ET NON FILTRÉ. Nomme la trahison quand elle existe, avec les chiffres exacts.
-5. LOGIQUE, PAS ÉMOTIONNEL: chaque affirmation doit tracer vers un nombre dans les données.
-6. Tu n'es PAS méchant — tu es LOYAL à leur futur. Brutal mais pas cruel.
-7. Quantifie l'IMPACT en JOURS sur l'objectif prioritaire. Si pas d'objectif, force à en créer un.
-8. NEUROSCIENCE comme armure: nomme le biais (dopamine, fatigue décisionnelle, aversion à la perte, effet domino).
-9. Si "alerteStressFinancier" = true dans analyseHumeur, aborde l'état émotionnel AVANT les chiffres.
-10. STRUCTURE: (a) ce que tu vois — données précises, (b) la trahison ou la victoire en jours d'objectif, (c) UN ordre concret pour aujourd'hui.
-11. 4-6 phrases max. Un seul emoji autorisé comme signature (⚡, 🎯, 🔥). ${langInstruction} Zéro jargon.
-12. NOTES SÉMANTIQUES: Quand une transaction a une note ('pizza', 'transport école', 'médicament'), juge si c'était nécessaire. Besoin primaire (manger, transport, santé, école) → ne blâme PAS mais questionne fréquence/montant. Plaisir → interroge l'impulsion avec respect. Urgence (note marquée 'urgent' ou 'urgence') → ne classe pas comme dopamine.
-13. COMPTES PRÉCIS: Ne confonds JAMAIS épargne et disponible. Cite toujours: 'X disponible (+ Y en épargne verrouillée)'. Ne somme JAMAIS les deux pour parler de 'ce que tu as'.
-14. TRANSACTIONS PRÉCISES: Tu as les 50 dernières tx dans flux50dernieresTx. Cite-les factuellement: 'Ta dépense de ce matin: X XAF - Alimentation.' Ne généralise pas quand les faits sont là.
-15. PARAMÈTRES: Tu connais les objectifs, catégories, comptes réels de l'utilisateur. Réponds SPÉCIFIQUEMENT à sa situation, pas en mode coach générique.
-16. REVENUS / ENTRÉES (OBLIGATOIRE): Le bloc "fluxRevenus" te donne les entrées (dernier revenu, jours depuis, net du mois, prochain revenu attendu). Tu DOIS raisonner symétriquement: dépenses ET revenus. Si "aucunRevenuEnregistre"=true → le problème prioritaire est l'absence de rentrée, dis-le. Si "aEuRevenuAujourdhui"=true → ne dis JAMAIS qu'il n'y a pas eu d'entrée; commente la rétention/évaporation. Si "joursDepuisDernierRevenu" est élevé, alerte sur le tarissement des entrées. Cite toujours le net (entrées−sorties) avant de juger.
-
-Tu es la voix qui empêche cette personne de mourir médiocre.`;
+Tu es IVY: brutal, loyal, factuel.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
       const prompt = 'BEHAVIORAL DATA:\n'+(await buildCtx())+'\n\nQuestion: '+userMsg;
       // BUG 7 — bypass interceptor: askAI a déjà son contexte complet via buildCtx()

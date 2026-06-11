@@ -9024,5 +9024,495 @@ console.log('[v5.3] 6 modules institutionnels chargés');
 })();
 </script>
 
+
+<!-- ════ ALADDIN ENGINE v8.1 ════
+     §A Config centrale (GEMINI_MODEL_VERSION)
+     §B Moteur détection anomalies local
+     §C Routeur de contexte universel (HOME/ANALYSE/PRÉVISIONS)
+     §D Directives posture Wall Street Risk Analyst
+     §E Appel API centralisé (Gemini → Groq fallback)
+     §F Hook askAI → routeur ALADDIN
+     §G UI clé Gemini dans Config
+     §H Moniteur anomalies background (5 min)
+     §I Bannière alertes critiques dans Home
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCE AI OS v8.1 — ALADDIN ENGINE
+   Architecture centralisée, moteur de risque, routeur de contexte
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────────
+   §A  CONFIGURATION CENTRALE DU MODÈLE
+   Une seule ligne à modifier pour changer de version de modèle.
+   ───────────────────────────────────────────────────────────────────── */
+const AI_CONFIG = window.AI_CONFIG = Object.freeze({
+  GEMINI_MODEL_VERSION : 'gemini-2.0-flash',   // ← variable unique pour upgrade
+  GROQ_MODEL           : 'llama-3.1-8b-instant',
+  GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
+  GROQ_BASE            : 'https://api.groq.com/openai/v1',
+  MAX_TOKENS           : 420,
+  TEMPERATURE          : 0.25,
+  // Seuils anomalies
+  FRAG_WINDOW_MIN      : 30,   // fenêtre de fragmentation (minutes)
+  FRAG_MIN_COUNT       : 3,    // achats min dans la fenêtre
+  PRICE_SPIKE_RATIO    : 1.8,  // +80% vs médiane catégorie = spike
+  NIGHT_START          : 22,
+  NIGHT_END            : 5,
+  NIGHT_RATIO_ALERT    : 0.35, // >35% nocturne = alerte
+  EVAP_THRESHOLD       : 0.60, // >60% revenu en 48h = évaporation
+});
+
+/* ─────────────────────────────────────────────────────────────────────
+   §B  MOTEUR DE DÉTECTION D'ANOMALIES LOCAL
+   Tourne en arrière-plan. Résultat injecté en tête de TOUT prompt.
+   ───────────────────────────────────────────────────────────────────── */
+function detectAnomalies() {
+  const anomalies = [];
+  try {
+    const safe  = (fn,d) => { try{return fn();}catch(_){return d;} };
+    const cur_  = () => safe(()=>window.cur(),'XAF');
+    const allTx = (window.txs||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const catN  = id => safe(()=>window.catById(id).name, id||'?');
+    const now   = Date.now();
+    const expenses = allTx.filter(t=>t.type==='expense');
+
+    /* B1 – Fragmentation (micro-achats rapides) */
+    const recentExp = expenses.filter(t => now-new Date(t.date).getTime() < 7*86400000);
+    const buckets   = {};
+    recentExp.forEach(t => {
+      const slot = Math.floor(new Date(t.date).getTime()/(AI_CONFIG.FRAG_WINDOW_MIN*60000));
+      (buckets[slot]=buckets[slot]||[]).push(t);
+    });
+    Object.values(buckets).forEach(grp => {
+      if(grp.length < AI_CONFIG.FRAG_MIN_COUNT) return;
+      const total = grp.reduce((s,t)=>s+t.amount,0);
+      const cats  = [...new Set(grp.map(t=>catN(t.categoryId)))];
+      anomalies.push({
+        type:'FRAGMENTATION', severity: grp.length>=5?'CRITIQUE':'MODÉRÉ',
+        message:`${grp.length} achats en ${AI_CONFIG.FRAG_WINDOW_MIN}min — total ${Math.round(total)} ${cur_()}`,
+        detail:`Catégories: ${cats.join(', ')}`,
+      });
+    });
+
+    /* B2 – Spike de prix sur même poste */
+    const catAmounts = {};
+    expenses.slice(0,60).forEach(t=>{
+      const n=catN(t.categoryId);
+      (catAmounts[n]=catAmounts[n]||[]).push(t.amount);
+    });
+    Object.entries(catAmounts).forEach(([cat,amts])=>{
+      if(amts.length<3) return;
+      const med = amts.slice().sort((a,b)=>a-b)[Math.floor(amts.length/2)];
+      const lat = amts[0];
+      if(lat <= med*AI_CONFIG.PRICE_SPIKE_RATIO) return;
+      anomalies.push({
+        type:'PRICE_SPIKE', severity: lat>med*3?'CRITIQUE':'MODÉRÉ',
+        message:`Hausse soudaine "${cat}": ${Math.round(lat)} vs médiane ${Math.round(med)} ${cur_()}`,
+        detail:`+${Math.round((lat/med-1)*100)}% vs habitude`,
+      });
+    });
+
+    /* B3 – Dépenses nocturnes anormales (30j) */
+    const last30exp = expenses.filter(t=>now-new Date(t.date).getTime()<30*86400000);
+    const nightExp  = last30exp.filter(t=>{ const h=new Date(t.date).getHours(); return h>=AI_CONFIG.NIGHT_START||h<AI_CONFIG.NIGHT_END; });
+    const totalAll  = last30exp.reduce((s,t)=>s+t.amount,0);
+    const nightTot  = nightExp.reduce((s,t)=>s+t.amount,0);
+    if(totalAll>0 && nightTot/totalAll > AI_CONFIG.NIGHT_RATIO_ALERT) {
+      anomalies.push({
+        type:'NIGHT_SPENDING', severity: nightTot/totalAll>0.5?'CRITIQUE':'MODÉRÉ',
+        message:`${Math.round(nightTot/totalAll*100)}% des dépenses sont nocturnes (${Math.round(nightTot)} ${cur_()}/30j)`,
+        detail:`${nightExp.length} tx après ${AI_CONFIG.NIGHT_START}h — fatigue décisionnelle + impulsion`,
+      });
+    }
+
+    /* B4 – Évaporation post-revenu */
+    const incTxs = allTx.filter(t=>t.type==='income').slice(0,3);
+    incTxs.forEach(inc => {
+      const t0 = new Date(inc.date).getTime();
+      const spent48h = expenses
+        .filter(t=>{ const ms=new Date(t.date).getTime()-t0; return ms>0&&ms<172800000; })
+        .reduce((s,t)=>s+t.amount,0);
+      const rate = inc.amount>0 ? spent48h/inc.amount : 0;
+      if(rate < AI_CONFIG.EVAP_THRESHOLD) return;
+      anomalies.push({
+        type:'EVAPORATION', severity: rate>0.9?'CRITIQUE':'MODÉRÉ',
+        message:`Évaporation ${Math.round(rate*100)}% du revenu en 48h (${Math.round(spent48h)}/${Math.round(inc.amount)} ${cur_()})`,
+        detail:`Biais de disponibilité: l'argent "nouveau" est dépensé immédiatement`,
+      });
+    });
+
+  } catch(e){ console.warn('[ALADDIN anomaly]',e); }
+  return anomalies;
+}
+window.detectAnomalies = detectAnomalies;
+
+/* ─────────────────────────────────────────────────────────────────────
+   §C  ROUTEUR DE CONTEXTE UNIVERSEL — prepareAIPayload(viewType, query)
+   Chaque mode reçoit exactement les données dont il a besoin, ni plus.
+   ───────────────────────────────────────────────────────────────────── */
+function prepareAIPayload(viewType, userQuery) {
+  const safe    = (fn,d)=>{ try{return fn();}catch(_){return d;} };
+  const cur_    = ()=>safe(()=>window.cur(),'XAF');
+  const allTx   = window.txs||[];
+  const accs_   = ()=>window.accs||[];
+  const goals_  = ()=>window.goals||[];
+  const k       = safe(()=>window.computeKPIs(),{});
+  const catN    = id=>safe(()=>window.catById(id).name,id||'?');
+  const now     = new Date();
+
+  const anomalies   = detectAnomalies();
+  let   contextData = {};
+  let   systemFocus = '';
+
+  switch(viewType) {
+
+    /* ── HOME : Réponses ultra-rapides ─────────────────────────────── */
+    case 'HOME': {
+      const activeBalance = accs_().filter(a=>a.type!=='savings').reduce((s,a)=>s+(a.balance||0),0);
+      const wd7 = allTx.filter(t=>t.type==='expense'&&now-new Date(t.date)<7*86400000).reduce((s,t)=>s+t.amount,0);
+      const weekIncome = (k.inc30||0)/4;
+      contextData = {
+        mode            : 'HOME',
+        soldeDisponible : Math.round(activeBalance),
+        budgetSemaineRestant: Math.round(Math.max(0, weekIncome-wd7)),
+        burnRateJour    : Math.round(k.burnRate||0),
+        dernieresTx     : allTx.slice(0,5).map(t=>({
+          montant:t.amount, type:t.type, cat:catN(t.categoryId),
+          note:(t.note||'').slice(0,30), heure:new Date(t.date).getHours()+'h',
+        })),
+        devise: cur_(),
+      };
+      systemFocus = 'Réponse ultra-courte (2 phrases max). Action immédiate. Statut du jour uniquement.';
+      break;
+    }
+
+    /* ── ANALYSE : Patterns, tendances, biais ─────────────────────── */
+    case 'ANALYSE': {
+      const period = safe(()=>window.analyticsPeriod,'month');
+      const ptxs   = safe(()=>window.getPeriodTxs?window.getPeriodTxs(period):allTx.slice(0,30),[]);
+      const depTotal= ptxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+      const catMap  = {};
+      ptxs.filter(t=>t.type==='expense').forEach(t=>{
+        const n=catN(t.categoryId); catMap[n]=(catMap[n]||0)+t.amount;
+      });
+      const topCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([c,v])=>({
+        cat:c, montant:Math.round(v), pct:depTotal>0?Math.round(v/depTotal*100):0,
+      }));
+      contextData = {
+        mode          : 'ANALYSE',
+        periode       : period,
+        totalDepenses : Math.round(depTotal),
+        totalRevenus  : Math.round(ptxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)),
+        topCategories : topCats,
+        nbTransactions: ptxs.length,
+        pressionVs30j : k.pressureIdx||0,
+        dopamineIndex : k.dopamineIdx||0,
+        devise        : cur_(),
+      };
+      systemFocus = 'Analyse macro. Identifie patterns, biais de fragmentation, catégories à risque. Compare vs habitudes. Vision stratégique.';
+      break;
+    }
+
+    /* ── PRÉVISIONS : Simulations mathématiques ────────────────────── */
+    case 'PRÉVISIONS': {
+      const activeBalance = accs_().filter(a=>a.type!=='savings').reduce((s,a)=>s+(a.balance||0),0);
+      const savingsBalance= accs_().filter(a=>a.type==='savings').reduce((s,a)=>s+(a.balance||0),0);
+      const burnRate  = k.burnRate||0;
+      const daysLeft  = new Date(now.getFullYear(),now.getMonth()+1,0).getDate()-now.getDate();
+      const j0        = burnRate>0 ? Math.floor(activeBalance/burnRate) : 999;
+      const incCycle  = safe(()=>window.ALADDIN?.detectIncomeCycle(),null);
+      contextData = {
+        mode                 : 'PRÉVISIONS',
+        soldeActif           : Math.round(activeBalance),
+        soldeEpargne         : Math.round(savingsBalance),
+        burnRateJour         : Math.round(burnRate),
+        joursAvantDecouvert  : j0===999?'∞':j0,
+        risque15j            : j0<15?'CRITIQUE':j0<30?'MODÉRÉ':'FAIBLE',
+        risque30j            : j0<30?'CRITIQUE':'FAIBLE',
+        joursRestantsMois    : daysLeft,
+        soldeProjecteFin     : Math.round(activeBalance-burnRate*daysLeft),
+        cycleRevenu          : incCycle?{dans:incCycle.daysToNextExpected,montant:incCycle.expectedCycleIncome}:'non détecté',
+        objectifs            : goals_().map(g=>({nom:g.name,cible:g.target,epargne:g.saved||0,pct:g.target?Math.round(((g.saved||0)/g.target)*100):0})),
+        devise               : cur_(),
+      };
+      systemFocus = 'Simulation mathématique prospective. Calcule risques découvert 15j/30j avec chiffres précis. Stratégies préventives d\'épargne concrètes.';
+      break;
+    }
+
+    default:
+      contextData = { mode:viewType }; systemFocus = 'Analyse financière générale.';
+  }
+
+  return { contextData, anomalies, systemFocus, query:userQuery };
+}
+window.prepareAIPayload = prepareAIPayload;
+
+/* ─────────────────────────────────────────────────────────────────────
+   §D  DIRECTIVES DE POSTURE ALADDIN (Wall Street Risk Analyst)
+   ───────────────────────────────────────────────────────────────────── */
+function buildAladdinSystemPrompt(payload) {
+  const { contextData, anomalies, systemFocus } = payload;
+  const lang = (()=>{ try{return window._lang||'fr';}catch(_){return 'fr';} })();
+  const langNote = lang!=='fr'?`\nLangue de réponse: ${lang}.\n`:'';
+
+  /* Bloc anomalies — priorité absolue en tête du prompt */
+  const hasCritique = anomalies.some(a=>a.severity==='CRITIQUE');
+  let anomalyBlock = '';
+  if(anomalies.length>0){
+    anomalyBlock = `
+⚡ ANOMALIES DÉTECTÉES (PRIORITÉ ABSOLUE — analyse en premier):
+${anomalies.filter(a=>a.severity==='CRITIQUE').map(a=>`🔴 [CRITIQUE-${a.type}] ${a.message} — ${a.detail}`).join('\n')}
+${anomalies.filter(a=>a.severity==='MODÉRÉ').map(a=>`🟡 [MODÉRÉ-${a.type}] ${a.message} — ${a.detail}`).join('\n')}
+`;
+  }
+
+  /* Format de réponse strict */
+  const formatBlock = `
+FORMAT STRICT (respecte TOUJOURS cette structure):
+${hasCritique?'[⚠️ ALERTE CRITIQUE]\n<anomalie critique en 1 phrase chiffrée>\n\n':''}[État Rapide]
+<situation actuelle en 1-2 phrases — chiffres exacts du JSON>
+
+[Action]
+<1 conseil micro-comportemental précis et immédiatement actionnable>`;
+
+  return `Tu es ALADDIN — moteur de risque financier personnel. Style: analyste de risques Wall Street.
+Impitoyable sur les chiffres. Bienveillant sur l'humain. Pas de jargon inutile.
+RÈGLES ABSOLUES: TUTOIEMENT. Chiffres exacts issus du JSON uniquement. Zéro invention.${langNote}
+${anomalyBlock}
+${formatBlock}
+
+FOCUS MODE: ${systemFocus}
+DONNÉES: ${JSON.stringify(contextData)}`;
+}
+window.buildAladdinSystemPrompt = buildAladdinSystemPrompt;
+
+/* ─────────────────────────────────────────────────────────────────────
+   §E  APPEL API CENTRALISÉ — Gemini prioritaire, Groq en fallback
+   ───────────────────────────────────────────────────────────────────── */
+async function callAladdinAI(viewType, userQuery) {
+  const payload  = prepareAIPayload(viewType, userQuery);
+  const sysPmt   = buildAladdinSystemPrompt(payload);
+  const fetch_   = window._origFetch || window.fetch;
+  const msgs     = [{role:'system',content:sysPmt},{role:'user',content:userQuery}];
+  const body     = JSON.stringify({model:AI_CONFIG.GEMINI_MODEL_VERSION, max_tokens:AI_CONFIG.MAX_TOKENS, temperature:AI_CONFIG.TEMPERATURE, messages:msgs});
+
+  /* ── Gemini (OpenAI-compatible endpoint) ── */
+  const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
+  if(gemKey && navigator.onLine){
+    try{
+      const r = await fetch_(`${AI_CONFIG.GEMINI_BASE}/chat/completions`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+gemKey},
+        body: JSON.stringify({...JSON.parse(body), model:AI_CONFIG.GEMINI_MODEL_VERSION}),
+      });
+      const d = await r.json();
+      if(r.ok && d.choices?.[0]?.message?.content){
+        const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
+        return {text:txt, src:'Gemini ✨', anomalies:payload.anomalies};
+      }
+      if(!r.ok) console.warn('[ALADDIN] Gemini error:',d.error?.message);
+    } catch(e){ console.warn('[ALADDIN] Gemini failed:',e.message); }
+  }
+
+  /* ── Groq fallback ── */
+  const groqKey = (()=>{ try{return window.getGroqKey?window.getGroqKey():'';}catch(_){return '';} })();
+  if(groqKey && navigator.onLine){
+    try{
+      const groqBody = JSON.stringify({model:AI_CONFIG.GROQ_MODEL, max_tokens:AI_CONFIG.MAX_TOKENS, temperature:AI_CONFIG.TEMPERATURE, messages:msgs});
+      const r = await fetch_('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+        body:groqBody,
+      });
+      const d = await r.json();
+      if(r.ok && d.choices?.[0]?.message?.content){
+        const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
+        return {text:txt, src:'Groq', anomalies:payload.anomalies};
+      }
+      if(!r.ok) return {text:'⚠️ Groq: '+d.error?.message, src:'Erreur', anomalies:payload.anomalies};
+    } catch(e){ console.warn('[ALADDIN] Groq failed:',e.message); }
+  }
+
+  /* ── Fallback local ── */
+  const localTxt = (()=>{ try{return window.localAI?window.localAI(userQuery):'Configure ta clé Gemini ou Groq dans Config.';}catch(_){return 'Analyse locale indisponible.';} })();
+  return {text:localTxt, src:'Local', anomalies:payload.anomalies};
+}
+window.callAladdinAI = callAladdinAI;
+
+/* ─────────────────────────────────────────────────────────────────────
+   §F  HOOK — Remplace askAI par le routeur ALADDIN
+   ───────────────────────────────────────────────────────────────────── */
+(function patchAskAI(){
+  const _orig = window.askAI;
+  window.askAI = async function(userMsg){
+    /* Détermine le viewType selon l'écran et la question */
+    const scr = (()=>{ try{return window.screen||'home';}catch(_){return 'home';} })();
+    let vt = 'HOME';
+    if(scr==='analytics') {
+      vt = 'ANALYSE';
+    } else if(scr==='ai') {
+      const q=(userMsg||'').toLowerCase();
+      if(/pr[eé]vi|forecast|prochain|risque|d[eé]couvert|30j|15j|trajectoire|dans.*jour|survie/.test(q)) vt='PRÉVISIONS';
+      else if(/analys|pattern|biais|tendance|cat[eé]g|mois|semaine/.test(q)) vt='ANALYSE';
+      else vt='HOME';
+    }
+    const result = await callAladdinAI(vt, userMsg);
+    return {text:result.text, src:result.src};
+  };
+  console.log('[ALADDIN] askAI patché → routeur HOME/ANALYSE/PRÉVISIONS');
+})();
+
+/* ─────────────────────────────────────────────────────────────────────
+   §G  CHAMP CLÉ GEMINI dans l'écran Config (injection au rendu)
+   ───────────────────────────────────────────────────────────────────── */
+window._saveGeminiKey = function(){
+  const inp = document.getElementById('aladdinGeminiInput');
+  if(!inp) return;
+  const raw = inp.value.trim();
+  const msg = document.getElementById('aladdinGeminiMsg');
+  if(!raw || raw.startsWith('••')){
+    // Clear
+    try{ window.safeStorage?.setItem('gemini_key',''); }catch(_){}
+    if(msg){ msg.style.color='var(--mut)'; msg.textContent='Clé effacée — fallback Groq actif'; }
+    return;
+  }
+  if(!raw.startsWith('AIza')){
+    if(msg){ msg.style.color='var(--red)'; msg.textContent='⚠️ Clé invalide (doit commencer par AIza...)'; }
+    return;
+  }
+  try{ window.safeStorage?.setItem('gemini_key', raw); }catch(_){}
+  inp.value = '••••••••';
+  if(msg){ msg.style.color='var(--grn)'; msg.textContent='✅ Clé Gemini sauvegardée — ALADDIN activé !'; }
+};
+
+function injectGeminiKeyUI(){
+  if(document.getElementById('aladdinGeminiSection')) return;
+  const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
+  const groqKey= (()=>{ try{return window.getGroqKey?window.getGroqKey():'';   }catch(_){return '';} })();
+  const activeProvider = gemKey ? `Gemini ${AI_CONFIG.GEMINI_MODEL_VERSION}` : groqKey ? `Groq ${AI_CONFIG.GROQ_MODEL}` : 'Aucun';
+
+  const html = `<div id="aladdinGeminiSection" style="margin:0 0 12px">
+  <div class="card" style="padding:16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="font-size:20px">🏦</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.1</div>
+        <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
+      </div>
+      <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
+    </div>
+    <div style="font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:12px">
+      Clé <strong style="color:var(--txt)">Google Gemini</strong> (console.cloud.google.com/apis). Prioritaire sur Groq. Meilleure précision, limite 1M tokens/min gratuite.
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="aladdinGeminiInput" type="password" class="fi" style="flex:1;font-family:var(--mono);font-size:12px" placeholder="AIza..." value="${gemKey?'••••••••':''}">
+      <button onclick="window._saveGeminiKey()" class="btn" style="padding:0 18px;font-size:13px;white-space:nowrap">Sauver</button>
+    </div>
+    <div id="aladdinGeminiMsg" style="font-size:12px;min-height:18px;margin-top:8px"></div>
+  </div>
+</div>`;
+
+  /* Inject before the first .card in the settings page */
+  const root = document.getElementById('root');
+  if(!root) return;
+  const firstCard = root.querySelector('.card');
+  if(firstCard){
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    firstCard.parentNode.insertBefore(wrapper.firstElementChild, firstCard);
+  } else {
+    root.insertAdjacentHTML('afterbegin', html);
+  }
+}
+
+/* Patch go() to inject UI when navigating to settings */
+(function patchNav(){
+  const _origGo = window.go;
+  if(typeof _origGo!=='function') return;
+  window.go = function(s){
+    const r = _origGo.call(this, s);
+    if(s==='settings') setTimeout(injectGeminiKeyUI, 80);
+    return r;
+  };
+})();
+
+/* ─────────────────────────────────────────────────────────────────────
+   §H  MONITEUR D'ANOMALIES BACKGROUND (toutes les 5 min + navigation)
+   ───────────────────────────────────────────────────────────────────── */
+function runAnomalyCheck(){
+  try{
+    const anomalies = detectAnomalies();
+    window.__aladdinAnomalies = anomalies;
+    const critiques = anomalies.filter(a=>a.severity==='CRITIQUE');
+
+    /* Badge rouge sur l'onglet IA si anomalie critique */
+    const navItem = document.querySelector('.ni[onclick*="\'ai\'"], .ni[onclick*=\'"ai"\']');
+    if(navItem){
+      const existing = navItem.querySelector('.aladdin-badge');
+      if(critiques.length>0){
+        if(!existing){
+          navItem.style.position='relative';
+          navItem.insertAdjacentHTML('beforeend','<span class="aladdin-badge" style="position:absolute;top:5px;right:5px;width:8px;height:8px;background:#f43f5e;border-radius:50%;box-shadow:0 0 6px #f43f5e;animation:pulseAI 1.5s infinite"></span>');
+        }
+      } else if(existing){ existing.remove(); }
+    }
+  } catch(e){}
+}
+
+setTimeout(runAnomalyCheck, 2500);
+setInterval(runAnomalyCheck, 5*60*1000);
+
+/* ─────────────────────────────────────────────────────────────────────
+   §I  RENDU DE L'ENCART ANOMALIES dans renderHome (injection non destructive)
+   ───────────────────────────────────────────────────────────────────── */
+function renderAnomalyBanner(){
+  const existing = document.getElementById('aladdinAnomalyBanner');
+  const anomalies = window.__aladdinAnomalies||[];
+  const critiques = anomalies.filter(a=>a.severity==='CRITIQUE');
+  if(!critiques.length){ if(existing) existing.remove(); return; }
+
+  const cur_ = (()=>{ try{return window.cur();}catch(_){return 'XAF';} })();
+  const html = `<div id="aladdinAnomalyBanner" style="background:linear-gradient(135deg,rgba(244,63,94,.15),rgba(239,68,68,.08));border:1px solid rgba(244,63,94,.4);border-radius:20px;padding:14px 16px;margin-bottom:12px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <span style="font-size:16px">🚨</span>
+    <span style="font-size:12px;font-weight:800;color:#f43f5e;text-transform:uppercase;letter-spacing:.5px">ALADDIN — ${critiques.length} Alerte${critiques.length>1?'s':''} Critique${critiques.length>1?'s':''}</span>
+  </div>
+  ${critiques.map(a=>`<div style="font-size:12px;color:var(--txt2);line-height:1.5;padding:6px 0;border-top:1px solid rgba(244,63,94,.15)">
+    <strong style="color:#f43f5e">[${a.type}]</strong> ${a.message}<br>
+    <span style="color:var(--mut);font-size:11px">${a.detail}</span>
+  </div>`).join('')}
+  <button onclick="window.go('ai')" style="margin-top:10px;width:100%;background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);border-radius:12px;padding:9px;color:#f43f5e;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">Analyser avec ALADDIN →</button>
+</div>`;
+
+  const root = document.getElementById('root');
+  if(!root) return;
+  if(existing){ existing.outerHTML=html; return; }
+  /* Insert after the first card (hero KPI card) */
+  const firstCard = root.querySelector('.card-hero, .card');
+  if(firstCard) firstCard.insertAdjacentHTML('afterend', html);
+  else root.insertAdjacentHTML('afterbegin', html);
+}
+window.renderAnomalyBanner = renderAnomalyBanner;
+
+/* Patch render() pour injecter la bannière à chaque rendu accueil */
+(function patchRender(){
+  const _origRender = window.render;
+  if(typeof _origRender!=='function') return;
+  window.render = function(){
+    const r = _origRender.apply(this, arguments);
+    const scr = (()=>{ try{return window.screen||'home';}catch(_){return 'home';} })();
+    if(scr==='home') setTimeout(renderAnomalyBanner, 100);
+    return r;
+  };
+})();
+
+console.log('[ALADDIN Engine v8.1] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+})();
+
+</script>
+
 </body>
 </html>

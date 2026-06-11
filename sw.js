@@ -1,10 +1,41 @@
-// Finance AI Service Worker v5.3.0 — Upgrade build (skipWaiting + update banner)
-const CACHE = 'finance-ai-v6.1.0';
-const SHELL = ['./', './index.html', './manifest.json', './icon-96.png', './icon-192.png', './icon-512.png'];
+/* ════════════════════════════════════════════════════════════════════
+   Finance AI Service Worker v7.0.0
+   • Cache versionné aligné au build
+   • Alerte si l'install du shell échoue (au lieu de silencer)
+   • Conserve : navigate network-first, fonts/shell SWR, API no-cache,
+                push notifications, notificationclick, skipWaiting message
+   ════════════════════════════════════════════════════════════════════ */
+const VERSION = '7.0.0';
+const CACHE = 'finance-ai-v' + VERSION;
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-96.png',
+  './icon-192.png',
+  './icon-512.png',
+  './styles/main.css',
+  './styles/upgrade.css',
+  './app/01-boot-early.js',
+  './app/02-core.js',
+  './app/03-loader.js',
+  './app/04-upgrade.js',
+  './app/05-aladdin-wrap.js',
+  './app/06-v53-modules.js',
+  './app/extras/07-breadcrumbs.js',
+  './app/extras/08-forecast-plus.js'
+];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {})));
+  e.waitUntil(
+    caches.open(CACHE).then(c =>
+      c.addAll(SHELL).catch(err => {
+        // v7.0 : ne plus avaler silencieusement — log explicite
+        console.error('[SW] Shell install partiel ou échoué:', err);
+      })
+    )
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -37,8 +68,8 @@ async function swr(req) {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // Never cache APIs
-  if (/groq\.com|googleapis\.com|google\.com\/o\/oauth2|accounts\.google\.com|supabase/i.test(url.href)) {
+  // APIs : jamais en cache
+  if (/groq\.com|googleapis\.com|google\.com\/o\/oauth2|accounts\.google\.com|supabase|ai\.gateway\.lovable\.dev/i.test(url.href)) {
     e.respondWith(
       fetch(e.request).catch(() => {
         if (e.request.method === 'GET') return caches.match('./index.html');
@@ -48,7 +79,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Navigations: network-first, fallback shell
+  // Navigations : network-first, fallback shell
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(r => {
@@ -60,14 +91,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Shell + fonts: Stale-While-Revalidate
+  // Shell + fonts : SWR
   if (/fonts\.(googleapis|gstatic)\.com/.test(url.host) || url.origin === self.location.origin) {
     e.respondWith(swr(e.request));
     return;
   }
 });
 
-// Notification click — focus app or open
+// Notification click — focus app ou ouvre
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {

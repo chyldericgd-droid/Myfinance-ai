@@ -4335,11 +4335,16 @@ async function maybeAutoInsight(){
   if(txt) updateInsightUI(txt);
 }
 function openAIQuick(){
-  if(!navigator.onLine){
+  // v7.1 FIX — ne plus bloquer sur navigator.onLine (faux négatif fréquent sous WebView Android).
+  // askAI() gère déjà le fallback local si le réseau est réellement absent.
+  // On bloque uniquement si aucune clé ET vraiment hors ligne (double condition).
+  const online = navigator.onLine;
+  const hasKey = !!getGroqKey();
+  if(!online && !hasKey){
     openModal(`<h3>${t('ai_offline_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_offline_body')}</p><button class="btn" onclick="closeModal();go('ai')">${t('ai_open_local')}</button>`);
     return;
   }
-  if(!getGroqKey()){
+  if(!hasKey){
     openModal(`<h3>${t('ai_nokey_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_nokey_body')}</p><button class="btn" onclick="closeModal();go('settings')">${t('ai_goto_config')}</button>`);
     return;
   }
@@ -4691,6 +4696,8 @@ async function render(){
   try{updateOnlineStatus()}catch(e){console.warn(e)}
   if(screen==='ai'){try{setupChat()}catch(e){console.warn(e)}}
   if(screen==='home'){setTimeout(()=>{try{maybeAutoInsight()}catch(e){};try{checkCelebrations()}catch(e){}},150)}
+  // v7.1 FIX — déclenche Groq automatiquement à l'ouverture de la page Analyse (sans attendre un clic d'onglet)
+  if(screen==='analytics'){setTimeout(()=>{try{fetchPeriodInsight(analyticsPeriod)}catch(e){console.warn('[analytics] fetchPeriodInsight fail',e)}},300)}
   // v4.14: Mise à jour ambiance financière
   try{updateFinancialAmbiance()}catch(e){}
 }
@@ -5251,12 +5258,32 @@ function localPeriodComment(p,d){
   }
   return parts.filter(Boolean).join(' ');
 }
+// v7.1 — wrapper sans paramètres pour fetchPeriodInsight (fallback offline)
+function buildLocalPeriodComment(p){
+  try{
+    const ptxs=getPeriodTxs(p);
+    const prevTxs=getPrevPeriodTxs(p);
+    const curExp=ptxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const curInc=ptxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const prevExp=prevTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const prevInc=prevTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const expDpct=prevExp?Math.round(((curExp-prevExp)/prevExp)*100):0;
+    const catEntries=Object.entries(ptxs.filter(t=>t.type==='expense').reduce((acc,t)=>{acc[t.categoryId]=(acc[t.categoryId]||0)+t.amount;return acc},{})).sort((a,b)=>b[1]-a[1]);
+    return localPeriodComment(p,{curExp,curInc,prevExp,prevInc,expDpct,topCat:catEntries[0]});
+  }catch(e){return '';}
+}
 async function fetchPeriodInsight(p){
-  if(!navigator.onLine||!getGroqKey()) return;
   const kpi=computeKPIs();
   const elId='periodInsight_'+p;
   const el=document.getElementById(elId);if(!el) return;
   const status=document.getElementById(elId+'_status');
+  // v7.1 FIX — si offline ou sans clé : afficher le commentaire local et corriger le badge
+  if(!navigator.onLine||!getGroqKey()){
+    const localFallback=buildLocalPeriodComment(p);
+    if(localFallback){el.innerHTML='💡 '+localFallback;}
+    if(status) status.textContent=t('ia_local');
+    return;
+  }
 
   // ── Silence : pas d'appel API sur des données obsolètes ─────────────
   if(kpi.isSilent){

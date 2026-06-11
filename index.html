@@ -3446,8 +3446,12 @@ function updateOnlineStatus(){
   const hasKey=!!getGroqKey();
   const fab=$('aiFab');
   if(fab){
-    if(on && hasKey){fab.classList.remove('off');fab.title=t('ai_online')}
-    else{fab.classList.add('off');fab.title=on?t('ai_nokey')||t('ai_offline'):t('ai_offline')}
+    // FIX v7.1 — le FAB est actif si on a une clé, même si navigator.onLine
+    // retourne false (faux négatif fréquent sous WebView Android).
+    // On le grisce uniquement si vraiment offline ET sans clé.
+    const fabActive = hasKey || on;  // clé présente OU connecté
+    if(fabActive){fab.classList.remove('off');fab.title=hasKey?t('ai_online'):t('ai_nokey')||t('ai_offline')}
+    else{fab.classList.add('off');fab.title=t('ai_offline')}
   }
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
@@ -4335,16 +4339,15 @@ async function maybeAutoInsight(){
   if(txt) updateInsightUI(txt);
 }
 function openAIQuick(){
-  // v7.1 FIX — ne plus bloquer sur navigator.onLine (faux négatif fréquent sous WebView Android).
-  // askAI() gère déjà le fallback local si le réseau est réellement absent.
-  // On bloque uniquement si aucune clé ET vraiment hors ligne (double condition).
-  const online = navigator.onLine;
-  const hasKey = !!getGroqKey();
-  if(!online && !hasKey){
+  // FIX v7.1 — ne bloquer que si offline ET sans clé (navigator.onLine est
+  // souvent faux sous WebView Android même avec du réseau).
+  const _online = navigator.onLine;
+  const _hasKey = !!getGroqKey();
+  if(!_online && !_hasKey){
     openModal(`<h3>${t('ai_offline_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_offline_body')}</p><button class="btn" onclick="closeModal();go('ai')">${t('ai_open_local')}</button>`);
     return;
   }
-  if(!hasKey){
+  if(!_hasKey){
     openModal(`<h3>${t('ai_nokey_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_nokey_body')}</p><button class="btn" onclick="closeModal();go('settings')">${t('ai_goto_config')}</button>`);
     return;
   }
@@ -4361,7 +4364,23 @@ function openAIQuick(){
     </div>
     <button class="btn" onclick="quickAISubmit()">${t('quick_ai_ask_btn')}</button>
   `);
-  setTimeout(()=>{const i=$('quickAIInput');if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')quickAISubmit()}}},80);
+  setTimeout(()=>{
+    const i=$('quickAIInput');
+    if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')quickAISubmit()}}
+    // FIX v7.1 — pré-charger un insight automatique dès l'ouverture
+    // (équivalent d'un 1er message silencieux pour éviter le spinner vide)
+    const area=$('quickAIArea');
+    if(area){
+      const kpi=computeKPIs();
+      const autoQ=kpi.isSilent
+        ? (t('groq_no_key')||'Analyse rapide')  // pas de données → skip
+        : null;
+      if(!autoQ){
+        // Lancer un insight automatique basé sur les KPIs actuels
+        quickAIAsk(t('quick_ai_risk_btn'));
+      }
+    }
+  },100);
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -4369,7 +4388,10 @@ async function quickAISubmit(){
   a.innerHTML='<div class="ald" style="padding:0"><div class="add"></div><div class="add"></div><div class="add"></div></div>';
   i.value='';
   const r=await askAI(q);
-  a.innerHTML='<strong style="color:var(--acc3);font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+(r.src||'IA')+'</strong><br>'+r.text.replace(/\n/g,'<br>');
+  // FIX v7.1 — afficher source réelle (Groq / Local / Offline) + badge couleur
+  const _src = r.src||'IA';
+  const _srcColor = /groq|cloud/i.test(_src)?'var(--grn)':_src==='Sandbox'?'var(--org)':'var(--ylw)';
+  a.innerHTML='<strong style="color:'+_srcColor+';font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+_src+'</strong><br>'+r.text.replace(/\n/g,'<br>');
 }
 function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()}}
 
@@ -4696,8 +4718,8 @@ async function render(){
   try{updateOnlineStatus()}catch(e){console.warn(e)}
   if(screen==='ai'){try{setupChat()}catch(e){console.warn(e)}}
   if(screen==='home'){setTimeout(()=>{try{maybeAutoInsight()}catch(e){};try{checkCelebrations()}catch(e){}},150)}
-  // v7.1 FIX — déclenche Groq automatiquement à l'ouverture de la page Analyse (sans attendre un clic d'onglet)
-  if(screen==='analytics'){setTimeout(()=>{try{fetchPeriodInsight(analyticsPeriod)}catch(e){console.warn('[analytics] fetchPeriodInsight fail',e)}},300)}
+  // FIX v7.1 — déclenche Groq automatiquement à l'ouverture de la page Analyse
+  if(screen==='analytics'){setTimeout(()=>{try{fetchPeriodInsight(analyticsPeriod)}catch(e){console.warn('[Analyse] fetchPeriodInsight',e)}},350)}
   // v4.14: Mise à jour ambiance financière
   try{updateFinancialAmbiance()}catch(e){}
 }
@@ -5258,7 +5280,7 @@ function localPeriodComment(p,d){
   }
   return parts.filter(Boolean).join(' ');
 }
-// v7.1 — wrapper sans paramètres pour fetchPeriodInsight (fallback offline)
+// FIX v7.1 — wrapper sans paramètres recalculés pour fetchPeriodInsight fallback offline
 function buildLocalPeriodComment(p){
   try{
     const ptxs=getPeriodTxs(p);
@@ -5268,7 +5290,8 @@ function buildLocalPeriodComment(p){
     const prevExp=prevTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     const prevInc=prevTxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const expDpct=prevExp?Math.round(((curExp-prevExp)/prevExp)*100):0;
-    const catEntries=Object.entries(ptxs.filter(t=>t.type==='expense').reduce((acc,t)=>{acc[t.categoryId]=(acc[t.categoryId]||0)+t.amount;return acc},{})).sort((a,b)=>b[1]-a[1]);
+    const catEntries=Object.entries(ptxs.filter(t=>t.type==='expense').reduce((acc,t)=>{
+      acc[t.categoryId]=(acc[t.categoryId]||0)+t.amount;return acc;},{})).sort((a,b)=>b[1]-a[1]);
     return localPeriodComment(p,{curExp,curInc,prevExp,prevInc,expDpct,topCat:catEntries[0]});
   }catch(e){return '';}
 }
@@ -5277,11 +5300,11 @@ async function fetchPeriodInsight(p){
   const elId='periodInsight_'+p;
   const el=document.getElementById(elId);if(!el) return;
   const status=document.getElementById(elId+'_status');
-  // v7.1 FIX — si offline ou sans clé : afficher le commentaire local et corriger le badge
+  // FIX v7.1 — si offline ou sans clé, afficher le commentaire local + corriger le badge
   if(!navigator.onLine||!getGroqKey()){
-    const localFallback=buildLocalPeriodComment(p);
-    if(localFallback){el.innerHTML='💡 '+localFallback;}
-    if(status) status.textContent=t('ia_local');
+    const lc=buildLocalPeriodComment(p);
+    if(lc&&el){el.innerHTML='💡 '+lc;}
+    if(status)status.textContent=t('ia_local');
     return;
   }
 
@@ -7807,6 +7830,9 @@ function buildScopedPayload(scope){
    4. FETCH PROXY — interception ciblée Groq
    ───────────────────────────────────────────────────────────────── */
 const _origFetch = window.fetch.bind(window);
+// FIX v7.1 — exposer _origFetch globalement pour éviter qu'un script ultérieur
+// (breadcrumbs) réenveloppe fetch et brise la chaîne .json() modifiée.
+try{ window._origFetch = _origFetch; }catch(_){}
 window.fetch = async function(input, init){
   try{
     const url = (typeof input==='string')?input:(input&&input.url)||'';
@@ -8837,24 +8863,20 @@ console.log('[v5.3] 6 modules institutionnels chargés');
     }
   }catch(_){}
 
-  // 4) Wrap fetch to monitor AI gateway calls
+  // 4) Monitor AI gateway calls — breadcrumb only, NO fetch wrapping
+  // FIX v7.1 : on n'enveloppe plus window.fetch ici (déjà wrappé 2× par 04-upgrade).
+  // On utilise la technique non-intrusive : on observe les appels via _origFetch
+  // sans interférer avec la chaîne de promesses existante.
   try{
-    const _fetch = window.fetch;
-    window.fetch = function(input, init){
-      const url = typeof input==='string' ? input : (input && input.url) || '';
-      if(/groq\.com|lovable|openai|anthropic|ai\.gateway/i.test(url)){
-        push('ai-call', url.replace(/\?.*$/,'').slice(-80));
-      }
-      return _fetch.apply(this, arguments).then(r => {
+    if(typeof _origFetch === 'function'){
+      const __monitorFetch = _origFetch;
+      // Patch uniquement le suivi (push), sans toucher à la chaîne fetch réelle
+      window.__aladdinFetchMonitor = function(url){
         if(/groq\.com|lovable|openai|anthropic|ai\.gateway/i.test(url)){
-          push('ai-resp', r.status + ' ' + url.slice(-40));
+          push('ai-call', url.replace(/\?.*$/,'').slice(-80));
         }
-        return r;
-      }).catch(err => {
-        push('ai-err', (err && err.message) || 'fetch fail');
-        throw err;
-      });
-    };
+      };
+    }
   }catch(_){}
 
   // 5) Global error capture enrichment — attach breadcrumbs to error log
@@ -8926,9 +8948,10 @@ console.log('[v5.3] 6 modules institutionnels chargés');
   const MS_DAY = 86400000;
 
   function getTxs(){
+    // FIX v7.1 — la variable globale s'appelle `txs`, pas `transactions`
     try{
-      if(typeof window.transactions !== 'undefined' && Array.isArray(window.transactions)) return window.transactions;
-      if(typeof transactions !== 'undefined' && Array.isArray(transactions)) return transactions; // eslint-disable-line
+      if(typeof window.txs !== 'undefined' && Array.isArray(window.txs)) return window.txs;
+      if(typeof txs !== 'undefined' && Array.isArray(txs)) return txs; // eslint-disable-line
     }catch(_){}
     return [];
   }

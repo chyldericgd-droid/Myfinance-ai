@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- Finance AI OS v8.2.0 | Refactored PWA -->
+<!-- Finance AI OS v8.3.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -27,7 +27,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="8.2.0">
+<meta name="version" content="8.3.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -9174,6 +9174,17 @@ function prepareAIPayload(viewType, userQuery) {
       const activeBalance = accs_().filter(a=>a.type!=='savings').reduce((s,a)=>s+(a.balance||0),0);
       const wd7 = allTx.filter(t=>t.type==='expense'&&now-new Date(t.date)<7*86400000).reduce((s,t)=>s+t.amount,0);
       const weekIncome = (k.inc30||0)/4;
+
+      /* Dépenses récurrentes prévues dans les 7 prochains jours */
+      const recPatterns = safe(()=>window.detectRecurringPatterns?window.detectRecurringPatterns().slice(0,4):[], []);
+      const depRecProchaines = recPatterns
+        .filter(r=>r.nextExpectedDate&&(r.nextExpectedDate-now)<7*86400000&&(r.nextExpectedDate-now)>0)
+        .map(r=>({ cat:r.categoryName, montant:Math.round(r.amount),
+                   dans:Math.ceil((r.nextExpectedDate-now)/86400000)+'j' }));
+
+      /* Revenu attendu (cycle détecté) */
+      const incCycle = safe(()=>window.ALADDIN?.detectIncomeCycle(),null);
+
       contextData = {
         mode            : 'HOME',
         soldeDisponible : Math.round(activeBalance),
@@ -9183,9 +9194,15 @@ function prepareAIPayload(viewType, userQuery) {
           montant:t.amount, type:t.type, cat:catN(t.categoryId),
           note:(t.note||'').slice(0,30), heure:new Date(t.date).getHours()+'h',
         })),
+        depensesPrevisibles7j : depRecProchaines,
+        revenuAttendu : incCycle ? {
+          dans:incCycle.daysToNextExpected,
+          montant:Math.round(incCycle.expectedCycleIncome),
+          fiabilite: incCycle.confidence||'?'
+        } : null,
         devise: cur_(),
       };
-      systemFocus = 'Réponse ultra-courte (2 phrases max). Action immédiate. Statut du jour uniquement.';
+      systemFocus = `Réponse courte (3 phrases max). Cite le solde exact. Si un revenu est attendu, dis quand et combien. Si des dépenses récurrentes arrivent dans 7j, avertis. Action immédiate concrète.`;
       break;
     }
 
@@ -9278,10 +9295,28 @@ ${hasCritique?'[⚠️ ALERTE CRITIQUE]\n<anomalie critique en 1 phrase chiffré
 [Action]
 <1 conseil micro-comportemental précis et immédiatement actionnable>`;
 
+  /* Instructions prédictives injectées si données de cycle/récurrence présentes */
+  let predictBlock = '';
+  if(contextData.depensesPrevisibles7j && contextData.depensesPrevisibles7j.length>0){
+    predictBlock = `\n🔮 PRÉVISIONS HABITUELLES (basées sur l'historique réel):
+${contextData.depensesPrevisibles7j.map(d=>`  • ${d.cat} : ~${d.montant} ${contextData.devise} dans ${d.dans}`).join('\n')}
+→ Intègre ces dépenses inévitables dans ton conseil.\n`;
+  }
+  if(contextData.revenuAttendu){
+    predictBlock += `\n💰 REVENU ATTENDU DÉTECTÉ : ~${contextData.revenuAttendu.montant} ${contextData.devise} dans ${contextData.revenuAttendu.dans} jour(s) (fiabilité: ${contextData.revenuAttendu.fiabilite}).
+→ Si pertinent, mentionne cette entrée dans ton analyse.\n`;
+  }
+  if(contextData.cycleRevenu && contextData.cycleRevenu !== 'non détecté'){
+    predictBlock += `\n📅 CYCLE DE REVENU : prochain dans ${contextData.cycleRevenu.dans} jour(s) (~${contextData.cycleRevenu.montant} ${contextData.devise}).\n`;
+  }
+
   return `Tu es ALADDIN — moteur de risque financier personnel. Style: analyste de risques Wall Street.
 Impitoyable sur les chiffres. Bienveillant sur l'humain. Pas de jargon inutile.
-RÈGLES ABSOLUES: TUTOIEMENT. Chiffres exacts issus du JSON uniquement. Zéro invention.${langNote}
+RÈGLES ABSOLUES: TUTOIEMENT. Chiffres exacts issus du JSON uniquement. Zéro invention.
+PRÉDICTION: Tu connais les habitudes de l'utilisateur grâce à son historique. Tu DOIS anticiper les prochaines dépenses récurrentes et revenus attendus. Sois proactif.
+Si on te demande d'analyser le graphe de projection, commente la courbe (tendance, risque découvert, fourchette optimiste/pessimiste) avec des chiffres précis du JSON.${langNote}
 ${anomalyBlock}
+${predictBlock}
 ${formatBlock}
 
 FOCUS MODE: ${systemFocus}
@@ -9371,21 +9406,60 @@ window.callAladdinAI = callAladdinAI;
 window._saveGeminiKey = function(){
   const inp = document.getElementById('aladdinGeminiInput');
   if(!inp) return;
-  const raw = inp.value.trim();
+  /* Nettoyage robuste : supprime espaces, tabulations, retours chariot,
+     tirets insécables et caractères invisibles copiés depuis le presse-papiers */
+  const raw = inp.value
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060]/g, '')
+    .trim();
   const msg = document.getElementById('aladdinGeminiMsg');
-  if(!raw || raw.startsWith('••')){
-    // Clear
+  /* Champ vide ou masqué → effacer */
+  if(!raw || /^[•*]+$/.test(raw)){
     try{ window.safeStorage?.setItem('gemini_key',''); }catch(_){}
     if(msg){ msg.style.color='var(--mut)'; msg.textContent='Clé effacée — fallback Groq actif'; }
+    inp.value = '';
     return;
   }
-  if(!raw.startsWith('AIza')){
-    if(msg){ msg.style.color='var(--red)'; msg.textContent='⚠️ Clé invalide (doit commencer par AIza...)'; }
+  /* Validation souple : clé Google AI Studio commence toujours par AIza
+     (capital A, capital I, lowercase z, lowercase a)             */
+  const normalized = raw.replace(/[^A-Za-z0-9_\-]/g, '');
+  if(normalized.length < 20){
+    if(msg){ msg.style.color='var(--red)'; msg.textContent='⚠️ Clé trop courte — vérifie le copier-coller'; }
     return;
   }
-  try{ window.safeStorage?.setItem('gemini_key', raw); }catch(_){}
+  if(!normalized.startsWith('AIza') && !normalized.startsWith('Alza')){
+    if(msg){
+      msg.style.color='var(--red)';
+      msg.innerHTML='⚠️ Format inattendu — la clé Google commence normalement par <b>AIza</b>.<br><span style="font-size:11px;color:var(--mut)">Si tu es sûr·e de ta clé, appuie quand même sur Sauver.</span>';
+    }
+    /* On ne bloque plus — on sauvegarde quand même si l'utilisateur persiste */
+    window._geminiKeyPendingForce = normalized;
+    const forceBtn = document.getElementById('aladdinForceBtn');
+    if(!forceBtn){
+      const wrap = document.getElementById('aladdinGeminiMsg');
+      if(wrap) wrap.insertAdjacentHTML('afterend',
+        '<button id="aladdinForceBtn" onclick="window._forceGeminiKey()" style="margin-top:8px;width:100%;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:8px;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">Sauver quand même →</button>'
+      );
+    }
+    return;
+  }
+  try{ window.safeStorage?.setItem('gemini_key', normalized); }catch(_){}
   inp.value = '••••••••';
-  if(msg){ msg.style.color='var(--grn)'; msg.textContent='✅ Clé Gemini sauvegardée — ALADDIN activé !'; }
+  if(msg){ msg.style.color='var(--grn)'; msg.textContent='✅ Clé Gemini sauvegardée — ALADDIN activé sur ' + AI_CONFIG.GEMINI_MODEL_VERSION + ' !'; }
+  const fb = document.getElementById('aladdinForceBtn');
+  if(fb) fb.remove();
+};
+
+window._forceGeminiKey = function(){
+  const key = window._geminiKeyPendingForce;
+  if(!key) return;
+  try{ window.safeStorage?.setItem('gemini_key', key); }catch(_){}
+  const inp = document.getElementById('aladdinGeminiInput');
+  const msg = document.getElementById('aladdinGeminiMsg');
+  const fb  = document.getElementById('aladdinForceBtn');
+  if(inp) inp.value = '••••••••';
+  if(msg){ msg.style.color='var(--grn)'; msg.textContent='✅ Clé sauvegardée de force — ALADDIN actif !'; }
+  if(fb) fb.remove();
+  delete window._geminiKeyPendingForce;
 };
 
 function injectGeminiKeyUI(){
@@ -9399,7 +9473,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.2</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.3</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -9407,11 +9481,19 @@ function injectGeminiKeyUI(){
     <div style="font-size:12px;color:var(--mut);line-height:1.55;margin-bottom:12px">
       Clé <strong style="color:var(--txt)">Google Gemini</strong> (console.cloud.google.com/apis). Prioritaire sur Groq. Meilleure précision, limite 1M tokens/min gratuite.
     </div>
-    <div style="display:flex;gap:8px">
-      <input id="aladdinGeminiInput" type="password" class="fi" style="flex:1;font-family:var(--mono);font-size:12px" placeholder="AIza..." value="${gemKey?'••••••••':''}">
-      <button onclick="window._saveGeminiKey()" class="btn" style="padding:0 18px;font-size:13px;white-space:nowrap">Sauver</button>
+    <div style="position:relative;margin-bottom:8px">
+      <input id="aladdinGeminiInput" type="text"
+        style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1.5px solid rgba(139,92,246,.35);border-radius:12px;padding:12px 44px 12px 14px;font-family:var(--mono);font-size:13px;color:var(--txt);outline:none;letter-spacing:.5px"
+        placeholder="Colle ta clé ici (AIzaSy...)" value="${gemKey?'••••••••':''}"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button onclick="(function(){const i=document.getElementById('aladdinGeminiInput');i.type=i.type==='text'?'password':'text';})()"
+        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--mut);padding:4px">👁</button>
     </div>
-    <div id="aladdinGeminiMsg" style="font-size:12px;min-height:18px;margin-top:8px"></div>
+    <button onclick="window._saveGeminiKey()" class="btn"
+      style="width:100%;padding:12px;font-size:14px;font-weight:700;border-radius:12px">
+      Sauver la clé Gemini
+    </button>
+    <div id="aladdinGeminiMsg" style="font-size:12px;min-height:18px;margin-top:8px;line-height:1.4"></div>
   </div>
 </div>`;
 
@@ -9509,7 +9591,7 @@ window.renderAnomalyBanner = renderAnomalyBanner;
   };
 })();
 
-console.log('[ALADDIN Engine v8.2] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v8.3] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

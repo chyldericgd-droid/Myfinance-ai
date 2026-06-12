@@ -588,7 +588,7 @@ body.state-zero{
 .council-trigger.high{background:rgba(251,146,60,.12);color:var(--org);border:1px solid rgba(251,146,60,.3)}
 .council-trigger.medium{background:rgba(251,191,36,.1);color:var(--ylw);border:1px solid rgba(251,191,36,.25)}
 .council-trigger.manual{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
-.council-msgs{padding:0 14px 8px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
+.council-msgs{padding:0 14px 8px;display:flex;flex-direction:column;gap:10px;overflow-y:visible}
 .council-bubble{border-radius:16px;padding:11px 14px;font-size:12.5px;line-height:1.6;position:relative;animation:fadeSlideUp .3s ease}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .council-bubble.gem{background:linear-gradient(135deg,rgba(167,139,250,.14),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.28);margin-right:18px}
@@ -4845,17 +4845,39 @@ function renderHome(){
       <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
       <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('Explique-moi en détail ma santé financière actuelle, le score IVY, et dis-moi exactement quoi faire cette semaine pour l\'améliorer'),200)" style="background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:4px 8px;cursor:pointer">Analyse complète ✨</button>
     </div>
-  </div>  <!-- ALERTS -->
-  <div class="card">
-    <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
-      <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
-    </div>
-    ${alerts.map((a,_ai)=>{
-      const _am=a.m.replace(/'/g,'&#39;').slice(0,100);
-      return `<div class="al al-${a.t}" style="cursor:pointer" onclick="quickAsk('${_am} — explique et propose une action immédiate')" data-alert="${_ai}">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer">✕</button>`:''}</div>`
-    }).join('')}
-    ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j — alertes comportementales actives à 14j+</div>`:'')}
-  </div>
+  </div>  <!-- ALERTS — compactes si connecté (IA prend le relais), détaillées si offline -->
+  ${(()=>{
+    if(!alerts.length) return '';
+    if(isOnline && alerts.length > 0){
+      // Mode connecté : compact pill, IA s'en occupe
+      const _topAlert = alerts[0];
+      return `<div class="card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">🔔 ${t('alerts_title')}</span>
+          <span class="pill" style="background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.25)">${alerts.length}</span>
+          <span style="flex:1;font-size:11px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${_topAlert.m.slice(0,60)}${_topAlert.m.length>60?'…':''}</span>
+          <button onclick="window._alertsExpanded=!window._alertsExpanded;render()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:3px 8px;cursor:pointer;flex-shrink:0">${window._alertsExpanded?'−':'+'} Voir</button>
+        </div>
+        ${window._alertsExpanded ? `<div style="margin-top:10px;border-top:1px solid var(--brd);padding-top:8px">
+          ${alerts.map((a,_ai)=>{
+            const _am=a.m.replace(/'/g,'&#39;').slice(0,100);
+            return `<div class="al al-${a.t}" style="cursor:pointer;margin:4px 0" onclick="quickAsk('${_am} — explique et propose une action immédiate')">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer">✕</button>`:''}</div>`;
+          }).join('')}
+        </div>` : ''}
+      </div>`;
+    }
+    // Mode offline : alertes complètes et bien visibles
+    return `<div class="card" style="border-color:rgba(251,191,36,.3)">
+      <div class="ch" style="color:var(--ylw)">🔔 ${t('alerts_title')} <span class="pill" style="background:rgba(251,191,36,.15);color:var(--ylw);border:1px solid rgba(251,191,36,.3)">${alerts.length}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--org);font-weight:700">● HORS LIGNE</span>
+      </div>
+      ${alerts.map((a,_ai)=>{
+        const _am=a.m.replace(/'/g,'&#39;').slice(0,100);
+        return `<div class="al al-${a.t}" style="cursor:pointer" onclick="quickAsk('${_am} — explique et propose une action immédiate')">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer">✕</button>`:''}</div>`;
+      }).join('')}
+      ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j</div>`:'')}
+    </div>`;
+  })()}
 
   ${typeof renderRecurringCard==='function'?renderRecurringCard(kpi):''}
   <!-- RECENT TX -->
@@ -5360,23 +5382,33 @@ async function fetchPeriodInsight(p){
   const periodNotes=ptxs.filter(tx=>tx.note&&tx.note.length>1).slice(0,8).map(tx=>`${catById(tx.categoryId).name}(${tx.amount}${cur()})${tx.note?':'+tx.note:''}`);
   const totalTxCount=ptxs.length;
   const kpiCtx=computeKPIs();
-  const prompt=`You are Ivy, neuro financial coach. Analyse in 2-3 sentences max, blunt but useful. ${langInstr()}
-Period: ${periodLabel(p)} (${totalTxCount} transactions). Currency: ${cur()}.
-Expenses: ${Math.round(curExp)} vs previous ${periodPrevLabel(p)}: ${Math.round(prevExp)} (${prevExp>0?Math.round((curExp-prevExp)/prevExp*100):0}% change).
-Income: ${Math.round(curInc)}.
-Top expense categories: ${top.join(', ')||'none'}.
-Transaction notes (what was actually spent on): ${periodNotes.join(' | ')||'no notes logged'}.
-Behavioral KPIs: dopamine=${kpiCtx.dopamineIdx}%, evaporation=${kpiCtx.evaporationRate}%, night spending=${kpiCtx.nightPct}%.
-${kpiCtx.isShortHistory?'NOTE: Short history ('+kpiCtx.dataDays+'d) — do not compare to 30-day norms. Only analyze actual available data.':''}
-Give ONE neuro/behavioral insight based on actual notes and spending + ONE concrete action. Cite specific amounts. No jargon. Max 3 sentences.`;
+  const prompt=`Tu es Ivy, coach financier. Période: ${periodLabel(p)} (${totalTxCount} tx). Devise: ${cur()}.
+Dépenses: ${Math.round(curExp)} ${cur()} vs période précédente: ${Math.round(prevExp)} ${cur()} (${prevExp>0?Math.round((curExp-prevExp)/prevExp*100):0}%).
+Revenus: ${Math.round(curInc)} ${cur()}.
+Top catégories: ${top.join(', ')||'aucune'}.
+Notes transactions: ${periodNotes.slice(0,4).join(' | ')||'aucune'}.
+KPIs: dopamine=${kpiCtx.dopamineIdx}%, évaporation=${kpiCtx.evaporationRate}%, dépenses nocturnes=${kpiCtx.nightPct}%.
+RÈGLE ABSOLUE: Réponds en 2 phrases maximum. Phrase 1: constat chiffré précis (cite un montant). Phrase 2: 1 action immédiate. Pas de jargon. Tutoiement.`;
   try{
-    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:180,temperature:.7,messages:[{role:'user',content:prompt}]})
-    });
-    const j=await r.json();
-    const txt=j.choices?.[0]?.message?.content;
-    if(txt&&el){el.innerHTML='💡 '+txt.trim();if(status)status.textContent='Groq';}
+    // Gemini prioritaire via ALADDIN, Groq en fallback
+    const _hasGem = (()=>{ try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(_){return false;} })();
+    let txt = null;
+    if(_hasGem && navigator.onLine && typeof window.callAladdinAI === 'function'){
+      try{
+        const _r = await window.callAladdinAI('ANALYSE', prompt);
+        if(_r && _r.text){ txt = _r.text; if(status) status.textContent='Gemini ✨'; }
+      }catch(_e){}
+    }
+    if(!txt){
+      const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
+        body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:120,temperature:.6,messages:[{role:'user',content:prompt}]})
+      });
+      const j=await r.json();
+      txt=j.choices?.[0]?.message?.content;
+      if(status) status.textContent='Groq';
+    }
+    if(txt&&el){ el.innerHTML='💡 '+txt.trim(); }
   }catch(e){if(status)status.textContent=t('ia_local');}
 }
 
@@ -5771,19 +5803,20 @@ function renderAI(){
       ${scoreRing(Math.max(0,100-kpi.dopamineIdx),t('ai_maitrise'),kpi.dopamineIdx<40?'var(--grn)':kpi.dopamineIdx<65?'var(--ylw)':'var(--red)')}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
-      <div class="kt"><div class="kl">${t('ai_pressure')}</div><div class="kv" style="color:${kpi.pressureIdx>20?'var(--red)':kpi.pressureIdx>0?'var(--org)':'var(--grn)'}">${kpi.pressureIdx>0?'+':''}${kpi.pressureIdx}%</div><div class="ks">${t('ai_pressure_sub')}</div></div>
-      <div class="kt"><div class="kl">${t('ai_evap')}</div><div class="kv" style="color:${kpi.evaporationRate>50?'var(--red)':kpi.evaporationRate>25?'var(--org)':'var(--grn)'}">${kpi.evaporationRate}%</div><div class="ks">${t('ai_evap_sub')}</div></div>
-      <div class="kt"><div class="kl">${t('ai_nocturne')}</div><div class="kv" style="color:${kpi.nightPct>20?'var(--red)':kpi.nightPct>10?'var(--org)':'var(--grn)'}">${kpi.nightPct}%</div><div class="ks">${t('ai_nocturne_sub')}</div></div>
-      <div class="kt"><div class="kl">${t('ai_dopamine')}</div><div class="kv" style="color:${kpi.dopamineIdx>60?'var(--red)':kpi.dopamineIdx>35?'var(--org)':'var(--grn)'}">${kpi.dopamineIdx}%</div><div class="ks">${t('ai_dopamine_sub')}</div></div>
+      <div class="kt" style="cursor:pointer" onclick="quickAsk('Pression financière à ${kpi.pressureIdx}% vs habitude 30j — explique la cause précise et comment la réduire')"><div class="kl">${t('ai_pressure')} <span style="font-size:8px;color:var(--acc3)">✨</span></div><div class="kv" style="color:${kpi.pressureIdx>20?'var(--red)':kpi.pressureIdx>0?'var(--org)':'var(--grn)'}">${kpi.pressureIdx>0?'+':''}${kpi.pressureIdx}%</div><div class="ks">${t('ai_pressure_sub')}</div></div>
+      <div class="kt" style="cursor:pointer" onclick="quickAsk('Évaporation post-revenu à ${kpi.evaporationRate}% — pourquoi mon argent disparaît si vite après chaque entrée et comment bloquer ça')"><div class="kl">${t('ai_evap')} <span style="font-size:8px;color:var(--acc3)">✨</span></div><div class="kv" style="color:${kpi.evaporationRate>50?'var(--red)':kpi.evaporationRate>25?'var(--org)':'var(--grn)'}">${kpi.evaporationRate}%</div><div class="ks">${t('ai_evap_sub')}</div></div>
+      <div class="kt" style="cursor:pointer" onclick="quickAsk('Dépenses nocturnes à ${kpi.nightPct}% — analyse ce comportement nocturne et donne 2 stratégies concrètes')"><div class="kl">${t('ai_nocturne')} <span style="font-size:8px;color:var(--acc3)">✨</span></div><div class="kv" style="color:${kpi.nightPct>20?'var(--red)':kpi.nightPct>10?'var(--org)':'var(--grn)'}">${kpi.nightPct}%</div><div class="ks">${t('ai_nocturne_sub')}</div></div>
+      <div class="kt" style="cursor:pointer" onclick="quickAsk('Index dopamine à ${kpi.dopamineIdx}% — analyse mes achats impulsifs et dis-moi comment briser ce schéma')"><div class="kl">${t('ai_dopamine')} <span style="font-size:8px;color:var(--acc3)">✨</span></div><div class="kv" style="color:${kpi.dopamineIdx>60?'var(--red)':kpi.dopamineIdx>35?'var(--org)':'var(--grn)'}">${kpi.dopamineIdx}%</div><div class="ks">${t('ai_dopamine_sub')}</div></div>
     </div>
+    <div style="font-size:9px;color:var(--mut);text-align:center;margin-top:6px;padding-top:6px;border-top:1px solid var(--brd)">Tape sur un indicateur pour l'analyser avec l'IA ✨</div>
   </div>
   `}
 
   <!-- CONSEIL ALADDIN — remplace "Actions Rapides" (§H) -->
   ${window.renderCouncilCard ? window.renderCouncilCard() : ''}
 
-  <!-- ACTIONS DU MOMENT — conservées sous le Conseil -->
-  <div class="card">
+  <!-- ACTIONS DU MOMENT — masquées quand le Conseil a tourné (il les remplace) -->
+  ${!window.councilDone ? `<div class="card">
     <div class="ch">${t('ai_actions_title')}</div>
     ${(()=>{
       const _cls = window._lastCouncilSummary;
@@ -8513,11 +8546,13 @@ window.renderHealthScoreCard = function renderHealthScoreCard(kpi){
     const bars = axes.map(a=>{
       const pct = Math.round((a.v/20)*100);
       const c = a.v>=15?'var(--grn)':a.v>=10?'var(--ylw)':a.v>=5?'var(--org)':'var(--red)';
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      const q = 'Explique mon score '+a.l+' de '+a.v+'/20 en santé financière — cause précise et 1 action concrète';
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('${q.replace(/'/g,'&#39;')}'),200)" title="Analyser avec IA">
         <div style="height:36px;width:6px;background:var(--surf3);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden">
-          <div style="width:100%;height:${pct}%;background:${c};border-radius:3px"></div>
+          <div style="width:100%;height:${pct}%;background:${c};border-radius:3px;transition:opacity .2s"></div>
         </div>
         <div style="font-size:9px;color:var(--mut);font-weight:600;text-align:center;line-height:1.1">${a.l}</div>
+        <div style="font-size:7px;color:${c};opacity:.8">✨</div>
       </div>`;
     }).join('');
     return `<div class="card" onclick="openHealthDetailModal()" style="text-align:center;padding:16px 12px;margin-bottom:12px;cursor:pointer">
@@ -8548,10 +8583,14 @@ window.openHealthDetailModal = function openHealthDetailModal(){
     const rows = Object.keys(h.axes).map(k=>{
       const v = h.axes[k];
       const c = v>=15?'var(--grn)':v>=10?'var(--ylw)':v>=5?'var(--org)':'var(--red)';
+      const aiQ = 'Santé financière — indicateur '+labels[k]+' : '+v+'/20. Explique pourquoi ce score est à ce niveau avec des chiffres précis de mes transactions, et donne 1 action concrète pour l\'améliorer.';
       return `<div style="margin:10px 0;padding:10px;background:var(--surf2);border-radius:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <span style="font-weight:700;font-size:13px">${labels[k]}</span>
-          <span class="mono fw8" style="color:${c}">${v}/20</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="mono fw8" style="color:${c}">${v}/20</span>
+            <button onclick="closeModal();setTimeout(()=>{go('ai');setTimeout(()=>quickAsk('${aiQ.replace(/'/g,'&#39;')}'),200)},100)" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:3px 7px;cursor:pointer">✨ IA</button>
+          </div>
         </div>
         <div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:6px">
           <div style="height:100%;width:${(v/20)*100}%;background:${c}"></div>
@@ -8563,7 +8602,10 @@ window.openHealthDetailModal = function openHealthDetailModal(){
       <h3>${T('health_score')} — <span style="color:${h.color}">${h.score}/100</span></h3>
       <div style="font-size:12px;color:${h.color};font-weight:700;margin-bottom:8px">${h.label}</div>
       ${rows}
-      <button class="btn" onclick="closeModal()" style="margin-top:8px">OK</button>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn" onclick="closeModal()" style="flex:1">OK</button>
+        <button class="btn" onclick="closeModal();setTimeout(()=>{go('ai');setTimeout(()=>quickAsk('Analyse complète de ma santé financière ${h.score}/100 (${h.label}) — explique chaque sous-score avec des données précises et donne un plan pour passer à un niveau supérieur'),200)},100)" style="flex:1;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.1));border:1px solid rgba(167,139,250,.4);color:#a78bfa">✨ Analyse IA complète</button>
+      </div>
     `);
   }catch(e){ console.warn('[Health modal] fail',e); }
 };
@@ -8763,8 +8805,13 @@ window.renderProjectionCard = function renderProjectionCard(kpi, period){
       <span style="color:var(--grn)">▲ ${L('Revenu prévu','Predicted income','Ingreso previsto','Receita prevista')} (${nbInc})</span>
       <span style="color:var(--red)">● ${L('Dépense prévue','Predicted expense','Gasto previsto','Despesa prevista')} (${nbExp})</span>
     </div>`;
+    // Récupérer l'analyse IA en cache si disponible
+    const _projCacheKey = 'proj_ai_'+period+'_'+(new Date().toDateString().replace(/ /g,''));
+    const _projAICache = window[_projCacheKey];
     return `<div class="card">
-      <div class="ch">📈 ${T('projection_title').toUpperCase()} · ${unitLabel}+${STEPS}</div>
+      <div class="ch">📈 ${T('projection_title').toUpperCase()} · ${unitLabel}+${STEPS}
+        <button onclick="event.stopPropagation();window._triggerProjectionAI('${period}')" style="margin-left:auto;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:3px 8px;cursor:pointer">✨ Scénarios IA</button>
+      </div>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
         <line x1="${pad}" y1="${yZero}" x2="${W-pad}" y2="${yZero}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
         <path d="${band}" fill="rgba(99,102,241,.14)" stroke="none"/>
@@ -8782,8 +8829,53 @@ window.renderProjectionCard = function renderProjectionCard(kpi, period){
       ${legend}
       ${shortBanner}
       ${negAlert}
+      <div id="projAISection_${period}" style="margin-top:8px">
+        ${_projAICache ? `<div style="padding:10px 0;border-top:1px solid var(--brd);margin-top:6px">
+          <div style="font-size:10px;color:#a78bfa;font-weight:700;margin-bottom:6px;letter-spacing:.4px">✨ ANALYSE IA — Scénarios probabilistes</div>
+          <div style="font-size:12px;color:var(--txt2);line-height:1.6">${_projAICache}</div>
+        </div>` : `<div style="font-size:10px;color:var(--mut);text-align:center;padding:6px 0">Tap "Scénarios IA" pour une projection probabiliste avec Gemini</div>`}
+      </div>
     </div>`;
   }catch(e){ console.warn('[Projection render] fail',e); return ''; }
+};
+
+/* ── Analyse IA de projection avec scénarios ─────────────────── */
+window._triggerProjectionAI = async function(period){
+  const _el = document.getElementById('projAISection_'+period);
+  if(!_el) return;
+  const _hasGem = (()=>{ try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(_){return false;} })();
+  const _hasGroq = !!(window.getGroqKey && window.getGroqKey());
+  if(!_hasGem && !_hasGroq){ _el.innerHTML='<div style="font-size:11px;color:var(--org);padding:8px 0">Configure une clé Gemini ou Groq dans Config</div>'; return; }
+  if(!navigator.onLine){ _el.innerHTML='<div style="font-size:11px;color:var(--org);padding:8px 0">Connexion requise pour l'analyse IA</div>'; return; }
+  _el.innerHTML='<div style="padding:10px 0;font-size:11px;color:var(--mut);display:flex;align-items:center;gap:8px"><span class="ald" style="display:inline-flex;gap:3px"><span class="add"></span><span class="add"></span><span class="add"></span></span> Gemini analyse les scénarios…</div>';
+  try{
+    const _kpi = window.computeKPIs();
+    const _proj = window.buildCashflowProjection(period);
+    const _finalSolde = _proj ? _proj.series[_proj.steps-1]?.solde || 0 : 0;
+    const _burnRate = _kpi.burnRate || 0;
+    const _safetyDays = _kpi.safetyDays || 0;
+    const _evap = _kpi.evaporationRate || 0;
+    const _q = `Projection cashflow sur ${_proj?.steps||30} jours. Solde actuel: ${fmtFull(_kpi.activeBalance||0)}. Burn rate: ${fmtFull(_burnRate)}/j. Jours d'autonomie: ${_safetyDays}j. Évaporation: ${_evap}%. Projection centrale: ${fmtFull(_finalSolde)}.
+Génère EXACTEMENT 3 scénarios probabilistes en 3 lignes max:
+🔴 CHOC (-30% revenus +20% dépenses): solde J+${_proj?.steps||30} et probabilité %
+🟡 ACTUEL (rythme inchangé): solde J+${_proj?.steps||30} et probabilité %  
+🟢 OPTIMAL (+20% revenus -10% dépenses): solde J+${_proj?.steps||30} et probabilité %
+Puis: 1 insight comportemental basé sur l'évaporation de ${_evap}%. Max 5 lignes total.`;
+    const _res = await window.callAladdinAI('PRÉVISIONS', _q);
+    if(_res && _res.text){
+      const _cacheKey = 'proj_ai_'+period+'_'+(new Date().toDateString().replace(/ /g,''));
+      window[_cacheKey] = _res.text;
+      const _src = window._lastAISource==='gemini'?'Gemini ✨':'Groq';
+      _el.innerHTML = `<div style="padding:10px 0;border-top:1px solid var(--brd);margin-top:6px">
+        <div style="font-size:10px;color:#a78bfa;font-weight:700;margin-bottom:6px;letter-spacing:.4px">✨ SCÉNARIOS IA — ${_src}</div>
+        <div style="font-size:12px;color:var(--txt2);line-height:1.7;white-space:pre-line">${_res.text.replace(/
+/g,'<br>')}</div>
+        <div style="font-size:9px;color:var(--mut);margin-top:4px;text-align:right">Généré le ${new Date().toLocaleTimeString()}</div>
+      </div>`;
+    }
+  }catch(ex){
+    _el.innerHTML='<div style="font-size:11px;color:var(--org);padding:6px 0">Erreur analyse IA: '+ex.message+'</div>';
+  }
 };
 
 /* ============================================================
@@ -10256,21 +10348,26 @@ window.renderCouncilCard = function(){
   /* Bouton de démarrage si pas en cours */
   if(!window.councilRunning && !window.councilMsgs.length){
     var autoMsg = trigger
-      ? 'Condition détectée — le Conseil peut analyser et proposer des actions.'
-      : 'Demandez aux AIs de raisonner ensemble sur ta situation.';
-    return '<div class="card council-wrap">'
-      +'<div class="council-header" style="color:#a78bfa">'
-      +'<span style="font-size:14px">🔮</span> CONSEIL ALADDIN'
-      +(trigger?'<span style="margin-left:auto">'+triggerLabel+'</span>':'')
+      ? 'Condition détectée : '+trigger.label+'. Le Conseil va analyser et proposer un plan d'action.'
+      : 'Les deux IA raisonnent ensemble sur ta situation et te proposent un plan concret.';
+    return '<div class="card council-wrap" style="border-color:rgba(167,139,250,.35);background:linear-gradient(135deg,rgba(167,139,250,.05),rgba(15,23,42,.02))">'
+      +'<div class="council-header" style="color:#a78bfa;padding:14px 14px 10px">'
+      +'<span style="font-size:18px">🔮</span>'
+      +'<div>'
+      +'<div style="font-size:12px;font-weight:800;letter-spacing:.8px">CONSEIL DÉLIBÉRATIF ALADDIN</div>'
+      +'<div style="font-size:10px;color:var(--mut);font-weight:400;letter-spacing:0;margin-top:1px">'+(hasGemKey&&hasGroqKey?'Gemini Stratège × Groq Tacticien — 4 tours de délibération':hasGemKey?'Gemini Stratège — analyse en profondeur':'Groq Tacticien — analyse rapide')+'</div>'
       +'</div>'
-      +'<div style="padding:0 14px;font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:10px">'+autoMsg+'</div>'
-      +'<div style="padding:0 14px 14px">'
+      +(trigger?'<span style="margin-left:auto;align-self:flex-start">'+triggerLabel+'</span>':'')
+      +'</div>'
+      +'<div style="padding:0 14px;font-size:12px;color:var(--txt2);line-height:1.55;margin-bottom:12px">'+autoMsg+'</div>'
+      +'<div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">'
       +(hasGemKey&&hasGroqKey
-        ? '<button class="council-start-btn" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
-          +'<span style="font-size:14px">🤝</span> Convoquer le Conseil Gemini × Groq</button>'
+        ? '<button class="council-start-btn" style="background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(52,211,153,.1));border-color:rgba(167,139,250,.45)" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
+          +'<span style="font-size:16px">🤝</span> Convoquer le Conseil Gemini × Groq</button>'
         : '<button class="council-start-btn" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
-          +'<span style="font-size:14px">✨</span> Analyser avec '+(hasGemKey?'Gemini':'Groq')+'</button>'
+          +'<span style="font-size:16px">✨</span> Analyser avec '+(hasGemKey?'Gemini':'Groq')+'</button>'
       )
+      +'<div style="font-size:10px;color:var(--mut);text-align:center;padding:2px 0">⏱ ~15-30 secondes · Dialogue en 4 échanges · Commandes d'action incluses</div>'
       +'</div>'
       +'</div>';
   }

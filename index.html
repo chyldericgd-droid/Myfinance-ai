@@ -620,7 +620,6 @@ body.state-zero{
 .council-pred-graph{margin:8px 14px;border-radius:14px;overflow:hidden;background:var(--surf2);border:1px solid var(--brd)}
 
 
-/* ══ CHAT MODAL OVERLAY (moved from loader) ══ */
 /* ══ CHAT MODAL OVERLAY ══════════════════════════════════════════════════ */
 #chatModalOverlay{position:fixed;inset:0;z-index:980;background:var(--bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);pointer-events:none}
 #chatModalOverlay.open{transform:translateY(0);pointer-events:all}
@@ -4511,8 +4510,21 @@ function openAIQuick(){
     return;
   }
 
-  // Ouvre le modal chat complet (plein écran)
-  openChatModal();
+  // Navigation vers la vue IA + déclenchement du Conseil si auto-trigger détecté
+  go('ai');
+  setTimeout(()=>{
+    try{
+      const kpi=computeKPIs();
+      const trigger=window.detectCouncilTrigger?window.detectCouncilTrigger(kpi):null;
+      if(window.runAladdinCouncil && !window.councilRunning && !(window.councilMsgs&&window.councilMsgs.length)){
+        const councilTrigger=trigger||{reason:'manuel',label:'Analyse rapide',severity:'manual'};
+        window.runAladdinCouncil(councilTrigger);
+      } else {
+        const el=document.querySelector('.council-wrap');
+        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    }catch(e){ console.warn('[FAB]',e); }
+  },150);
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -9416,7 +9428,7 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GROQ_MODEL           : 'llama-3.3-70b-versatile',  // meilleure qualité pour le Conseil ALADDIN
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
-  MAX_TOKENS           : 900,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
+  MAX_TOKENS           : 500,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
   TEMPERATURE          : 0.75,  // Gemini 3.5 Flash — équilibre naturel/précision
   // Seuils anomalies
   FRAG_WINDOW_MIN      : 30,   // fenêtre de fragmentation (minutes)
@@ -9811,7 +9823,7 @@ RÈGLES ABSOLUES :
 • Zéro invention de chiffres
 • Zéro balises entre crochets dans ta réponse (pas de [État Rapide], pas de [Action])
 • Réponds en prose naturelle et fluide
-• Développe tes réponses — ne te coupe pas avant d'avoir fini ton analyse
+• Sois CONCIS : 3 à 5 phrases courtes maximum. Va droit au but. Pas de remplissage, pas de redites, pas de plans en jours/semaines/mois/années sauf si on te le demande explicitement.
 CAPACITÉS PRÉDICTIVES : Tu connais les habitudes de l'utilisateur. Anticipe les prochaines dépenses récurrentes et revenus attendus. Sois proactif sur les risques à venir.
 Si on te demande d'analyser le graphe de projection, commente la courbe, la tendance, et le risque de découvert avec les chiffres exacts.${langNote}
 ${anomalyBlock}
@@ -9844,7 +9856,7 @@ async function callAladdinAI(viewType, userQuery) {
     {role:'user', content:userQuery}
   ];
   /* Tokens dynamiques selon le mode — Gemini n'est plus bridé */
-  const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000 };
+  const modeTokens = { HOME:280, ANALYSE:800, PRÉVISIONS:900 };
   const tokensForMode = modeTokens[viewType] || AI_CONFIG.MAX_TOKENS;
   const body     = JSON.stringify({
     model: AI_CONFIG.GEMINI_MODEL_VERSION,

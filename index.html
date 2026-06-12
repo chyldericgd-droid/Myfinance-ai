@@ -4827,7 +4827,7 @@ function renderHome(){
     return`<div style="margin-bottom:12px;padding:12px 14px;background:rgba(0,0,0,.2);border:1px solid ${colors[comport.profilEtat]||'var(--brd)'}33;border-radius:14px;font-size:12px;color:var(--txt2);line-height:1.6">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1"><span style="font-weight:800;color:${colors[comport.profilEtat]||'var(--acc3)'}">${icons[comport.profilEtat]||'🧠'} IVY Adaptatif</span> — ${comport.messageContextuel}</div>
-        <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('IVY détecte : ${comport.messageContextuel.replace(/'/g,\"\\'\"').slice(0,60)} — donne-moi une analyse détaillée et 2 actions concrètes'),200)" style="flex-shrink:0;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">Ask IA →</button>
+        <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('Analyse IVY — explique ma situation comportementale actuelle et donne 2 actions concrètes'),200)" style="flex-shrink:0;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">Ask IA →</button>
       </div>
     </div>`;
   })():''}
@@ -4850,7 +4850,10 @@ function renderHome(){
     <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
       <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
     </div>
-    ${alerts.map(a=>`<div class="al al-${a.t}" style="cursor:pointer" onclick="go('ai');setTimeout(()=>{const _ci=$('chatInput');if(_ci){_ci.value=a.m.slice(0,120)+' — explique et propose une action';$('sendBtn')&&$('sendBtn').click();}},200)">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer">✕</button>`:''}</div>`).join('')}
+    ${alerts.map((a,_ai)=>{
+      const _am=a.m.replace(/'/g,'&#39;').slice(0,100);
+      return `<div class="al al-${a.t}" style="cursor:pointer" onclick="quickAsk('${_am} — explique et propose une action immédiate')" data-alert="${_ai}">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer">✕</button>`:''}</div>`
+    }).join('')}
     ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j — alertes comportementales actives à 14j+</div>`:'')}
   </div>
 
@@ -8160,7 +8163,7 @@ log('Upgrade v5.1 chargé — intents/context/currency/SW prêts');
 <!-- ════ ALADDIN COMPLIANCE WRAPPER ════ -->
 <script>
 /* ALADDIN v5 — wrapper transactional save to enforce preFlightCheck */
-window.__originalDbPut = window.__originalDbPut || dbPut;
+window.__originalDbPut = window.__originalDbPut || (typeof dbPut !== 'undefined' ? dbPut : null);
 async function _dbPutWithCompliance(store,data){
   if(store==='transactions' && typeof ALADDIN!=='undefined' && data){
     try{ await ALADDIN.preFlightCheck(data); }catch(_){}
@@ -9670,8 +9673,8 @@ window.callAladdinAI = callAladdinAI;
     if(gemKey && navigator.onLine){
       try{
         const result = await callAladdinAI('HOME',
-          'Donne-moi un état de santé financier complet de ma situation aujourd'hui. ' +
-          'Cite mon solde exact, les dépenses récurrentes imminentes, le prochain revenu attendu, et une action concrète immédiate.'
+          "Donne-moi un état de santé financier complet de ma situation aujourd'hui. " +
+          "Cite mon solde exact, les dépenses récurrentes imminentes, le prochain revenu attendu, et une action concrète immédiate." 
         );
         if(result && result.text){
           window._aladdinHomeCache = result.text;

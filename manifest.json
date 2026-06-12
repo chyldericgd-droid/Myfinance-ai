@@ -101,8 +101,8 @@
       ]
     }
   ],
-  "id": "/?v=7.0.0",
-  "version": "7.0.0",
+  "id": "/?v=8.2.0",
+  "version": "8.2.0",
   "lang": "auto",
   "share_target": {
     "action": "./",

@@ -3527,8 +3527,9 @@ function updateOnlineStatus(){
   const aiChatBadge=document.getElementById('aiChatBadge');
   if(aiChatBadge){
     const _gk=(()=>{try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';}})();
-    const _label = !on ? t('ai_local') : _gk ? 'GEMINI ✨' : 'GROQ AI';
-    const _color = !on ? 'var(--org)' : _gk ? '#a78bfa' : 'var(--grn)';
+    const _src = window._lastAISource;
+    const _label = !on ? t('ai_local') : _src==='gemini'?'GEMINI ✨' : _src==='groq'?'GROQ AI' : _gk?'GEMINI ✨':'GROQ AI';
+    const _color = !on ? 'var(--org)' : _src==='gemini'||_gk?'#a78bfa':'var(--grn)';
     aiChatBadge.textContent = _label;
     aiChatBadge.style.color = _color;
   }
@@ -4824,7 +4825,10 @@ function renderHome(){
     const icons={'EXCEPTIONAL_INCOME':'🛡️','USER_RESTRICTION':'✊','PLEASURE_SPIKE':'⚡','NO_INCOME_MODE':'💡'};
     const colors={'EXCEPTIONAL_INCOME':'var(--grn)','USER_RESTRICTION':'var(--acc3)','PLEASURE_SPIKE':'var(--ylw)','NO_INCOME_MODE':'var(--org)'};
     return`<div style="margin-bottom:12px;padding:12px 14px;background:rgba(0,0,0,.2);border:1px solid ${colors[comport.profilEtat]||'var(--brd)'}33;border-radius:14px;font-size:12px;color:var(--txt2);line-height:1.6">
-      <span style="font-weight:800;color:${colors[comport.profilEtat]||'var(--acc3)'}">${icons[comport.profilEtat]||'🧠'} IVY Adaptatif</span> — ${comport.messageContextuel}
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1"><span style="font-weight:800;color:${colors[comport.profilEtat]||'var(--acc3)'}">${icons[comport.profilEtat]||'🧠'} IVY Adaptatif</span> — ${comport.messageContextuel}</div>
+        <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('IVY détecte : ${comport.messageContextuel.replace(/'/g,\"\\'\"').slice(0,60)} — donne-moi une analyse détaillée et 2 actions concrètes'),200)" style="flex-shrink:0;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">Ask IA →</button>
+      </div>
     </div>`;
   })():''}
 
@@ -4836,16 +4840,17 @@ function renderHome(){
   <div class="ai-insight" id="homeAICard" onclick="openAIQuick()" style="cursor:pointer">
     <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'rgba(251,191,36,.15)':g?'rgba(167,139,250,.18)':'rgba(99,102,241,.15)'})()};color:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'var(--ylw)':g?'#a78bfa':'var(--acc3)'})()}">${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'LOCAL':g?'GEMINI ✨':'GROQ AI'})()}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
-    <div style="margin-top:8px;display:flex;gap:6px">
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
       <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
+      <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('Explique-moi en détail ma santé financière actuelle, le score IVY, et dis-moi exactement quoi faire cette semaine pour l\'améliorer'),200)" style="background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:4px 8px;cursor:pointer">Analyse complète ✨</button>
     </div>
   </div>  <!-- ALERTS -->
   <div class="card">
     <div class="ch">🔔 ${t('alerts_title')} <span class="pill">${alerts.length}</span>
       <button onclick="event.stopPropagation();render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:6px;transition:color .2s" title="Actualiser">↻</button>
     </div>
-    ${alerts.map(a=>`<div class="al al-${a.t}">${a.m}${a.dt?`<button onclick="dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer aujourd'hui">✕</button>`:''}</div>`).join('')}
+    ${alerts.map(a=>`<div class="al al-${a.t}" style="cursor:pointer" onclick="go('ai');setTimeout(()=>{const _ci=$('chatInput');if(_ci){_ci.value=a.m.slice(0,120)+' — explique et propose une action';$('sendBtn')&&$('sendBtn').click();}},200)">${a.m}${a.dt?`<button onclick="event.stopPropagation();dismissAlert('${a.dt}')" style="float:right;background:none;border:none;color:var(--mut);font-size:12px;cursor:pointer;padding:0 2px;line-height:1" title="Masquer">✕</button>`:''}</div>`).join('')}
     ${kpi.isSilent?'':(kpi.isShortHistory?`<div style="margin-top:6px;font-size:10px;color:var(--mut)">📊 Basé sur ${kpi.dataDays}j — alertes comportementales actives à 14j+</div>`:'')}
   </div>
 
@@ -5777,6 +5782,17 @@ function renderAI(){
   <!-- ACTIONS DU MOMENT — conservées sous le Conseil -->
   <div class="card">
     <div class="ch">${t('ai_actions_title')}</div>
+    ${(()=>{
+      const _cls = window._lastCouncilSummary;
+      const _clsRecent = _cls && (Date.now() - _cls.ts) < 30 * 60 * 1000;
+      if(!_clsRecent) return '';
+      const _minAgo = Math.round((Date.now() - _cls.ts) / 60000);
+      const _txt = (_cls.groqConclusion||'').slice(0,150);
+      return `<div style="padding:8px 12px;border-radius:10px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);margin-bottom:10px">
+        <div style="font-size:10px;color:#a78bfa;font-weight:700;margin-bottom:4px;letter-spacing:.5px">⚡ CONSEIL ALADDIN — il y a ${_minAgo}min</div>
+        <div style="font-size:12px;color:var(--txt);line-height:1.5">${_txt}${_txt.length>=150?'…':''}</div>
+      </div>`;
+    })()}
     ${getNextActions(kpi).map(a=>`
       <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--brd)">
         <div style="font-size:18px;flex-shrink:0;line-height:1.3">${a.icon}</div>
@@ -5789,14 +5805,18 @@ function renderAI(){
   </div>
 
   ${consistency.length?`<div class="card" style="border-color:rgba(244,63,94,.28);background:linear-gradient(135deg,rgba(244,63,94,.07),rgba(15,23,42,.02))">
-    <div class="ch">${t('ai_hardcore_title')}</div>
+    <div class="ch">${t('ai_hardcore_title')} <button class="btn btn-ghost btn-sm" style="margin-left:auto;border-color:rgba(244,63,94,.4);color:var(--red)" onclick="quickAsk('Mode hardcore actif — analyse mes dépenses récurrentes qui sabotent mon budget et donne-moi 3 actions immédiates')">⚡ Analyse IA</button></div>
     ${consistency.map(a=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--brd)">
       <div style="font-size:18px;flex-shrink:0;line-height:1.3">${a.icon}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--txt);line-height:1.5;margin-bottom:6px">${a.text}</div>${a.btn?`<button class="btn btn-ghost btn-sm" onclick="${a.btnAction}">${a.btn}</button>`:''}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--txt);line-height:1.5;margin-bottom:6px">${a.text}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${a.btn?`<button class="btn btn-ghost btn-sm" onclick="${a.btnAction}">${a.btn}</button>`:''}
+        <button class="btn btn-ghost btn-sm" style="border-color:rgba(244,63,94,.3);color:var(--red);font-size:10px" onclick="quickAsk('${a.text.replace(/'/g,"\'").slice(0,80)} — explique ce pattern et aide-moi à le briser')">Demander à l'IA</button>
+      </div></div>
     </div>`).join('')}
   </div>`:''}
   <div class="card">
-    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?'var(--org)':g?'#a78bfa':'var(--grn)'})()}">${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_local'):g?'GEMINI ✨':'GROQ AI'})()}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
+    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${(()=>{const _src=window._lastAISource;return !isOnline?'var(--org)':_src==='gemini'?'#a78bfa':_src==='groq'?'var(--grn)':window.safeStorage?.getItem('gemini_key')?'#a78bfa':'var(--grn)'})()}">${(()=>{const _src=window._lastAISource;const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_local'):_src==='gemini'?'GEMINI ✨':_src==='groq'?'GROQ AI':g?'GEMINI ✨':'GROQ AI'})()}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
     <div class="chat" id="chatArea">
       ${(()=>{
         if(!aiMsgs.length) return `<div class="bub bai">${t('chat_default')}</div>`;
@@ -5825,24 +5845,35 @@ function renderAI(){
   <!-- PRÉDICTIONS DU CONSEIL (si existantes) -->
   ${window.renderCouncilPredGraph ? window.renderCouncilPredGraph() : ''}
 
-  <!-- QUICK Q — contextuels selon l'état réel -->
+  <!-- QUICK Q — contextuels dynamiques (heure, KPIs, objectifs) -->
   <div class="card">
     <div class="ch">${t('home_quick_q')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${['ai_q1','ai_q2','ai_q3','ai_q4','ai_q5','ai_q6'].map(k=>{const q=t(k);return `<button class="btn btn-ghost btn-sm" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}</button>`}).join('')}
       ${(()=>{
-        const extras=[];
-        const k2=computeKPIs();
-        if(txs.some(tx=>tx.note&&tx.note.length>1)){
-          extras.push(_lang==='en'?'Analyze my transaction notes':'Analyse mes notes de transactions');
-        }
-        const pg=getPriorityGoal();
-        if(pg) extras.push(_lang==='en'?`How is "${pg.name}" going?`:`Comment avance "${pg.name}" ?`);
-        if(k2.activeBalance<=0&&k2.savingsBalance>0){
-          extras.push(_lang==='en'?'My active balance is 0, what to do?':'Mon solde actif est à 0, que faire ?');
-        }
-        if(new Date().getHours()>=18) extras.push(_lang==='en'?'Evening impulse check':'Bilan de soirée — risque impulsion');
-        return extras.slice(0,3).map(q=>`<button class="btn btn-ghost btn-sm" style="border-color:rgba(139,92,246,.3)" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}</button>`).join('');
+        const _h = new Date().getHours();
+        const _kpiQ = (()=>{ try{return computeKPIs();}catch(e){return {};} })();
+        const _pg = (()=>{ try{return getPriorityGoal();}catch(e){return null;} })();
+        // Question temporelle contextuelle
+        const _qTime = (_h>=21||_h<5)?(_lang==='en'?'Late night spending risk?':'Risque dépense nocturne ?')
+          :(_h<10)?(_lang==='en'?'Night summary, what changed?':'Bilan de la nuit, quoi de neuf ?')
+          :(_h<14)?(_lang==='en'?'Morning spending pattern?':'Mon schéma de dépenses ce matin ?')
+          :(_lang==='en'?'Evening impulse check':'Bilan de soirée — risque impulsion');
+        // Question KPI-based
+        const _evap = _kpiQ.evaporationRate||0;
+        const _dop  = _kpiQ.dopamineIdx||0;
+        const _qKpi = _evap>200?`Pourquoi j'évapore ${_evap}% en 48h ?`
+          :_dop>50?(_lang==='en'?'My impulsive spending this month?':'Mes achats impulsifs ce mois ?')
+          :(_kpiQ.activeBalance<=0)?(_lang==='en'?'Balance at 0, what to do now?':'Solde à 0, que faire maintenant ?')
+          :(_lang==='en'?'What are my spending triggers?':'Mes triggers de dépense ?');
+        // Question objectifs
+        const _qGoal = _pg?(_lang==='en'?`Am I on track for "${_pg.name}"?`:`Suis-je en bonne voie pour "${_pg.name}" ?`)
+          :(_lang==='en'?'Domino effect detected?':'Effet domino détecté ?');
+        // Questions comportement nocturne / anomalies
+        const _qExtra = (_kpiQ.pressureScore>200)?(_lang==='en'?'Why is my pressure so high?':'Pourquoi ma pression financière explose ?')
+          :(txs.length>=5)?(_lang==='en'?'Hidden patterns in my transactions?':'Patterns cachés dans mes transactions ?')
+          :(_lang==='en'?'Night spending behavior?':'Comportement nocturne ?');
+        const _dynamicQs = [_qTime, _qKpi, _qGoal, _qExtra];
+        return _dynamicQs.map(q=>`<button class="btn btn-ghost btn-sm" style="border-color:rgba(139,92,246,.25)" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}</button>`).join('');
       })()}
     </div>
   </div>
@@ -5857,6 +5888,27 @@ function setupChat(){
     const q=ci.value.trim();if(!q||aiTyping)return;
     ci.value='';
     aiMsgs.push({r:'user',c:q,ts:Date.now()});aiTyping=true;render();
+
+    // ── Détection Council depuis le chat ──────────────────────────
+    const _councilKeywords = /conseil|plan|strat[eé]gi|que faire|aide.?moi|am[eé]liore|optimis|recommand|analyse.*global|bilan.*compl|comment.*sortir|que.*dois/i;
+    const _councilAvailable = !window.councilRunning && typeof window.runAladdinCouncil === 'function';
+    const _hasBothKeys = !!(window.safeStorage?.getItem('gemini_key')) && !!(window.getGroqKey?.());
+    const _hasAnyKey = !!(window.safeStorage?.getItem('gemini_key')) || !!(window.getGroqKey?.());
+
+    if(_councilKeywords.test(q) && _councilAvailable && _hasAnyKey && !window.councilDone){
+      aiMsgs.push({
+        r:'ai',
+        c:'⚡ Question stratégique détectée — je lance le Conseil ALADDIN'+(_hasBothKeys?' (Gemini × Groq)':'')+" pour une analyse approfondie. Résultat dans quelques secondes…",
+        src:'Système',
+        ts:Date.now()
+      });
+      aiTyping=false; render();
+      window.runAladdinCouncil({reason:'chat_trigger', label:'Demande chat : '+q.slice(0,50), severity:'manual'});
+      saveChatHistory();
+      return;
+    }
+    // ── Fin détection Council ─────────────────────────────────────
+
     try{const res=await askAI(q);aiMsgs.push({r:'ai',c:res.text,src:res.src,ts:Date.now()})}
     catch(e){aiMsgs.push({r:'ai',c:localAI(q),src:'Local',ts:Date.now()})}
     aiTyping=false;
@@ -9506,7 +9558,19 @@ async function callAladdinAI(viewType, userQuery) {
   const payload  = prepareAIPayload(viewType, userQuery);
   const sysPmt   = buildAladdinSystemPrompt(payload);
   const fetch_   = window._origFetch || window.fetch;
-  const msgs     = [{role:'system',content:sysPmt},{role:'user',content:userQuery}];
+  // ── Injection de l'historique conversationnel (max 6 derniers échanges) ──
+  const _history = (window.aiMsgs || [])
+    .filter(m => m.r === 'user' || m.r === 'ai')
+    .slice(-6)
+    .map(m => ({
+      role: m.r === 'ai' ? 'assistant' : 'user',
+      content: typeof m.c === 'string' ? m.c.slice(0, 500) : String(m.c)
+    }));
+  const msgs = [
+    {role:'system', content:sysPmt},
+    ..._history,
+    {role:'user', content:userQuery}
+  ];
   /* Tokens dynamiques selon le mode — Gemini n'est plus bridé */
   const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000 };
   const tokensForMode = modeTokens[viewType] || AI_CONFIG.MAX_TOKENS;
@@ -9530,6 +9594,7 @@ async function callAladdinAI(viewType, userQuery) {
       const d = await r.json();
       if(r.ok && d.choices?.[0]?.message?.content){
         const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
+        window._lastAISource = 'gemini';
         return {text:txt, src:'Gemini ✨', anomalies:payload.anomalies};
       }
       if(!r.ok) console.warn('[ALADDIN] Gemini error:',d.error?.message);
@@ -9549,6 +9614,7 @@ async function callAladdinAI(viewType, userQuery) {
       const d = await r.json();
       if(r.ok && d.choices?.[0]?.message?.content){
         const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
+        window._lastAISource = 'groq';
         return {text:txt, src:'Groq', anomalies:payload.anomalies};
       }
       if(!r.ok) return {text:'⚠️ Groq: '+d.error?.message, src:'Erreur', anomalies:payload.anomalies};
@@ -9568,7 +9634,7 @@ window.callAladdinAI = callAladdinAI;
   const _orig = window.askAI;
   window.askAI = async function(userMsg){
     /* Détermine le viewType selon l'écran et la question */
-    const scr = (()=>{ try{return window.screen||'home';}catch(_){return 'home';} })();
+    const scr = (()=>{ try{return (typeof screen!=='undefined'?screen:null)||window._currentScreen||'home';}catch(_){return 'home';} })();
     let vt = 'HOME';
     if(scr==='analytics') {
       vt = 'ANALYSE';
@@ -9919,7 +9985,7 @@ window.renderAnomalyBanner = renderAnomalyBanner;
   if(typeof _origRender!=='function') return;
   window.render = function(){
     const r = _origRender.apply(this, arguments);
-    const scr = (()=>{ try{return window.screen||'home';}catch(_){return 'home';} })();
+    const scr = (()=>{ try{return (typeof screen!=='undefined'?screen:null)||window._currentScreen||'home';}catch(_){return 'home';} })();
     if(scr==='home') setTimeout(renderAnomalyBanner, 100);
     return r;
   };
@@ -10151,6 +10217,18 @@ window.runAladdinCouncil = async function(trigger){
 
   window.councilRunning = false;
   window.councilDone = true;
+
+  // ── Synchroniser ACTIONS DU MOMENT avec les conclusions du Council ──
+  try {
+    window._lastCouncilSummary = {
+      ts: Date.now(),
+      groqConclusion: groq2,
+      geminiPlan: gem2,
+      cmds: window.councilPending.slice()
+    };
+    console.log('[Council] Résumé stocké pour ACTIONS DU MOMENT');
+  } catch(ex) { console.warn('[Council sync]', ex); }
+
   try{if(typeof render==='function')render();}catch(ex){}
 };
 

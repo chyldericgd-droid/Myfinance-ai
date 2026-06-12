@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- Finance AI OS v8.3.0 | Refactored PWA -->
+<!-- Finance AI OS v8.5.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -27,7 +27,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="8.3.0">
+<meta name="version" content="8.5.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -4269,13 +4269,17 @@ function updateInsightUI(txt){
     ? '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">CLOUD</span>'
     : '<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(251,191,36,.18);color:var(--ylw);margin-right:6px;vertical-align:middle">LOCAL</span>';
   el.innerHTML = badge+'💡 '+txt;
-  // NOUVEAU — synchroniser homeAIBadge avec la source réelle
+  // Synchroniser homeAIBadge — Gemini prioritaire sur Groq
   const headerBadge = document.getElementById('homeAIBadge');
   if(headerBadge){
     const isCloud = _lastInsightSource === 'cloud';
-    headerBadge.textContent = isCloud ? 'GROQ AI' : 'LOCAL';
-    headerBadge.style.color = isCloud ? 'var(--acc3)' : 'var(--ylw)';
-    headerBadge.style.background = isCloud ? 'rgba(99,102,241,.15)' : 'rgba(251,191,36,.15)';
+    const _gKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
+    const providerLabel = !isCloud ? 'LOCAL' : _gKey ? 'GEMINI ✨' : 'GROQ AI';
+    const providerColor = !isCloud ? 'var(--ylw)' : _gKey ? '#a78bfa' : 'var(--acc3)';
+    const providerBg    = !isCloud ? 'rgba(251,191,36,.15)' : _gKey ? 'rgba(167,139,250,.18)' : 'rgba(99,102,241,.15)';
+    headerBadge.textContent = providerLabel;
+    headerBadge.style.color = providerColor;
+    headerBadge.style.background = providerBg;
   }
   try{
     const fab=document.querySelector('.aifab');
@@ -4788,7 +4792,7 @@ function renderHome(){
   ${typeof renderNBACard==='function'?renderNBACard(kpi):''}
   <!-- AI INSIGHT (online only) -->
   <div class="ai-insight" id="homeAICard" onclick="openAIQuick()" style="cursor:pointer">
-    <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${_lastInsightSource==='cloud'?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)'};color:${_lastInsightSource==='cloud'?'var(--acc3)':'var(--ylw)'}">${_lastInsightSource==='cloud'?'GROQ AI':'LOCAL'}</span></div>
+    <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'rgba(251,191,36,.15)':g?'rgba(167,139,250,.18)':'rgba(99,102,241,.15)'})()};color:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'var(--ylw)':g?'#a78bfa':'var(--acc3)'})()}">${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'LOCAL':g?'GEMINI ✨':'GROQ AI'})()}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
     <div style="margin-top:8px;display:flex;gap:6px">
       <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
@@ -9053,8 +9057,8 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GROQ_MODEL           : 'llama-3.1-8b-instant',
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
-  MAX_TOKENS           : 420,
-  TEMPERATURE          : 0.25,
+  MAX_TOKENS           : 1400,  // Gemini peut aller bien plus haut — libéré
+  TEMPERATURE          : 0.72,  // Plus naturel, moins robotique
   // Seuils anomalies
   FRAG_WINDOW_MIN      : 30,   // fenêtre de fragmentation (minutes)
   FRAG_MIN_COUNT       : 3,    // achats min dans la fenêtre
@@ -9202,64 +9206,154 @@ function prepareAIPayload(viewType, userQuery) {
         } : null,
         devise: cur_(),
       };
-      systemFocus = `Réponse courte (3 phrases max). Cite le solde exact. Si un revenu est attendu, dis quand et combien. Si des dépenses récurrentes arrivent dans 7j, avertis. Action immédiate concrète.`;
+      systemFocus = `Réponds comme un conseiller financier personnel bienveillant et direct. Cite le solde exact, mentionne les dépenses récurrentes imminentes si présentes, le prochain revenu attendu si détecté. Conclus par 1 action concrète. Sois humain, pas robotique.`;
       break;
     }
 
-    /* ── ANALYSE : Patterns, tendances, biais ─────────────────────── */
+    /* ── ANALYSE : Données complètes — tout l'historique, notes, humeurs, comptes ── */
     case 'ANALYSE': {
       const period = safe(()=>window.analyticsPeriod,'month');
-      const ptxs   = safe(()=>window.getPeriodTxs?window.getPeriodTxs(period):allTx.slice(0,30),[]);
-      const depTotal= ptxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-      const catMap  = {};
+      /* Période sélectionnée PLUS historique complet pour comparaison */
+      const ptxs   = safe(()=>window.getPeriodTxs?window.getPeriodTxs(period):allTx,[]);
+      const allHistory = allTx; /* Gemini a accès à TOUT l'historique */
+
+      /* Agrégation par catégorie */
+      const depTotal = ptxs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+      const incTotal = ptxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+      const catMap = {};
       ptxs.filter(t=>t.type==='expense').forEach(t=>{
         const n=catN(t.categoryId); catMap[n]=(catMap[n]||0)+t.amount;
       });
-      const topCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([c,v])=>({
+      const topCats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,v])=>({
         cat:c, montant:Math.round(v), pct:depTotal>0?Math.round(v/depTotal*100):0,
       }));
+
+      /* Analyse des notes (mots-clés récurrents) */
+      const allNotes = allHistory.filter(t=>t.note&&t.note.length>2).map(t=>t.note.toLowerCase());
+      const wordFreq = {};
+      allNotes.forEach(n=>n.split(/\s+/).forEach(w=>{if(w.length>3)wordFreq[w]=(wordFreq[w]||0)+1}));
+      const topKeywords = Object.entries(wordFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([w,n])=>`${w}(×${n})`);
+
+      /* Analyse des humeurs */
+      const moodsAll = allHistory.filter(t=>t.mood).map(t=>({mood:t.mood,type:t.type,montant:t.amount,cat:catN(t.categoryId)}));
+      const moodStress = moodsAll.filter(m=>['😡','😫','😰','😤'].includes(m.mood));
+      const moodHappy  = moodsAll.filter(m=>['😊','😁','🤩','😎'].includes(m.mood));
+      const avgStressSpend = moodStress.length ? Math.round(moodStress.filter(m=>m.type==='expense').reduce((s,m)=>s+m.montant,0)/Math.max(1,moodStress.length)) : 0;
+      const avgHappySpend  = moodHappy.length  ? Math.round(moodHappy.filter(m=>m.type==='expense').reduce((s,m)=>s+m.montant,0)/Math.max(1,moodHappy.length))   : 0;
+
+      /* Virements entre comptes */
+      const transfers = allHistory.filter(t=>t.type==='transfer'||t.isTransfer).slice(0,20).map(t=>({
+        montant:t.amount, date:new Date(t.date).toISOString().slice(0,10),
+        note:t.note||'', de:t.fromAccount||'?', vers:t.toAccount||'?'
+      }));
+
+      /* Transactions avec notes — les 30 plus récentes */
+      const txsAvecNotes = allHistory.filter(t=>t.note&&t.note.length>1).slice(0,30).map(t=>({
+        date:new Date(t.date).toISOString().slice(0,10),
+        type:t.type, montant:t.amount,
+        cat:catN(t.categoryId), note:t.note,
+        humeur:t.mood||null,
+      }));
+
+      /* Historique complet condensé (max 150 tx pour Gemini) */
+      const histoCondense = allHistory.slice(0,150).map(t=>({
+        d:new Date(t.date).toISOString().slice(0,10),
+        a:t.amount, tp:t.type==='expense'?'dep':t.type==='income'?'rev':'vir',
+        c:catN(t.categoryId),
+        n:t.note?(t.note.slice(0,40)):undefined,
+        m:t.mood||undefined,
+      }));
+
+      /* Tous les comptes avec soldes */
+      const comptesDetail = safe(()=>window.accs||[],[]).map(a=>({
+        nom:a.name, type:a.type||'main',
+        solde:a.balance||0, devise:cur_()
+      }));
+
+      /* Objectifs */
+      const objectifs = safe(()=>window.goals||[],[]).map(g=>({
+        nom:g.name, cible:g.target, epargne:g.saved||0,
+        pct:g.target?Math.round(((g.saved||0)/g.target)*100):0,
+        deadline:g.deadline||null
+      }));
+
       contextData = {
-        mode          : 'ANALYSE',
-        periode       : period,
-        totalDepenses : Math.round(depTotal),
-        totalRevenus  : Math.round(ptxs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)),
-        topCategories : topCats,
-        nbTransactions: ptxs.length,
-        pressionVs30j : k.pressureIdx||0,
-        dopamineIndex : k.dopamineIdx||0,
-        devise        : cur_(),
+        mode              : 'ANALYSE',
+        periode           : period,
+        totalDepenses     : Math.round(depTotal),
+        totalRevenus      : Math.round(incTotal),
+        soldeNet          : Math.round(incTotal - depTotal),
+        topCategories     : topCats,
+        nbTransactions    : ptxs.length,
+        nbTransactionsTotal: allHistory.length,
+        pressionVs30j     : k.pressureIdx||0,
+        dopamineIndex     : k.dopamineIdx||0,
+        burnRateJour      : Math.round(k.burnRate||0),
+        tauxRetention     : k.retention||0,
+        comptes           : comptesDetail,
+        objectifs         : objectifs,
+        motsClesNotes     : topKeywords,
+        analyseHumeurs    : {
+          totalAvecHumeur: moodsAll.length,
+          depensesMoyennesStress: avgStressSpend,
+          depensesMoyennesContent: avgHappySpend,
+          nbEventStress: moodStress.length,
+        },
+        virements         : transfers,
+        transactionsAvecNotes: txsAvecNotes,
+        historiqueComplet : histoCondense,
+        devise            : cur_(),
       };
-      systemFocus = 'Analyse macro. Identifie patterns, biais de fragmentation, catégories à risque. Compare vs habitudes. Vision stratégique.';
+      systemFocus = `Analyse complète et approfondie. Tu as accès à l'intégralité de l'historique (${allHistory.length} transactions), aux notes, humeurs, comptes et virements. Identifie patterns profonds, biais comportementaux, corrélations humeur/dépenses, catégories à risque. Donne une vision stratégique sur le long terme. Réponds en plusieurs paragraphes structurés avec chiffres précis.`;
       break;
     }
 
-    /* ── PRÉVISIONS : Simulations mathématiques ────────────────────── */
+    /* ── PRÉVISIONS : Analyse prospective complète ─────────────────── */
     case 'PRÉVISIONS': {
-      const activeBalance = accs_().filter(a=>a.type!=='savings').reduce((s,a)=>s+(a.balance||0),0);
-      const savingsBalance= accs_().filter(a=>a.type==='savings').reduce((s,a)=>s+(a.balance||0),0);
+      const activeBalance  = accs_().filter(a=>a.type!=='savings').reduce((s,a)=>s+(a.balance||0),0);
+      const savingsBalance = accs_().filter(a=>a.type==='savings').reduce((s,a)=>s+(a.balance||0),0);
       const burnRate  = k.burnRate||0;
       const daysLeft  = new Date(now.getFullYear(),now.getMonth()+1,0).getDate()-now.getDate();
       const j0        = burnRate>0 ? Math.floor(activeBalance/burnRate) : 999;
       const incCycle  = safe(()=>window.ALADDIN?.detectIncomeCycle(),null);
+      const allExpH   = allTx.filter(t=>t.type==='expense');
+      const oldestTxH = allExpH.length ? new Date(allExpH[allExpH.length-1].date) : now;
+      const historiqueJours = Math.max(1,Math.round((now-oldestTxH)/86400000));
+      const burnLong  = allExpH.reduce((s,t)=>s+t.amount,0)/historiqueJours;
+      const p30o = Math.round(activeBalance-burnRate*0.8*daysLeft);
+      const p30c = Math.round(activeBalance-burnRate*daysLeft);
+      const p30p = Math.round(activeBalance-burnRate*1.2*daysLeft);
+      const p90  = Math.round(activeBalance-burnRate*90);
+      const p180 = Math.round(activeBalance-burnLong*180);
+      const recP  = safe(()=>window.detectRecurringPatterns?window.detectRecurringPatterns().slice(0,8):[], []);
+      const depRec30 = recP
+        .filter(r=>r.nextExpectedDate&&(r.nextExpectedDate-now)<30*86400000&&(r.nextExpectedDate-now)>0)
+        .map(r=>({cat:r.categoryName,montant:Math.round(r.amount),
+                  dans:Math.ceil((r.nextExpectedDate-now)/86400000)+'j',freq:r.frequency}));
+      const exp30j = allTx.filter(t=>t.type==='expense'&&(now-new Date(t.date))<30*86400000);
+      const catLev = {}; exp30j.forEach(t=>{const n=catN(t.categoryId);catLev[n]=(catLev[n]||0)+t.amount;});
+      const top5Leviers = Object.entries(catLev).sort((a,b)=>b[1]-a[1]).slice(0,5)
+        .map(([c,v])=>({cat:c,montant:Math.round(v),economiePossible:Math.round(v*0.2)}));
       contextData = {
-        mode                 : 'PRÉVISIONS',
-        soldeActif           : Math.round(activeBalance),
-        soldeEpargne         : Math.round(savingsBalance),
-        burnRateJour         : Math.round(burnRate),
-        joursAvantDecouvert  : j0===999?'∞':j0,
-        risque15j            : j0<15?'CRITIQUE':j0<30?'MODÉRÉ':'FAIBLE',
-        risque30j            : j0<30?'CRITIQUE':'FAIBLE',
-        joursRestantsMois    : daysLeft,
-        soldeProjecteFin     : Math.round(activeBalance-burnRate*daysLeft),
-        cycleRevenu          : incCycle?{dans:incCycle.daysToNextExpected,montant:incCycle.expectedCycleIncome}:'non détecté',
-        objectifs            : goals_().map(g=>({nom:g.name,cible:g.target,epargne:g.saved||0,pct:g.target?Math.round(((g.saved||0)/g.target)*100):0})),
-        devise               : cur_(),
+        mode:'PRÉVISIONS', soldeActif:Math.round(activeBalance),
+        soldeEpargne:Math.round(savingsBalance), burnRateJour:Math.round(burnRate),
+        burnRateLongTermeJour:Math.round(burnLong), historiqueJours,
+        joursAvantDecouvert:j0===999?'∞':j0,
+        risque15j:j0<15?'CRITIQUE':j0<30?'MODÉRÉ':'FAIBLE',
+        risque30j:j0<30?'CRITIQUE':'FAIBLE', joursRestantsMois:daysLeft,
+        projections:{finMois_optimiste:p30o,finMois_central:p30c,finMois_pessimiste:p30p,j90:p90,j180:p180},
+        cycleRevenu:incCycle?{dans:incCycle.daysToNextExpected,montant:Math.round(incCycle.expectedCycleIncome),fiabilite:incCycle.confidence||'?'}:'non détecté',
+        depensesRecurrentes30j:depRec30, top5Leviers,
+        objectifs:goals_().map(g=>({nom:g.name,cible:g.target,epargne:g.saved||0,
+          pct:g.target?Math.round(((g.saved||0)/g.target)*100):0,deadline:g.deadline||null})),
+        comptes:accs_().map(a=>({nom:a.name,type:a.type||'main',solde:a.balance||0})),
+        devise:cur_(),
       };
-      systemFocus = 'Simulation mathématique prospective. Calcule risques découvert 15j/30j avec chiffres précis. Stratégies préventives d\'épargne concrètes.';
+      systemFocus=`Analyse prospective sur ${historiqueJours}j d'historique. 3 scénarios jusqu'à 180j. Dépenses récurrentes imminentes. 5 leviers chiffrés. Risques découvert précis. Stratégie épargne concrète et chiffrée. Sois très détaillé.`;
       break;
     }
 
-    default:
+        default:
       contextData = { mode:viewType }; systemFocus = 'Analyse financière générale.';
   }
 
@@ -9286,14 +9380,14 @@ ${anomalies.filter(a=>a.severity==='MODÉRÉ').map(a=>`🟡 [MODÉRÉ-${a.type}]
 `;
   }
 
-  /* Format de réponse strict */
-  const formatBlock = `
-FORMAT STRICT (respecte TOUJOURS cette structure):
-${hasCritique?'[⚠️ ALERTE CRITIQUE]\n<anomalie critique en 1 phrase chiffrée>\n\n':''}[État Rapide]
-<situation actuelle en 1-2 phrases — chiffres exacts du JSON>
-
-[Action]
-<1 conseil micro-comportemental précis et immédiatement actionnable>`;
+  /* Guide de réponse naturel — sans balises visibles */
+  const formatBlock = hasCritique
+    ? `Tu commences OBLIGATOIREMENT par signaler l'anomalie critique en une phrase chiffrée.
+Ensuite tu donnes la situation actuelle (chiffres exacts du JSON), puis 1 conseil concret et actionnable.
+Réponds de façon naturelle, conversationnelle — PAS de balises entre crochets dans ta réponse.`
+    : `Donne d'abord un état de la situation en 2-3 phrases avec les chiffres exacts.
+Termine par 1 conseil concret et immédiatement actionnable.
+Réponds de façon naturelle et directe — PAS de titres entre crochets ni de structure robotique.`;
 
   /* Instructions prédictives injectées si données de cycle/récurrence présentes */
   let predictBlock = '';
@@ -9310,11 +9404,17 @@ ${contextData.depensesPrevisibles7j.map(d=>`  • ${d.cat} : ~${d.montant} ${con
     predictBlock += `\n📅 CYCLE DE REVENU : prochain dans ${contextData.cycleRevenu.dans} jour(s) (~${contextData.cycleRevenu.montant} ${contextData.devise}).\n`;
   }
 
-  return `Tu es ALADDIN — moteur de risque financier personnel. Style: analyste de risques Wall Street.
-Impitoyable sur les chiffres. Bienveillant sur l'humain. Pas de jargon inutile.
-RÈGLES ABSOLUES: TUTOIEMENT. Chiffres exacts issus du JSON uniquement. Zéro invention.
-PRÉDICTION: Tu connais les habitudes de l'utilisateur grâce à son historique. Tu DOIS anticiper les prochaines dépenses récurrentes et revenus attendus. Sois proactif.
-Si on te demande d'analyser le graphe de projection, commente la courbe (tendance, risque découvert, fourchette optimiste/pessimiste) avec des chiffres précis du JSON.${langNote}
+  return `Tu es ALADDIN — conseiller financier personnel IA. Tu parles comme un ami qui connaît parfaitement les finances de l'utilisateur.
+Ton style : direct, chaleureux, précis. Comme un vrai conseiller humain — pas comme un template.
+RÈGLES ABSOLUES :
+• Tutoiement obligatoire
+• Chiffres exacts uniquement (source : le JSON fourni)
+• Zéro invention de chiffres
+• Zéro balises entre crochets dans ta réponse (pas de [État Rapide], pas de [Action])
+• Réponds en prose naturelle et fluide
+• Développe tes réponses — ne te coupe pas avant d'avoir fini ton analyse
+CAPACITÉS PRÉDICTIVES : Tu connais les habitudes de l'utilisateur. Anticipe les prochaines dépenses récurrentes et revenus attendus. Sois proactif sur les risques à venir.
+Si on te demande d'analyser le graphe de projection, commente la courbe, la tendance, et le risque de découvert avec les chiffres exacts.${langNote}
 ${anomalyBlock}
 ${predictBlock}
 ${formatBlock}
@@ -9332,7 +9432,16 @@ async function callAladdinAI(viewType, userQuery) {
   const sysPmt   = buildAladdinSystemPrompt(payload);
   const fetch_   = window._origFetch || window.fetch;
   const msgs     = [{role:'system',content:sysPmt},{role:'user',content:userQuery}];
-  const body     = JSON.stringify({model:AI_CONFIG.GEMINI_MODEL_VERSION, max_tokens:AI_CONFIG.MAX_TOKENS, temperature:AI_CONFIG.TEMPERATURE, messages:msgs});
+  /* Tokens dynamiques selon le mode — Gemini n'est plus bridé */
+  const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000 };
+  const tokensForMode = modeTokens[viewType] || AI_CONFIG.MAX_TOKENS;
+  const body     = JSON.stringify({
+    model: AI_CONFIG.GEMINI_MODEL_VERSION,
+    max_tokens: tokensForMode,                 // OpenAI-compat classique
+    max_completion_tokens: tokensForMode,      // alias Gemini 3.x
+    temperature: AI_CONFIG.TEMPERATURE,
+    messages: msgs
+  });
 
   /* ── Gemini (OpenAI-compatible endpoint) ── */
   const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
@@ -9399,6 +9508,72 @@ window.callAladdinAI = callAladdinAI;
   };
   console.log('[ALADDIN] askAI patché → routeur HOME/ANALYSE/PRÉVISIONS');
 })();
+
+/* ─────────────────────────────────────────────────────────────────────
+   §F2  PATCH fetchHomeInsight — Gemini comme cerveau principal de l'accueil
+   Remplace l'appel Groq direct (max_tokens:60) par ALADDIN Engine.
+   Groq reste actif en fallback si pas de clé Gemini.
+   ───────────────────────────────────────────────────────────────────── */
+(function patchFetchHomeInsight(){
+  const _origFetchHome = window.fetchHomeInsight;
+  if(typeof _origFetchHome !== 'function') return;
+
+  window.fetchHomeInsight = async function fetchHomeInsightALADDIN(){
+    if(!window.txs||!window.txs.length) return null;
+    /* Cache 8 min */
+    if(window._aladdinHomeCache && Date.now()-window._aladdinHomeCacheTime < 480000){
+      return window._aladdinHomeCache;
+    }
+    const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
+    /* Gemini disponible → ALADDIN Engine avec données complètes */
+    if(gemKey && navigator.onLine){
+      try{
+        const result = await callAladdinAI('HOME',
+          'Donne-moi un état de santé financier complet de ma situation aujourd'hui. ' +
+          'Cite mon solde exact, les dépenses récurrentes imminentes, le prochain revenu attendu, et une action concrète immédiate.'
+        );
+        if(result && result.text){
+          window._aladdinHomeCache = result.text;
+          window._aladdinHomeCacheTime = Date.now();
+          window._lastInsightSource = 'cloud';
+          window._lastInsightProvider = 'gemini';
+          return result.text;
+        }
+      }catch(e){ console.warn('[ALADDIN Home] Gemini failed, falling back to Groq:', e.message); }
+    }
+    /* Fallback : appel original (Groq) */
+    const fallback = await _origFetchHome.apply(this, arguments);
+    window._lastInsightProvider = 'groq';
+    return fallback;
+  };
+  console.log('[ALADDIN §F2] fetchHomeInsight patché → Gemini prioritaire sur accueil');
+})();
+
+/* ─────────────────────────────────────────────────────────────────────
+   §F3  COORDINATION AGENTS — Gemini dirige, Groq exécute les tâches flash
+   Après une réponse Gemini longue, Groq génère en arrière-plan
+   une "Action Flash" ultra-courte (1 ligne) affichée séparément.
+   ───────────────────────────────────────────────────────────────────── */
+window.aladdinAgentCoordination = async function(geminiResponse, viewType){
+  try{
+    const groqKey = (()=>{ try{return window.getGroqKey?window.getGroqKey():'';}catch(_){return '';} })();
+    if(!groqKey || !navigator.onLine) return null;
+    const fetch_ = window._origFetch || window.fetch;
+    const actionPrompt = `Tu es un assistant flash. À partir de cette analyse financière d'ALADDIN, extrais UNE seule action immédiate en 10 mots max. Pas d'explication. Juste l'action.
+
+Analyse ALADDIN:
+${geminiResponse.slice(0,500)}`;
+    const r = await fetch_('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:25,temperature:0.3,
+        messages:[{role:'user',content:actionPrompt}]})
+    });
+    if(!r.ok) return null;
+    const d = await r.json();
+    return d.choices?.[0]?.message?.content?.trim()||null;
+  }catch(e){ return null; }
+};
 
 /* ─────────────────────────────────────────────────────────────────────
    §G  CHAMP CLÉ GEMINI dans l'écran Config (injection au rendu)
@@ -9473,7 +9648,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.3</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.5</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -9591,7 +9766,7 @@ window.renderAnomalyBanner = renderAnomalyBanner;
   };
 })();
 
-console.log('[ALADDIN Engine v8.3] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v8.5] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

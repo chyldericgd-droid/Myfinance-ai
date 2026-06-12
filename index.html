@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- Finance AI OS v8.5.0 | Refactored PWA -->
+<!-- Finance AI OS v8.7.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -27,7 +27,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="8.5.0">
+<meta name="version" content="8.7.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -576,6 +576,46 @@ body.state-zero{
 .online-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
 #cycleSuggest{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(139,92,246,.95),rgba(6,182,212,.9));backdrop-filter:blur(20px);color:#fff;padding:14px 18px;border-radius:20px;font-size:12px;font-weight:700;z-index:150;box-shadow:0 12px 40px -8px var(--acc-glow);max-width:90%;display:flex;flex-direction:column;gap:8px;animation:su .3s ease}
 
+
+/* ═══════════ CONSEIL ALADDIN — Dual-AI Deliberative Chat ═══════════ */
+.council-wrap{margin:0 0 6px;overflow:hidden}
+.council-header{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px}
+.council-agents{display:flex;gap:6px;font-size:10px;font-weight:700}
+.council-agent-gem{color:#a78bfa;background:rgba(167,139,250,.12);padding:2px 8px;border-radius:20px;border:1px solid rgba(167,139,250,.3)}
+.council-agent-groq{color:var(--grn);background:rgba(52,211,153,.1);padding:2px 8px;border-radius:20px;border:1px solid rgba(52,211,153,.25)}
+.council-trigger{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:700;letter-spacing:.3px}
+.council-trigger.critical{background:rgba(244,63,94,.15);color:var(--red);border:1px solid rgba(244,63,94,.3)}
+.council-trigger.high{background:rgba(251,146,60,.12);color:var(--org);border:1px solid rgba(251,146,60,.3)}
+.council-trigger.medium{background:rgba(251,191,36,.1);color:var(--ylw);border:1px solid rgba(251,191,36,.25)}
+.council-trigger.manual{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+.council-msgs{padding:0 14px 8px;display:flex;flex-direction:column;gap:10px;max-height:380px;overflow-y:auto}
+.council-bubble{border-radius:16px;padding:11px 14px;font-size:12.5px;line-height:1.6;position:relative;animation:fadeSlideUp .3s ease}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.council-bubble.gem{background:linear-gradient(135deg,rgba(167,139,250,.14),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.28);margin-right:18px}
+.council-bubble.groq{background:linear-gradient(135deg,rgba(52,211,153,.1),rgba(52,211,153,.03));border:1px solid rgba(52,211,153,.22);margin-left:18px}
+.council-bubble-agent{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.council-bubble.gem .council-bubble-agent{color:#a78bfa}
+.council-bubble.groq .council-bubble-agent{color:var(--grn)}
+.council-thinking{display:flex;gap:4px;padding:10px 14px;align-items:center;margin:0 14px}
+.council-dot{width:6px;height:6px;border-radius:50%;animation:councilPulse 1.2s infinite ease-in-out}
+.council-dot:nth-child(1){animation-delay:0s}
+.council-dot:nth-child(2){animation-delay:.2s}
+.council-dot:nth-child(3){animation-delay:.4s}
+.council-thinking.gem .council-dot{background:#a78bfa}
+.council-thinking.groq .council-dot{background:var(--grn)}
+@keyframes councilPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+.council-cmds{margin:8px 14px 12px;display:flex;flex-direction:column;gap:6px}
+.council-cmd{padding:9px 12px;border-radius:12px;font-size:11.5px;line-height:1.4;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2)}
+.council-cmd-type{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#a78bfa;margin-bottom:3px}
+.council-cmd-text{color:var(--txt2)}
+.council-actions{display:flex;gap:8px;padding:4px 14px 14px;flex-wrap:wrap}
+.council-apply-btn{flex:1;min-width:120px;padding:10px 16px;background:linear-gradient(135deg,#a78bfa,#8b5cf6);border:none;border-radius:14px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.3px}
+.council-apply-btn:active{transform:scale(.97)}
+.council-dismiss-btn{padding:10px 14px;background:transparent;border:1px solid var(--brd);border-radius:14px;color:var(--mut);font-size:12px;font-weight:600;cursor:pointer}
+.council-start-btn{width:100%;padding:12px;background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(167,139,250,.05));border:1px solid rgba(167,139,250,.35);border-radius:14px;color:#a78bfa;font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.3px;display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0}
+.council-start-btn:active{transform:scale(.98)}
+.council-pred-graph{margin:8px 14px;border-radius:14px;overflow:hidden;background:var(--surf2);border:1px solid var(--brd)}
+
 </style>
 </head>
 <body>
@@ -586,7 +626,7 @@ body.state-zero{
 </div>
 <nav class="nav" id="nav"></nav>
 <div class="online-badge" id="onlineBadge"></div>
-<button class="aifab off" id="aiFab" aria-label="Assistant IA" onclick="openAIQuick()"><span>✨</span><span class="dot"></span></button>
+<button class="aifab off" id="aiFab" aria-label="Conseil ALADDIN" onclick="openAIQuick()"><span>🔮</span><span class="dot"></span></button>
 <div class="mo" id="modal"><div class="mb" id="mbc"></div></div>
 
 <!-- ════ §1-17 CORE APP ════ -->
@@ -2421,6 +2461,12 @@ const DEF_CATS=[
 let txs=[],accs=[],cats=[],goals=[],settings={};
 let screen='home',aiTyping=false;
 // v6.1 — historique chat persistant (max 50 msgs, 30 jours)
+let councilMsgs = [];       // [{agent:'gemini'|'groq', text:'...', cmds:[...]}]
+let councilRunning = false;  // deliberation in progress
+let councilPending = [];     // parsed commands awaiting approval
+let councilTrigger = null;   // {reason, label, severity}
+let councilDone = false;     // deliberation finished
+let councilPreds = [];       // AI-added prediction points [{cat, amount, date, label}]
 let aiMsgs = (()=>{
   try{
     const raw = localStorage.getItem('ivy_chat_history');
@@ -3466,10 +3512,12 @@ function updateOnlineStatus(){
   // v6.1 — mise à jour dynamique sans re-render
   const badge=document.getElementById('homeAIBadge');
   if(badge){
-    const isGroq=on && hasKey;
-    badge.textContent=isGroq?'GROQ AI':'LOCAL';
-    badge.style.color=isGroq?'var(--acc3)':'var(--ylw)';
-    badge.style.background=isGroq?'rgba(99,102,241,.15)':'rgba(251,191,36,.15)';
+    const _gkb=(()=>{try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';}})();
+    const isCloud=on && hasKey;
+    const _bl = !isCloud?'LOCAL':_gkb?'GEMINI ✨':'GROQ AI';
+    const _bc = !isCloud?'var(--ylw)':_gkb?'#a78bfa':'var(--acc3)';
+    const _bb = !isCloud?'rgba(251,191,36,.15)':_gkb?'rgba(167,139,250,.18)':'rgba(99,102,241,.15)';
+    badge.textContent=_bl; badge.style.color=_bc; badge.style.background=_bb;
   }
   const aiStatusDot=document.getElementById('aiOnlineStatus');
   if(aiStatusDot){
@@ -3478,12 +3526,17 @@ function updateOnlineStatus(){
   }
   const aiChatBadge=document.getElementById('aiChatBadge');
   if(aiChatBadge){
-    aiChatBadge.textContent=on?'Groq AI':t('ai_local');
-    aiChatBadge.style.color=on?'var(--grn)':'var(--org)';
+    const _gk=(()=>{try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';}})();
+    const _label = !on ? t('ai_local') : _gk ? 'GEMINI ✨' : 'GROQ AI';
+    const _color = !on ? 'var(--org)' : _gk ? '#a78bfa' : 'var(--grn)';
+    aiChatBadge.textContent = _label;
+    aiChatBadge.style.color = _color;
   }
   const aiChatFooter=document.getElementById('aiChatFooter');
   if(aiChatFooter){
-    aiChatFooter.textContent=t('ai_data_local')+' · '+(on?t('ai_via_groq'):t('ai_via_local'));
+    const _gk2=(()=>{try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';}})();
+    const _footerTxt = !on ? t('ai_via_local') : _gk2 ? 'Analyse via Gemini ✨' : t('ai_via_groq');
+    aiChatFooter.textContent=t('ai_data_local')+' · '+_footerTxt;
   }
   if(on && hasKey && screen==='home'){
     setTimeout(()=>{ try{ maybeAutoInsight(); }catch(e){} }, 800);
@@ -4024,7 +4077,7 @@ Tu es IVY: brutal, loyal, factuel.`;
         return{text:'⚠️ Groq: '+msg+advice+'\n\n'+localAI(userMsg), src:'Erreur'};
       }
       const aiResponse = d.choices?.[0]?.message?.content;
-      if(aiResponse) return{text:aiResponse, src:'Groq AI'};
+      if(aiResponse) return{text:aiResponse, src:'Groq'};
     }catch(e){
       console.warn('Groq failed:',e);
       const isSandbox = window.location.href.includes('claude.ai');
@@ -4321,48 +4374,36 @@ async function maybeAutoInsight(){
   if(txt) updateInsightUI(txt);
 }
 function openAIQuick(){
-  // FIX v7.1 — ne bloquer que si offline ET sans clé (navigator.onLine est
-  // souvent faux sous WebView Android même avec du réseau).
+  // v8.7 — FAB ✨ redirige vers le Conseil Délibératif dans la vue IA
   const _online = navigator.onLine;
-  const _hasKey = !!getGroqKey();
-  if(!_online && !_hasKey){
+  const _hasGem = (()=>{try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(ex){return false;}})();
+  const _hasGroq = !!getGroqKey();
+  const _hasAny  = _hasGem || _hasGroq;
+
+  if(!_online && !_hasAny){
     openModal(`<h3>${t('ai_offline_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_offline_body')}</p><button class="btn" onclick="closeModal();go('ai')">${t('ai_open_local')}</button>`);
     return;
   }
-  if(!_hasKey){
+  if(!_hasAny){
     openModal(`<h3>${t('ai_nokey_title')}</h3><p style="color:var(--mut);font-size:13px;line-height:1.6;margin-bottom:14px">${t('ai_nokey_body')}</p><button class="btn" onclick="closeModal();go('settings')">${t('ai_goto_config')}</button>`);
     return;
   }
-  openModal(`
-    <h3>${t('quick_ai_title')}</h3>
-    <div style="font-size:11px;color:var(--mut);margin-bottom:10px">${t('quick_ai_sub')}</div>
-    <div id="quickAIArea" style="min-height:80px;padding:12px;background:var(--surf2);border-radius:12px;margin-bottom:10px;font-size:13px;line-height:1.55"><div style="color:var(--mut);font-size:12px">${t('quick_ai_wait')}</div></div>
-    <input id="quickAIInput" class="fi" placeholder="${t('quick_ai_ph')}" autocomplete="off">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_risk_btn'))">${t('quick_ai_risk_btn')}</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_top_btn'))">${t('quick_ai_top_btn')}</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_advice_btn'))">${t('quick_ai_advice_btn')}</button>
-      <button class="btn btn-ghost btn-sm" onclick="quickAIAsk(t('quick_ai_save_btn'))">${t('quick_ai_save_btn')}</button>
-    </div>
-    <button class="btn" onclick="quickAISubmit()">${t('quick_ai_ask_btn')}</button>
-  `);
+
+  // Navigation vers la vue IA + déclenchement du Conseil si auto-trigger détecté
+  go('ai');
   setTimeout(()=>{
-    const i=$('quickAIInput');
-    if(i){i.focus();i.onkeydown=e=>{if(e.key==='Enter')quickAISubmit()}}
-    // FIX v7.1 — pré-charger un insight automatique dès l'ouverture
-    // (équivalent d'un 1er message silencieux pour éviter le spinner vide)
-    const area=$('quickAIArea');
-    if(area){
-      const kpi=computeKPIs();
-      const autoQ=kpi.isSilent
-        ? (t('groq_no_key')||'Analyse rapide')  // pas de données → skip
-        : null;
-      if(!autoQ){
-        // Lancer un insight automatique basé sur les KPIs actuels
-        quickAIAsk(t('quick_ai_risk_btn'));
-      }
+    const kpi=computeKPIs();
+    const trigger=window.detectCouncilTrigger?window.detectCouncilTrigger(kpi):null;
+    // Si Conseil pas encore lancé ET trigger détecté → lancer automatiquement
+    if(window.runAladdinCouncil && !window.councilRunning && !window.councilMsgs?.length){
+      const councilTrigger=trigger||{reason:'manuel',label:'Analyse rapide',severity:'manual'};
+      window.runAladdinCouncil(councilTrigger);
+    } else {
+      // Scroll jusqu'au conseil
+      const el=document.querySelector('.council-wrap');
+      if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
     }
-  },100);
+  },150);
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -4372,8 +4413,9 @@ async function quickAISubmit(){
   const r=await askAI(q);
   // FIX v7.1 — afficher source réelle (Groq / Local / Offline) + badge couleur
   const _src = r.src||'IA';
-  const _srcColor = /groq|cloud/i.test(_src)?'var(--grn)':_src==='Sandbox'?'var(--org)':'var(--ylw)';
-  a.innerHTML='<strong style="color:'+_srcColor+';font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+_src+'</strong><br>'+r.text.replace(/\n/g,'<br>');
+  const _srcColor = /gemini/i.test(_src)?'#a78bfa':/groq|cloud/i.test(_src)?'var(--grn)':_src==='Sandbox'?'var(--org)':'var(--ylw)';
+  const _srcLabel = /gemini/i.test(_src)?'GEMINI ✨':_src;
+  a.innerHTML='<strong style="color:'+_srcColor+';font-size:11px;text-transform:uppercase;letter-spacing:.5px">'+_srcLabel+'</strong><br>'+r.text.replace(/\n/g,'<br>');
 }
 function quickAIAsk(q){const i=$('quickAIInput');if(i){i.value=q;quickAISubmit()}}
 
@@ -5282,8 +5324,9 @@ async function fetchPeriodInsight(p){
   const elId='periodInsight_'+p;
   const el=document.getElementById(elId);if(!el) return;
   const status=document.getElementById(elId+'_status');
-  // FIX v7.1 — si offline ou sans clé, afficher le commentaire local + corriger le badge
-  if(!navigator.onLine||!getGroqKey()){
+  // FIX v8.5 — offline = local; avec Gemini = patché via §F4; sans clé = local
+  const _piGemKey=(()=>{try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';}})();
+  if(!navigator.onLine||(!getGroqKey()&&!_piGemKey)){
     const lc=buildLocalPeriodComment(p);
     if(lc&&el){el.innerHTML='💡 '+lc;}
     if(status)status.textContent=t('ia_local');
@@ -5728,7 +5771,10 @@ function renderAI(){
   </div>
   `}
 
-  <!-- ACTIONS DU MOMENT — remplace l'ancien glossaire statique -->
+  <!-- CONSEIL ALADDIN — remplace "Actions Rapides" (§H) -->
+  ${window.renderCouncilCard ? window.renderCouncilCard() : ''}
+
+  <!-- ACTIONS DU MOMENT — conservées sous le Conseil -->
   <div class="card">
     <div class="ch">${t('ai_actions_title')}</div>
     ${getNextActions(kpi).map(a=>`
@@ -5750,7 +5796,7 @@ function renderAI(){
     </div>`).join('')}
   </div>`:''}
   <div class="card">
-    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${isOnline?'var(--grn)':'var(--org)'}">${isOnline?'Groq AI':t('ai_local')}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
+    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?'var(--org)':g?'#a78bfa':'var(--grn)'})()}">${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_local'):g?'GEMINI ✨':'GROQ AI'})()}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
     <div class="chat" id="chatArea">
       ${(()=>{
         if(!aiMsgs.length) return `<div class="bub bai">${t('chat_default')}</div>`;
@@ -5773,8 +5819,11 @@ function renderAI(){
       <input type="text" id="chatInput" class="fi" placeholder="${t('chat_ph')}" autocomplete="off">
       <button class="sbtn" id="sendBtn"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
-    <div id="aiChatFooter" style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${isOnline?t('ai_via_groq'):t('ai_via_local')}</div>
+    <div id="aiChatFooter" style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_via_local'):g?'Analyse via Gemini ✨':t('ai_via_groq')})()}</div>
   </div>
+
+  <!-- PRÉDICTIONS DU CONSEIL (si existantes) -->
+  ${window.renderCouncilPredGraph ? window.renderCouncilPredGraph() : ''}
 
   <!-- QUICK Q — contextuels selon l'état réel -->
   <div class="card">
@@ -5817,6 +5866,32 @@ function setupChat(){
   sb.onclick=send;
   ci.onkeydown=e=>{if(e.key==='Enter')send()};
 }
+
+/* ── Graphique de prédictions du Conseil ────────────────────────── */
+function renderCouncilPredGraph(){
+  if(!window.councilPreds||!window.councilPreds.length) return '';
+  var cur_='XAF'; try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  var preds=window.councilPreds.slice(0,8);
+  var maxAmt=Math.max.apply(null,preds.map(function(p){return p.amount||0;}),1);
+  var bars=preds.map(function(p,i){
+    var pct=maxAmt>0?Math.round((p.amount/maxAmt)*80):10;
+    var hue=167; // violet
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--brd)">'
+      +'<div style="width:70px;font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.label+'</div>'
+      +'<div style="flex:1;background:var(--surf2);border-radius:4px;height:8px;overflow:hidden">'
+      +'<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);border-radius:4px"></div>'
+      +'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:#a78bfa;white-space:nowrap">'+p.amount+' '+cur_+'</div>'
+      +'<div style="font-size:10px;color:var(--mut);white-space:nowrap">'+p.date+'</div>'
+      +'<button onclick="window.councilPreds.splice('+i+',1);render()" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:11px;padding:0 4px">✕</button>'
+      +'</div>';
+  }).join('');
+  return '<div class="card">'
+    +'<div class="ch" style="color:#a78bfa">📈 Prédictions du Conseil <span class="pill" style="color:#a78bfa">'+preds.length+'</span></div>'
+    +'<div style="padding:0 4px">'+bars+'</div>'
+    +'</div>';
+}
+window.renderCouncilPredGraph = renderCouncilPredGraph;
 function quickAsk(q){const ci=$('chatInput');if(ci){ci.value=q;$('sendBtn')&&$('sendBtn').click()}}
 
 // ════════════════════════════════════════
@@ -9550,6 +9625,90 @@ window.callAladdinAI = callAladdinAI;
 })();
 
 /* ─────────────────────────────────────────────────────────────────────
+   §F4  PATCH fetchPeriodInsight — Gemini pour les lectures ANALYSE
+   Remplace l'appel Groq direct (max_tokens:180) par ALADDIN Engine.
+   ───────────────────────────────────────────────────────────────────── */
+function makeFPIPatch(_orig){
+  return async function fetchPeriodInsightGemini(p){
+    var gemKey='';
+    try{gemKey=window.safeStorage?.getItem('gemini_key')||'';}catch(ex){}
+    if(!gemKey||!navigator.onLine) return _orig.call(this,p);
+
+    var elId='periodInsight_'+p;
+    var el=document.getElementById(elId);
+    if(!el) return _orig.call(this,p);
+    var status=document.getElementById(elId+'_status');
+
+    var kpi={};
+    try{kpi=window.computeKPIs();}catch(ex){}
+    if(kpi.isSilent) return _orig.call(this,p);
+
+    if(status){status.textContent='Gemini…';status.style.color='#a78bfa';}
+
+    try{
+      var ptxs=[],prevTxs=[],curSym='XAF',pLabel=p;
+      try{ptxs=window.getPeriodTxs?window.getPeriodTxs(p):[];}catch(ex){}
+      try{prevTxs=window.getPrevPeriodTxs?window.getPrevPeriodTxs(p):[];}catch(ex){}
+      try{curSym=window.cur?window.cur():'XAF';}catch(ex){}
+      try{pLabel=window.periodLabel?window.periodLabel(p):p;}catch(ex){}
+
+      function catName(id){try{return window.catById?window.catById(id).name:'?';}catch(ex){return '?';}}
+
+      var curExp=ptxs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+      var curInc=ptxs.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+      var prevExp=prevTxs.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+      var catMap={};
+      ptxs.filter(function(t){return t.type==='expense';}).forEach(function(t){
+        var n=catName(t.categoryId); catMap[n]=(catMap[n]||0)+t.amount;
+      });
+      var top3=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).slice(0,3)
+        .map(function(e){return e[0]+'='+Math.round(e[1])+' '+curSym;});
+      var notes=ptxs.filter(function(t){return t.note&&t.note.length>1;}).slice(0,10)
+        .map(function(t){return catName(t.categoryId)+'('+t.amount+'):"'+t.note+'"'+(t.mood?'['+t.mood+']':'');});
+      var moodList=ptxs.filter(function(t){return t.mood;}).map(function(t){return t.mood;}).join('');
+      var pctChange=prevExp>0?Math.round((curExp-prevExp)/prevExp*100):0;
+
+      var question='Analyse comportementale '+pLabel+': depenses='+Math.round(curExp)+' '+curSym
+        +' ('+(pctChange>=0?'+':'')+pctChange+'% vs periode precedente), revenus='+Math.round(curInc)+' '+curSym
+        +'. Top categories: '+(top3.join(', ')||'aucune')
+        +'. Notes transactions: '+(notes.join(' | ')||'aucune')
+        +'. Humeurs: '+(moodList||'aucune')
+        +'. KPIs: dopamine='+(kpi.dopamineIdx||0)+'%, evaporation='+(kpi.evaporationRate||0)+'%.'
+        +' Donne 1 insight neuro-financier precis + 1 action concrete. Max 3 phrases. Cite montants exacts.';
+
+      var result=await callAladdinAI('ANALYSE', question);
+      if(result&&result.text){
+        el.innerHTML='💜 '+result.text.trim();
+        if(status){status.textContent='GEMINI ✨';status.style.color='#a78bfa';}
+        return;
+      }
+    }catch(ex){
+      console.warn('[ALADDIN §F4] Gemini period insight failed:',ex.message);
+    }
+    /* Fallback Groq */
+    if(status){status.textContent='';status.style.color='';}
+    return _orig.call(this,p);
+  };
+}
+
+(function patchFetchPeriodInsight(){
+  if(typeof window.fetchPeriodInsight==='function'){
+    window.fetchPeriodInsight=makeFPIPatch(window.fetchPeriodInsight);
+    window._fpiPatched=true;
+    console.log('[ALADDIN §F4] fetchPeriodInsight patché → Gemini sur ANALYSE');
+  } else {
+    setTimeout(function(){
+      if(typeof window.fetchPeriodInsight==='function'&&!window._fpiPatched){
+        window.fetchPeriodInsight=makeFPIPatch(window.fetchPeriodInsight);
+        window._fpiPatched=true;
+        console.log('[ALADDIN §F4] fetchPeriodInsight patché (différé)');
+      }
+    },1200);
+  }
+})();
+
+
+/* ─────────────────────────────────────────────────────────────────────
    §F3  COORDINATION AGENTS — Gemini dirige, Groq exécute les tâches flash
    Après une réponse Gemini longue, Groq génère en arrière-plan
    une "Action Flash" ultra-courte (1 ligne) affichée séparément.
@@ -9648,7 +9807,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.5</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.7</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -9766,7 +9925,386 @@ window.renderAnomalyBanner = renderAnomalyBanner;
   };
 })();
 
-console.log('[ALADDIN Engine v8.5] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+
+/* ═══════════════════════════════════════════════════════════════════
+   §H  CONSEIL DÉLIBÉRATIF ALADDIN
+   Gemini (Stratège) + Groq (Tacticien) raisonnent ensemble.
+   Auto-déclenché sur conditions KPI critiques.
+   Les AIs émettent des [COMMANDES] qui modifient l'app.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Expose des appels directs Gemini / Groq pour le Conseil ─────── */
+window._callGeminiRaw = async function(messages, maxTok){
+  maxTok = maxTok || 400;
+  var gemKey=''; try{gemKey=window.safeStorage?.getItem('gemini_key')||'';}catch(ex){}
+  if(!gemKey) return null;
+  var fetch_=window._origFetch||window.fetch;
+  var r=await fetch_('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+gemKey},
+    body:JSON.stringify({model:'gemini-3.5-flash',max_tokens:maxTok,temperature:0.78,messages:messages})
+  });
+  if(!r.ok) return null;
+  var d=await r.json();
+  return d.choices?.[0]?.message?.content||null;
+};
+
+window._callGroqRaw = async function(messages, maxTok){
+  maxTok = maxTok || 300;
+  var groqKey=''; try{groqKey=window.getGroqKey?window.getGroqKey():'';}catch(ex){}
+  if(!groqKey) return null;
+  var fetch_=window._origFetch||window.fetch;
+  var r=await fetch_('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+    body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:maxTok,temperature:0.6,messages:messages})
+  });
+  if(!r.ok) return null;
+  var d=await r.json();
+  return d.choices?.[0]?.message?.content||null;
+};
+
+/* ── Détecteur de déclenchement ────────────────────────────────── */
+window.detectCouncilTrigger = function(kpi){
+  if(!kpi) return null;
+  var j0 = kpi.burnRate>0 ? Math.floor((kpi.activeBalance||0)/kpi.burnRate) : 999;
+  if(j0>=0 && j0<10) return {reason:'decouvert',label:'Découvert critique <10j',severity:'critical'};
+  if((kpi.evaporationRate||0)>200) return {reason:'evaporation',label:'Évaporation '+(kpi.evaporationRate||0)+'%',severity:'critical'};
+  if((kpi.pressureIdx||0)>250) return {reason:'pression',label:'Pression +'+(kpi.pressureIdx||0)+'%',severity:'critical'};
+  if(j0>=0 && j0<20) return {reason:'decouvert',label:'Découvert imminent <20j',severity:'high'};
+  if((kpi.evaporationRate||0)>120) return {reason:'evaporation',label:'Évaporation '+(kpi.evaporationRate||0)+'%',severity:'high'};
+  if((kpi.dopamineIdx||0)>50) return {reason:'dopamine',label:'Impulsivité '+(kpi.dopamineIdx||0)+'%',severity:'high'};
+  if((kpi.pressureIdx||0)>150) return {reason:'pression',label:'Pression +'+(kpi.pressureIdx||0)+'%',severity:'medium'};
+  return null;
+};
+
+/* ── Parser de commandes IA ─────────────────────────────────────── */
+window.parseCouncilCommands = function(text){
+  if(!text) return [];
+  var cmds=[];
+  var patterns=[
+    {re:/\[OBJECTIF:\s*([^\]|]+)\|([^\]|]+)\|([^\]]+)\]/g, type:'OBJECTIF',
+     parse:function(m){return {type:'OBJECTIF',nom:m[1].trim(),montant:m[2].trim(),delai:m[3].trim(),
+       label:'Créer objectif "'+m[1].trim()+'" — '+m[2].trim()+' en '+m[3].trim()};}},
+    {re:/\[PRÉDICTION:\s*([^\]|]+)\|([^\]|]+)\|([^\]]+)\]/g, type:'PRÉDICTION',
+     parse:function(m){return {type:'PRÉDICTION',cat:m[1].trim(),montant:m[2].trim(),date:m[3].trim(),
+       label:'Prédire: '+m[1].trim()+' — '+m[2].trim()+' le '+m[3].trim()};}},
+    {re:/\[ALERTE:\s*([^\]|]+)\|([^\]]+)\]/g, type:'ALERTE',
+     parse:function(m){return {type:'ALERTE',condition:m[1].trim(),seuil:m[2].trim(),
+       label:'Alerte si '+m[1].trim()+' > '+m[2].trim()};}},
+    {re:/\[PLAN:\s*([^\]]+)\]/g, type:'PLAN',
+     parse:function(m){var steps=m[1].split('|').map(function(s){return s.trim();}).filter(Boolean);
+       return {type:'PLAN',etapes:steps,label:'Plan d\'action ('+steps.length+' étapes)'};}},
+    {re:/\[CORRECTION:\s*([^\]|]+)\|([^\]]+)\]/g, type:'CORRECTION',
+     parse:function(m){return {type:'CORRECTION',element:m[1].trim(),valeur:m[2].trim(),
+       label:'Correction: '+m[1].trim()+' → '+m[2].trim()};}},
+  ];
+  patterns.forEach(function(p){
+    var re=new RegExp(p.re.source,'g');
+    var m;
+    while((m=re.exec(text))!==null){
+      try{cmds.push(p.parse(m));}catch(ex){}
+    }
+  });
+  return cmds;
+};
+
+/* ── Exécuteur de commandes ─────────────────────────────────────── */
+window.applyCouncilCommands = function(cmds){
+  var applied=[];
+  cmds.forEach(function(cmd){
+    try{
+      if(cmd.type==='OBJECTIF'){
+        var montant=parseFloat(String(cmd.montant).replace(/[^\d.]/g,''))||0;
+        if(montant>0 && cmd.nom){
+          var newGoal={id:'goal_council_'+Date.now(),name:cmd.nom,target:montant,saved:0,
+            icon:'🎯',createdAt:new Date().toISOString(),note:'Créé par le Conseil ALADDIN'};
+          if(window.goals) window.goals.push(newGoal);
+          try{window.safeStorage.setItem('goals',JSON.stringify(window.goals));}catch(ex){}
+          applied.push('Objectif "'+cmd.nom+'" créé ('+cmd.montant+')');
+        }
+      } else if(cmd.type==='PRÉDICTION'){
+        if(!window.councilPreds) window.councilPreds=[];
+        var dt=cmd.date;
+        var amt=parseFloat(String(cmd.montant).replace(/[^\d.]/g,''))||0;
+        window.councilPreds.push({cat:cmd.cat,amount:amt,date:dt,label:cmd.cat,addedAt:Date.now()});
+        applied.push('Prédiction ajoutée: '+cmd.cat+' '+cmd.montant);
+      } else if(cmd.type==='ALERTE'){
+        var alertKey='council_alert_'+cmd.condition.replace(/\s+/g,'_');
+        try{window.safeStorage.setItem(alertKey,JSON.stringify({condition:cmd.condition,seuil:cmd.seuil,createdAt:Date.now()}));}catch(ex){}
+        applied.push('Alerte configurée: '+cmd.condition+' > '+cmd.seuil);
+      } else if(cmd.type==='PLAN'){
+        try{window.safeStorage.setItem('council_plan_'+Date.now(),JSON.stringify(cmd));}catch(ex){}
+        applied.push('Plan sauvegardé ('+cmd.etapes.length+' étapes)');
+      } else if(cmd.type==='CORRECTION'){
+        applied.push('Correction notée: '+cmd.element+' → '+cmd.valeur);
+      }
+    }catch(ex){}
+  });
+  return applied;
+};
+
+/* ── Orchestrateur principal ─────────────────────────────────────── */
+window.runAladdinCouncil = async function(trigger){
+  if(window.councilRunning) return;
+  window.councilRunning = true;
+  window.councilDone = false;
+  window.councilPending = [];
+  window.councilTrigger = trigger || {reason:'manuel',label:'Analyse demandée',severity:'manual'};
+  window.councilMsgs = [];
+
+  /* Rend l'interface avec état "en cours" */
+  try{if(typeof render==='function')render();}catch(ex){}
+
+  var kpi={};
+  try{kpi=window.computeKPIs();}catch(ex){}
+  var cur_='XAF'; try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  var allTx=window.txs||[];
+  var accs_=window.accs||[];
+  var goals_=window.goals||[];
+  var activeBal=accs_.filter(function(a){return a.type!=='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
+  var savingsBal=accs_.filter(function(a){return a.type==='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
+  var j0=kpi.burnRate>0?Math.floor(activeBal/kpi.burnRate):999;
+  var exp30=allTx.filter(function(t){return t.type==='expense'&&(Date.now()-new Date(t.date))<30*86400000;});
+  var catMap={}; exp30.forEach(function(t){var n=(()=>{try{return window.catById?window.catById(t.categoryId).name:'?';}catch(ex){return '?';}})();catMap[n]=(catMap[n]||0)+t.amount;});
+  var top3=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).slice(0,3).map(function(e){return e[0]+':'+Math.round(e[1])+cur_;});
+  var notesSample=allTx.filter(function(t){return t.note&&t.note.length>1;}).slice(0,8).map(function(t){return t.note;}).join(' | ');
+  var goalsInfo=goals_.map(function(g){return g.name+':'+(g.saved||0)+'/'+g.target+cur_;}).join(', ')||'aucun';
+
+  var ctx='CONTEXTE FINANCIER RÉEL:\n'
+    +'- Solde actif: '+Math.round(activeBal)+' '+cur_+'\n'
+    +'- Solde épargne: '+Math.round(savingsBal)+' '+cur_+'\n'
+    +'- Burn rate: '+Math.round(kpi.burnRate||0)+' '+cur_+'/j\n'
+    +'- Jours avant découvert: '+(j0===999?'∞':j0)+'\n'
+    +'- Évaporation post-revenu: '+(kpi.evaporationRate||0)+'%\n'
+    +'- Pression 7j: +'+(kpi.pressureIdx||0)+'%\n'
+    +'- Dopamine/impulsion: '+(kpi.dopamineIdx||0)+'%\n'
+    +'- Top dépenses 30j: '+top3.join(', ')+'\n'
+    +'- Notes transactions: '+(notesSample||'aucune')+'\n'
+    +'- Objectifs: '+goalsInfo+'\n'
+    +'- Déclencheur: '+window.councilTrigger.label+'\n';
+
+  /* ── TOUR 1 : Gemini (Stratège) ouvre le débat ─────────────────── */
+  var t1sys='Tu es ALADDIN-STRATÈGE (Gemini). Tu analyses la situation financière en profondeur. '
+    +'Tu détectes les patterns comportementaux, les risques cachés, les causes racines. '
+    +'Tu t\'adresses directement à l\'utilisateur (tutoiement). '
+    +'IMPORTANT: Sois concis (max 4 phrases). Termine par ta principale hypothèse sur la cause racine.';
+  var t1usr=ctx+'\nDéclencheur du Conseil: '+window.councilTrigger.label
+    +'\n\nOuvre le Conseil par ton analyse initiale. Identifie le problème central et ton hypothèse.';
+  var gem1=await window._callGeminiRaw([{role:'system',content:t1sys},{role:'user',content:t1usr}],350);
+  if(!gem1) gem1='⚠️ Gemini indisponible — utilise ta clé Gemini dans la Config.';
+  window.councilMsgs.push({agent:'gemini',text:gem1,cmds:[],ts:Date.now()});
+  try{if(typeof render==='function')render();}catch(ex){}
+
+  await new Promise(function(r){setTimeout(r,600);});
+
+  /* ── TOUR 2 : Groq (Tacticien) répond avec chiffres précis ──────── */
+  var t2sys='Tu es ALADDIN-TACTICIEN (Groq). Tu valides ou corriges l\'analyse du Stratège avec des CHIFFRES PRÉCIS. '
+    +'Si tu vois une erreur de calcul, émets [CORRECTION: élément | valeur corrigée]. '
+    +'Tutoiement. Concis (max 3 phrases). Focus sur les chiffres et les corrections factuelles.';
+  var t2usr=ctx+'\nAnalyse du Stratège:\n'+gem1
+    +'\n\nValide ou corrige avec des chiffres précis. Si le Stratège a une erreur, utilise [CORRECTION: élément | valeur].';
+  var groq1=await window._callGroqRaw([{role:'system',content:t2sys},{role:'user',content:t2usr}],280);
+  if(!groq1) groq1='⚡ Groq indisponible — fonctionnement en mode Gemini seul.';
+  var cmds1=window.parseCouncilCommands(groq1);
+  window.councilMsgs.push({agent:'groq',text:groq1,cmds:cmds1,ts:Date.now()});
+  if(cmds1.length) window.councilPending=window.councilPending.concat(cmds1);
+  try{if(typeof render==='function')render();}catch(ex){}
+
+  await new Promise(function(r){setTimeout(r,700);});
+
+  /* ── TOUR 3 : Gemini (Stratège) propose un plan avec commandes ───── */
+  var t3sys='Tu es ALADDIN-STRATÈGE (Gemini). '
+    +'Sur la base du débat, propose un PLAN CONCRET avec des COMMANDES STRUCTURÉES.\n'
+    +'Commandes disponibles (utilise-les si pertinent):\n'
+    +'[OBJECTIF: nom | montant en chiffres | délai en jours]\n'
+    +'[PRÉDICTION: catégorie | montant | date YYYY-MM-DD]\n'
+    +'[ALERTE: condition | seuil numérique]\n'
+    +'[PLAN: étape1 | étape2 | étape3]\n'
+    +'[CORRECTION: élément | nouvelle valeur]\n'
+    +'Max 3 phrases d\'explication + les commandes pertinentes.';
+  var t3usr=ctx
+    +'\nAnalyse Stratège: '+gem1
+    +'\nValidation Tacticien: '+groq1
+    +'\n\nPropose le plan d\'action avec les commandes structurées. Sois précis sur les montants.';
+  var gem2=await window._callGeminiRaw([{role:'system',content:t3sys},{role:'user',content:t3usr}],420);
+  if(!gem2) gem2='[PLAN: Réduire burn rate | Bloquer épargne automatique | Bilan hebdomadaire]';
+  var cmds2=window.parseCouncilCommands(gem2);
+  window.councilMsgs.push({agent:'gemini',text:gem2,cmds:cmds2,ts:Date.now()});
+  if(cmds2.length) window.councilPending=window.councilPending.concat(cmds2);
+  try{if(typeof render==='function')render();}catch(ex){}
+
+  await new Promise(function(r){setTimeout(r,500);});
+
+  /* ── TOUR 4 : Groq (Tacticien) valide + rapide wins ─────────────── */
+  var t4sys='Tu es ALADDIN-TACTICIEN (Groq). Tu valides le plan du Stratège et ajoutes 1 quick win immédiat. '
+    +'Tu peux aussi émettre [CORRECTION: élément | valeur] si un chiffre du plan est inexact. '
+    +'Max 2 phrases. Tutoiement. Termine par "Plan validé ✓" ou "Plan révisé ✓".';
+  var t4usr=ctx
+    +'\nPlan proposé par le Stratège:\n'+gem2
+    +'\n\nValide ce plan et ajoute 1 action immédiate que l\'utilisateur peut faire maintenant (<5 min).';
+  var groq2=await window._callGroqRaw([{role:'system',content:t4sys},{role:'user',content:t4usr}],250);
+  if(!groq2) groq2='Plan validé ✓ — Action immédiate : note ta prochaine dépense dès qu\'elle arrive.';
+  var cmds3=window.parseCouncilCommands(groq2);
+  window.councilMsgs.push({agent:'groq',text:groq2,cmds:cmds3,ts:Date.now()});
+  if(cmds3.length) window.councilPending=window.councilPending.concat(cmds3);
+
+  window.councilRunning = false;
+  window.councilDone = true;
+  try{if(typeof render==='function')render();}catch(ex){}
+};
+
+/* ── Rendu du Conseil ───────────────────────────────────────────── */
+window.renderCouncilCard = function(){
+  var kpi={}; try{kpi=window.computeKPIs();}catch(ex){}
+  var trigger=window.detectCouncilTrigger(kpi);
+  var hasGemKey=false; try{hasGemKey=!!(window.safeStorage?.getItem('gemini_key'));}catch(ex){}
+  var hasGroqKey=false; try{hasGroqKey=!!(window.getGroqKey&&window.getGroqKey());}catch(ex){}
+  var hasAny=hasGemKey||hasGroqKey;
+
+  /* Pas de clés → ne pas montrer */
+  if(!hasAny) return '';
+  /* Pas de transactions → skip */
+  if(!window.txs||window.txs.length<2) return '';
+
+  var triggerLabel='';
+  if(trigger){
+    triggerLabel='<span class="council-trigger '+trigger.severity+'">⚡ '+trigger.label+'</span>';
+  }
+
+  /* Bouton de démarrage si pas en cours */
+  if(!window.councilRunning && !window.councilMsgs.length){
+    var autoMsg = trigger
+      ? 'Condition détectée — le Conseil peut analyser et proposer des actions.'
+      : 'Demandez aux AIs de raisonner ensemble sur ta situation.';
+    return '<div class="card council-wrap">'
+      +'<div class="council-header" style="color:#a78bfa">'
+      +'<span style="font-size:14px">🔮</span> CONSEIL ALADDIN'
+      +(trigger?'<span style="margin-left:auto">'+triggerLabel+'</span>':'')
+      +'</div>'
+      +'<div style="padding:0 14px;font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:10px">'+autoMsg+'</div>'
+      +'<div style="padding:0 14px 14px">'
+      +(hasGemKey&&hasGroqKey
+        ? '<button class="council-start-btn" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
+          +'<span style="font-size:14px">🤝</span> Convoquer le Conseil Gemini × Groq</button>'
+        : '<button class="council-start-btn" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
+          +'<span style="font-size:14px">✨</span> Analyser avec '+(hasGemKey?'Gemini':'Groq')+'</button>'
+      )
+      +'</div>'
+      +'</div>';
+  }
+
+  /* En cours : afficher les bulles + spinner */
+  var msgsHtml='';
+  window.councilMsgs.forEach(function(msg){
+    var isGem=msg.agent==='gemini';
+    var agentLabel=isGem?'💜 Gemini — Stratège':'⚡ Groq — Tacticien';
+    var cls=isGem?'gem':'groq';
+    var cleanText=msg.text
+      .replace(/\[OBJECTIF:[^\]]+\]/g,'').replace(/\[PRÉDICTION:[^\]]+\]/g,'')
+      .replace(/\[ALERTE:[^\]]+\]/g,'').replace(/\[PLAN:[^\]]+\]/g,'')
+      .replace(/\[CORRECTION:[^\]]+\]/g,'').trim();
+    msgsHtml+='<div class="council-bubble '+cls+'">'
+      +'<div class="council-bubble-agent">'+agentLabel+'</div>'
+      +'<div style="color:var(--txt)">'+cleanText.replace(/\n/g,'<br>')+'</div>'
+      +'</div>';
+    /* Commandes inline */
+    if(msg.cmds&&msg.cmds.length){
+      msg.cmds.forEach(function(cmd){
+        msgsHtml+='<div style="margin-left:'+(isGem?'0':'18px')+';margin-right:'+(isGem?'18px':'0')+';">'
+          +'<div class="council-cmd">'
+          +'<div class="council-cmd-type">'+cmd.type+'</div>'
+          +'<div class="council-cmd-text">'+cmd.label+'</div>'
+          +'</div></div>';
+      });
+    }
+  });
+
+  /* Spinner si en cours */
+  var spinnerHtml='';
+  if(window.councilRunning){
+    var nextAgent=(window.councilMsgs.length%2===0)?'gem':'groq';
+    spinnerHtml='<div class="council-thinking '+nextAgent+'">'
+      +'<div class="council-dot"></div><div class="council-dot"></div><div class="council-dot"></div>'
+      +'<span style="font-size:10px;color:var(--mut);margin-left:6px">'
+      +(nextAgent==='gem'?'Gemini réfléchit…':'Groq calcule…')
+      +'</span></div>';
+  }
+
+  /* Commandes à approuver */
+  var cmdsHtml='';
+  if(window.councilDone && window.councilPending.length){
+    var uniqueCmds=[];
+    var seen={};
+    window.councilPending.forEach(function(c){
+      var key=c.type+':'+c.label;
+      if(!seen[key]){seen[key]=true;uniqueCmds.push(c);}
+    });
+    cmdsHtml='<div class="council-cmds">'
+      +'<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#a78bfa;margin-bottom:4px">📋 Actions proposées</div>'
+      +uniqueCmds.map(function(c){
+        return '<div class="council-cmd"><div class="council-cmd-type">'+c.type+'</div><div class="council-cmd-text">'+c.label+'</div></div>';
+      }).join('')
+      +'</div>';
+  }
+
+  /* Boutons d'action si terminé */
+  var actionsHtml='';
+  if(window.councilDone){
+    actionsHtml='<div class="council-actions">'
+      +(window.councilPending.length
+        ?'<button class="council-apply-btn" onclick="window._applyAndReset()">✓ Appliquer les modifications</button>':''
+      )
+      +'<button class="council-dismiss-btn" onclick="window._resetCouncil()">Nouveau Conseil</button>'
+      +'</div>';
+  }
+
+  return '<div class="card council-wrap">'
+    +'<div class="council-header" style="color:#a78bfa">'
+    +'<span style="font-size:14px">🔮</span> CONSEIL ALADDIN'
+    +'<div class="council-agents" style="margin-left:8px">'
+    +'<span class="council-agent-gem">Gemini</span>'
+    +(hasGroqKey?'<span class="council-agent-groq">Groq</span>':'')
+    +'</div>'
+    +(trigger?'<span style="margin-left:auto">'+triggerLabel+'</span>':'')
+    +'</div>'
+    +'<div class="council-msgs" id="councilMsgArea">'+msgsHtml+'</div>'
+    +spinnerHtml
+    +cmdsHtml
+    +actionsHtml
+    +'</div>';
+};
+
+window._applyAndReset = function(){
+  var applied=window.applyCouncilCommands(window.councilPending||[]);
+  window.councilPending=[];
+  window.councilDone=false;
+  if(applied.length) try{window.showNotif('Modifications appliquées: '+applied.length,'success');}catch(ex){}
+  try{if(typeof render==='function')render();}catch(ex){}
+};
+
+window._resetCouncil = function(){
+  window.councilMsgs=[]; window.councilRunning=false;
+  window.councilDone=false; window.councilPending=[];
+  try{if(typeof render==='function')render();}catch(ex){}
+};
+
+/* ── Auto-scroll du Conseil après chaque mise à jour ─────────────── */
+var _councilRenderHook = (function(){
+  var _orig = window.render;
+  if(typeof _orig!=='function') return;
+  window.render = function(){
+    _orig.apply(this,arguments);
+    setTimeout(function(){
+      var area=document.getElementById('councilMsgArea');
+      if(area) area.scrollTop=area.scrollHeight;
+    },50);
+  };
+})();
+
+console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
+
+console.log('[ALADDIN Engine v8.7] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

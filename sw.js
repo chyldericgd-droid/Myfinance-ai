@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════════════
    Finance AI Service Worker v7.0.0 — Single-file build
    ════════════════════════════════════════════════════════════════════ */
-const VERSION = '8.5.0';
+const VERSION = '8.7.0';
 const CACHE = 'finance-ai-v' + VERSION;
 const SHELL = [
   './',

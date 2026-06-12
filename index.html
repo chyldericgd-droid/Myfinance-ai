@@ -619,6 +619,23 @@ body.state-zero{
 .council-start-btn:active{transform:scale(.98)}
 .council-pred-graph{margin:8px 14px;border-radius:14px;overflow:hidden;background:var(--surf2);border:1px solid var(--brd)}
 
+
+/* ══ CHAT MODAL OVERLAY (moved from loader) ══ */
+/* ══ CHAT MODAL OVERLAY ══════════════════════════════════════════════════ */
+#chatModalOverlay{position:fixed;inset:0;z-index:980;background:var(--bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);pointer-events:none}
+#chatModalOverlay.open{transform:translateY(0);pointer-events:all}
+.cmo-header{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--brd);background:var(--card);flex-shrink:0;padding-top:calc(14px + env(safe-area-inset-top))}
+.cmo-back{background:none;border:none;color:var(--txt);cursor:pointer;font-size:22px;padding:4px 8px;border-radius:10px;line-height:1;transition:background .15s}
+.cmo-back:active{background:rgba(255,255,255,.08)}
+.cmo-title{font-size:15px;font-weight:800;color:var(--txt);flex:1}
+.cmo-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;background:rgba(167,139,250,.18);color:#a78bfa;letter-spacing:.5px}
+#modalChatArea{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.cmo-input-row{display:flex;gap:8px;align-items:center;padding:12px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--brd);background:var(--card);flex-shrink:0}
+#modalChatInput{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(139,92,246,.22);border-radius:14px;padding:11px 14px;font-size:14px;color:var(--txt);outline:none;font-family:var(--sans)}
+#modalChatInput:focus{border-color:rgba(139,92,246,.5)}
+#modalSendBtn{width:42px;height:42px;border-radius:13px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .12s,opacity .12s}
+#modalSendBtn:active{transform:scale(.9)}
+#modalSendBtn:disabled{opacity:.4}
 </style>
 </head>
 <body>
@@ -3553,6 +3570,7 @@ const safeFetch = async (url, options = {}) => {
     const response = await fetch(url, options);
     
     if (!response.ok) {
+      if(response.status===429){throw new Error('rate_limit');}
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
@@ -4377,6 +4395,106 @@ async function maybeAutoInsight(){
   const txt = await fetchHomeInsight();
   if(txt) updateInsightUI(txt);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   CHAT MODAL — Plein écran, remplace le chat inline de la page IA
+   Ouvre via openChatModal(query?), ferme via closeChatModal()
+   ══════════════════════════════════════════════════════════════════════ */
+function renderModalChat(){
+  var area = document.getElementById('modalChatArea');
+  if(!area) return;
+  var badge = document.getElementById('cmoBadge');
+  if(badge){
+    var src = window._lastAISource;
+    badge.textContent = !navigator.onLine ? 'LOCAL' : src==='gemini' ? 'GEMINI ✨' : src==='groq' ? 'GROQ AI' : (window.safeStorage&&window.safeStorage.getItem('gemini_key') ? 'GEMINI ✨' : 'GROQ AI');
+  }
+  var msgs = typeof aiMsgs!=='undefined' ? aiMsgs : [];
+  var typing = typeof aiTyping!=='undefined' ? aiTyping : false;
+  if(!msgs.length){
+    area.innerHTML='<div class="bub bai" style="margin-top:auto">'+t('chat_default')+'</div>';
+  } else {
+    var lastDate=null;
+    area.innerHTML = msgs.map(function(m){
+      var msgDate = m.ts ? new Date(m.ts).toDateString() : null;
+      var sep='';
+      if(msgDate && msgDate!==lastDate){
+        var isToday = msgDate===new Date().toDateString();
+        var lbl = isToday ? "Aujourd'hui" : new Date(m.ts).toLocaleDateString(typeof getLocaleForDates==='function'?getLocaleForDates():'fr-FR',{day:'numeric',month:'short'});
+        sep='<div style="text-align:center;font-size:10px;color:var(--mut);padding:6px 0;margin:4px 0;border-top:1px solid var(--brd)">'+lbl+'</div>';
+        lastDate=msgDate;
+      }
+      var body = (m.c||'').replace(/\n/g,'<br>');
+      var srcBadge = m.src&&m.r==='ai' ? '<div style="font-size:9px;color:var(--mut);margin-top:4px">'+m.src+'</div>' : '';
+      return sep+'<div class="bub '+(m.r==='ai'?'bai':'bus')+'">'+body+srcBadge+'</div>';
+    }).join('');
+    if(typing) area.innerHTML+='<div class="bub bai ald"><div class="add"></div><div class="add"></div><div class="add"></div></div>';
+  }
+  area.scrollTop = area.scrollHeight;
+}
+
+function openChatModal(prefillQuery){
+  var overlay = document.getElementById('chatModalOverlay');
+  if(!overlay) return;
+  overlay.classList.add('open');
+  renderModalChat();
+  var ci = document.getElementById('modalChatInput');
+  if(ci){
+    if(prefillQuery){ ci.value=String(prefillQuery); }
+    setTimeout(function(){
+      renderModalChat();
+      if(prefillQuery){
+        var btn = document.getElementById('modalSendBtn');
+        if(btn) btn.click();
+      } else {
+        ci.focus();
+      }
+    }, 100);
+  }
+  document.body.style.overflow='hidden';
+}
+
+function closeChatModal(){
+  var overlay = document.getElementById('chatModalOverlay');
+  if(!overlay) return;
+  overlay.classList.remove('open');
+  document.body.style.overflow='';
+}
+
+/* Init modal send logic (runs once DOM is ready) */
+(function initModalChat(){
+  function setupModal(){
+    var sb = document.getElementById('modalSendBtn');
+    var ci = document.getElementById('modalChatInput');
+    if(!sb||!ci) return;
+    var _modalBusy = false;
+    async function sendModal(){
+      var q = ci.value.trim();
+      if(!q || _modalBusy || (typeof aiTyping!=='undefined'&&aiTyping)) return;
+      ci.value=''; sb.disabled=true; _modalBusy=true;
+      if(typeof aiMsgs!=='undefined') aiMsgs.push({r:'user',c:q,ts:Date.now()});
+      if(typeof aiTyping!=='undefined') aiTyping=true;
+      renderModalChat();
+      try{
+        var res = await (typeof askAI==='function' ? askAI(q) : Promise.resolve({text:'IA non prête.',src:'Local'}));
+        if(typeof aiMsgs!=='undefined') aiMsgs.push({r:'ai',c:res.text||'…',ts:Date.now(),src:res.src||'IA'});
+      } catch(e){
+        if(typeof aiMsgs!=='undefined') aiMsgs.push({r:'ai',c:'⚠️ '+e.message,ts:Date.now(),src:'Erreur'});
+      } finally {
+        if(typeof aiTyping!=='undefined') aiTyping=false;
+        sb.disabled=false; _modalBusy=false;
+        try{ if(typeof saveChatHistory==='function') saveChatHistory(); }catch(_){}
+        renderModalChat();
+        try{ if(typeof render==='function') render(); }catch(_){}
+      }
+    }
+    sb.addEventListener('click', sendModal);
+    ci.addEventListener('keydown', function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendModal(); }});
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ var ov=document.getElementById('chatModalOverlay'); if(ov&&ov.classList.contains('open')) closeChatModal(); }});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', setupModal);
+  else setTimeout(setupModal, 0);
+})();
+
 function openAIQuick(){
   // v8.7 — FAB ✨ redirige vers le Conseil Délibératif dans la vue IA
   const _online = navigator.onLine;
@@ -4393,21 +4511,8 @@ function openAIQuick(){
     return;
   }
 
-  // Navigation vers la vue IA + déclenchement du Conseil si auto-trigger détecté
-  go('ai');
-  setTimeout(()=>{
-    const kpi=computeKPIs();
-    const trigger=window.detectCouncilTrigger?window.detectCouncilTrigger(kpi):null;
-    // Si Conseil pas encore lancé ET trigger détecté → lancer automatiquement
-    if(window.runAladdinCouncil && !window.councilRunning && !window.councilMsgs?.length){
-      const councilTrigger=trigger||{reason:'manuel',label:'Analyse rapide',severity:'manual'};
-      window.runAladdinCouncil(councilTrigger);
-    } else {
-      // Scroll jusqu'au conseil
-      const el=document.querySelector('.council-wrap');
-      if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-    }
-  },150);
+  // Ouvre le modal chat complet (plein écran)
+  openChatModal();
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -4830,7 +4935,7 @@ function renderHome(){
     return`<div style="margin-bottom:12px;padding:12px 14px;background:rgba(0,0,0,.2);border:1px solid ${colors[comport.profilEtat]||'var(--brd)'}33;border-radius:14px;font-size:12px;color:var(--txt2);line-height:1.6">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1"><span style="font-weight:800;color:${colors[comport.profilEtat]||'var(--acc3)'}">${icons[comport.profilEtat]||'🧠'} IVY Adaptatif</span> — ${comport.messageContextuel}</div>
-        <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('Analyse IVY — explique ma situation comportementale actuelle et donne 2 actions concrètes'),200)" style="flex-shrink:0;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">Ask IA →</button>
+        <button onclick="event.stopPropagation();openChatModal('Analyse IVY — explique ma situation comportementale actuelle et donne 2 actions concrètes')" style="flex-shrink:0;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer;white-space:nowrap">Ask IA →</button>
       </div>
     </div>`;
   })():''}
@@ -4846,7 +4951,7 @@ function renderHome(){
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
       <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
       <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
-      <button onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('Explique-moi en détail ma santé financière actuelle, le score IVY, et dis-moi exactement quoi faire cette semaine pour l\'améliorer'),200)" style="background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:4px 8px;cursor:pointer">Analyse complète ✨</button>
+      <button onclick="event.stopPropagation();openChatModal('Explique-moi en détail ma santé financière actuelle, le score IVY, et dis-moi exactement quoi faire cette semaine pour l\'améliorer')" style="background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:4px 8px;cursor:pointer">Analyse complète ✨</button>
     </div>
   </div>  <!-- ALERTS — compactes si connecté (IA prend le relais), détaillées si offline -->
   ${(()=>{
@@ -5840,8 +5945,18 @@ function renderAI(){
   </div>
   `}
 
-  <!-- CONSEIL ALADDIN — remplace "Actions Rapides" (§H) -->
-  ${window.renderCouncilCard ? window.renderCouncilCard() : ''}
+  <!-- CONSEIL ALADDIN ─── Zone principale vue IA ─────────────────────── -->
+  ${(()=>{
+    if(window.renderCouncilCard){ return window.renderCouncilCard(); }
+    return `<div class="card" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(139,92,246,.04));border:1.5px solid rgba(139,92,246,.3)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:24px">🏛</span>
+        <div style="font-size:14px;font-weight:800;color:#a78bfa">Conseil Délibératif ALADDIN</div>
+      </div>
+      <div style="font-size:12.5px;color:var(--txt2);line-height:1.6;margin-bottom:14px">Deux IA (Gemini + Groq) analysent tes finances en profondeur et te donnent un plan d\'action concret.</div>
+      <button class="btn" style="width:100%;background:linear-gradient(135deg,var(--acc),var(--acc2));padding:13px" onclick="if(window.runAladdinCouncil){window.runAladdinCouncil({reason:\'manuel\',label:\'Analyse manuelle\',severity:\'manual\'});}else{openChatModal();}">⚡ Lancer le Conseil ALADDIN</button>
+    </div>`;
+  })()}
 
   <!-- ACTIONS DU MOMENT — masquées quand le Conseil a tourné (il les remplace) -->
   ${_actionsHtml}
@@ -5857,31 +5972,17 @@ function renderAI(){
       </div></div>
     </div>`).join('')}
   </div>`:''}
-  <div class="card">
-    <div class="ch">${t('ai_chat')} <span id="aiChatBadge" class="pill" style="color:${(()=>{const _src=window._lastAISource;return !isOnline?'var(--org)':_src==='gemini'?'#a78bfa':_src==='groq'?'var(--grn)':window.safeStorage?.getItem('gemini_key')?'#a78bfa':'var(--grn)'})()}">${(()=>{const _src=window._lastAISource;const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_local'):_src==='gemini'?'GEMINI ✨':_src==='groq'?'GROQ AI':g?'GEMINI ✨':'GROQ AI'})()}</span>${aiMsgs.length>0?`<button onclick="event.stopPropagation();if(confirm('${L("Effacer l\'historique du chat ?","Clear chat history?","¿Borrar historial?","Limpar histórico?")}')){ aiMsgs=[]; saveChatHistory(); render(); }" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px;margin-left:auto" title="${L('Effacer','Clear','Borrar','Limpar')}">🗑️</button>`:''}</div>
-    <div class="chat" id="chatArea">
-      ${(()=>{
-        if(!aiMsgs.length) return `<div class="bub bai">${t('chat_default')}</div>`;
-        let lastDate=null;
-        return aiMsgs.map(m=>{
-          const msgDate = m.ts ? new Date(m.ts).toDateString() : null;
-          let sep='';
-          if(msgDate && msgDate!==lastDate){
-            const isToday = msgDate === new Date().toDateString();
-            const label = isToday ? L("Aujourd'hui","Today","Hoy","Hoje") : new Date(m.ts).toLocaleDateString(getLocaleForDates(),{day:'numeric',month:'short'});
-            sep = `<div style="text-align:center;font-size:10px;color:var(--mut);padding:6px 0;margin:4px 0;border-top:1px solid var(--brd)">${label}</div>`;
-            lastDate = msgDate;
-          }
-          return sep + `<div class="bub ${m.r==='ai'?'bai':'bus'}">${m.c.replace(/\n/g,'<br>')}${m.src&&m.r==='ai'?`<div style="font-size:9px;color:var(--mut);margin-top:4px">${m.src}</div>`:''}</div>`;
-        }).join('');
-      })()}
-      ${aiTyping?'<div class="bub bai ald"><div class="add"></div><div class="add"></div><div class="add"></div></div>':''}
+  <!-- Chat déplacé dans la bulle flottante — ouvre via 🔮 -->
+  <div class="card" style="background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(139,92,246,.03));border:1.5px solid rgba(139,92,246,.22);cursor:pointer" onclick="openChatModal()">
+    <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+      <span style="font-size:28px;line-height:1">🔮</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:var(--txt);margin-bottom:3px">Chat avec ALADDIN</div>
+        <div style="font-size:12px;color:var(--mut)">${aiMsgs.length>0?aiMsgs.length+' message'+(aiMsgs.length>1?'s':'')+'   — tape pour continuer':'Pose une question, analyse tes données…'}</div>
+      </div>
+      <div style="font-size:22px;color:rgba(139,92,246,.5)">›</div>
     </div>
-    <div class="cirow">
-      <input type="text" id="chatInput" class="fi" placeholder="${t('chat_ph')}" autocomplete="off">
-      <button class="sbtn" id="sendBtn"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-    </div>
-    <div id="aiChatFooter" style="font-size:10px;color:var(--mut);margin-top:7px;text-align:center">${t('ai_data_local')} · ${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return !isOnline?t('ai_via_local'):g?'Analyse via Gemini ✨':t('ai_via_groq')})()}</div>
+    ${aiMsgs.length>0?`<div style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:10px;font-size:12px;color:var(--txt2);line-height:1.5;border-left:3px solid rgba(139,92,246,.4)">${(aiMsgs[aiMsgs.length-1].c||'').replace(/<[^>]*>/g,'').slice(0,120)}${(aiMsgs[aiMsgs.length-1].c||'').length>120?'…':''}</div>`:''}
   </div>
 
   <!-- PRÉDICTIONS DU CONSEIL (si existantes) -->
@@ -5956,6 +6057,7 @@ function setupChat(){
     aiTyping=false;
     saveChatHistory();
     render();
+    try{if(typeof renderModalChat==='function')renderModalChat();}catch(_){}
   }
   sb.onclick=send;
   ci.onkeydown=e=>{if(e.key==='Enter')send()};
@@ -5986,12 +6088,23 @@ function renderCouncilPredGraph(){
     +'</div>';
 }
 window.renderCouncilPredGraph = renderCouncilPredGraph;
-function quickAsk(q){const ci=$('chatInput');if(ci){ci.value=q;$('sendBtn')&&$('sendBtn').click()}}
+function quickAsk(q){
+  // Si le chat modal est ouvert, envoyer directement
+  const modal = document.getElementById('chatModalOverlay');
+  if(modal && modal.style.display!=='none'){
+    const ci = document.getElementById('modalChatInput');
+    if(ci){ ci.value=q; document.getElementById('modalSendBtn')&&document.getElementById('modalSendBtn').click(); }
+    return;
+  }
+  // Sinon ouvrir le chat modal avec la question pré-remplie
+  openChatModal(q);
+}
 
 // ════════════════════════════════════════
 // SETTINGS SCREEN
 // ════════════════════════════════════════
 function renderSettings(){
+  setTimeout(function(){ try{ if(typeof injectGeminiKeyUI==='function') injectGeminiKeyUI(); }catch(e){} }, 50);
   return`
   <div class="stitle">${t('settings_title')}</div>
 
@@ -8554,7 +8667,7 @@ window.renderHealthScoreCard = function renderHealthScoreCard(kpi){
       const pct = Math.round((a.v/20)*100);
       const c = a.v>=15?'var(--grn)':a.v>=10?'var(--ylw)':a.v>=5?'var(--org)':'var(--red)';
       const q = 'Explique mon score '+a.l+' de '+a.v+'/20 en santé financière — cause précise et 1 action concrète';
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" onclick="event.stopPropagation();go('ai');setTimeout(()=>quickAsk('${q.replace(/'/g,'&#39;')}'),200)" title="Analyser avec IA">
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer" onclick="event.stopPropagation();openChatModal('${q.replace(/'/g,'&#39;')}')" title="Analyser avec IA">
         <div style="height:36px;width:6px;background:var(--surf3);border-radius:3px;display:flex;align-items:flex-end;overflow:hidden">
           <div style="width:100%;height:${pct}%;background:${c};border-radius:3px;transition:opacity .2s"></div>
         </div>
@@ -8596,7 +8709,7 @@ window.openHealthDetailModal = function openHealthDetailModal(){
           <span style="font-weight:700;font-size:13px">${labels[k]}</span>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="mono fw8" style="color:${c}">${v}/20</span>
-            <button onclick="closeModal();setTimeout(()=>{go('ai');setTimeout(()=>quickAsk('${aiQ.replace(/'/g,'&#39;')}'),200)},100)" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:3px 7px;cursor:pointer">✨ IA</button>
+            <button onclick="closeModal();setTimeout(()=>{openChatModal('${aiQ.replace(/'/g,'&#39;')})" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:3px 7px;cursor:pointer">✨ IA</button>
           </div>
         </div>
         <div style="height:5px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:6px">
@@ -8611,7 +8724,7 @@ window.openHealthDetailModal = function openHealthDetailModal(){
       ${rows}
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn" onclick="closeModal()" style="flex:1">OK</button>
-        <button class="btn" onclick="closeModal();setTimeout(()=>{go('ai');setTimeout(()=>quickAsk('Analyse complète de ma santé financière ${h.score}/100 (${h.label}) — explique chaque sous-score avec des données précises et donne un plan pour passer à un niveau supérieur'),200)},100)" style="flex:1;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.1));border:1px solid rgba(167,139,250,.4);color:#a78bfa">✨ Analyse IA complète</button>
+        <button class="btn" onclick="closeModal();setTimeout(()=>openChatModal(`Analyse complète de ma santé financière ${h.score}/100 (${h.label}) — explique chaque sous-score avec des données précises et donne un plan pour passer à un niveau supérieur`),60)" style="flex:1;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.1));border:1px solid rgba(167,139,250,.4);color:#a78bfa">✨ Analyse IA complète</button>
       </div>
     `);
   }catch(e){ console.warn('[Health modal] fail',e); }
@@ -8855,6 +8968,14 @@ window._triggerProjectionAI = async function(period){
   if(!_hasGem && !_hasGroq){ _el.innerHTML='<div style="font-size:11px;color:var(--org);padding:8px 0">Configure une clé Gemini ou Groq dans Config</div>'; return; }
   if(!navigator.onLine){ _el.innerHTML='<div style="font-size:11px;color:var(--org);padding:8px 0">Connexion requise pour l&#39;analyse IA</div>'; return; }
   _el.innerHTML='<div style="padding:10px 0;font-size:11px;color:var(--mut);display:flex;align-items:center;gap:8px"><span class="ald" style="display:inline-flex;gap:3px"><span class="add"></span><span class="add"></span><span class="add"></span></span> Gemini analyse les scénarios…</div>';
+  // Safety: wait for ALADDIN Engine if not yet loaded
+  if(typeof window.callAladdinAI !== 'function'){
+    await new Promise(r=>setTimeout(r,600));
+  }
+  if(typeof window.callAladdinAI !== 'function'){
+    _el.innerHTML='<div style="color:var(--org);font-size:11px;padding:6px 0">⚠️ Moteur IA non prêt — recharge la page ou configure une clé dans Config.</div>';
+    return;
+  }
   try{
     const _kpi = window.computeKPIs();
     const _proj = window.buildCashflowProjection(period);
@@ -9295,7 +9416,7 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GROQ_MODEL           : 'llama-3.3-70b-versatile',  // meilleure qualité pour le Conseil ALADDIN
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
-  MAX_TOKENS           : 2048,  // Gemini 3.5 Flash supporte jusqu'à 8192 tokens en sortie
+  MAX_TOKENS           : 900,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
   TEMPERATURE          : 0.75,  // Gemini 3.5 Flash — équilibre naturel/précision
   // Seuils anomalies
   FRAG_WINDOW_MIN      : 30,   // fenêtre de fragmentation (minutes)
@@ -9440,7 +9561,7 @@ function prepareAIPayload(viewType, userQuery) {
         humeursRecentes: recentMoods_.join(' ')||'aucune',
         top5depenses30j: (()=>{const m={};allTx.filter(t=>t.type==='expense'&&(Date.now()-new Date(t.date))<30*86400000).forEach(t=>{const n=catN(t.categoryId);m[n]=(m[n]||0)+t.amount});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,v])=>c+':'+Math.round(v)+' '+cur_());})()
       };
-      systemFocus = 'Tu es ALADDIN en mode SANTÉ FINANCIÈRE COMPLÈTE. '        +'Analyse chaque axe du score (réserve/retention/régularité/objectifs/comportement), '        +'donne un diagnostic précis avec chiffres réels, identifie les 3 points faibles prioritaires, '        +'propose un plan d'amélioration sur 30/90/180 jours avec jalons mesurables. '        +'Compare la situation au benchmark : réserve idéale = 3-6 mois de dépenses, rétention idéale = 20-30%, friction >70. '        +'Détecte les patterns comportementaux (humeurs lors des dépenses, horaires nocturnes, dopamine). '        +'Sois précis, empathique et actionnable.';
+      systemFocus = `Tu es ALADDIN en mode SANTÉ FINANCIÈRE COMPLÈTE. Analyse chaque axe du score (réserve/rétention/régularité/objectifs/comportement), donne un diagnostic précis avec chiffres réels, identifie les 3 points faibles prioritaires, propose un plan d'amélioration sur 30/90/180 jours avec jalons mesurables. Compare au benchmark : réserve idéale = 3-6 mois de dépenses, rétention idéale = 20-30%. Détecte les patterns comportementaux (humeurs lors des dépenses, horaires nocturnes, dopamine). Sois précis, empathique et actionnable. Tutoiement SANS EXCEPTION.`;
       break;
     }
 
@@ -9748,7 +9869,14 @@ async function callAladdinAI(viewType, userQuery) {
         window._lastAISource = 'gemini';
         return {text:txt, src:'Gemini ✨', anomalies:payload.anomalies};
       }
-      if(!r.ok) console.warn('[ALADDIN] Gemini error:',d.error?.message);
+      if(!r.ok){
+        const _gErr = d.error?.message||'';
+        if(r.status===429 || _gErr.toLowerCase().includes('quota') || _gErr.toLowerCase().includes('rate')){
+          // Return friendly message rather than falling back to Groq (which may also be rate-limited)
+          return {text:'⏳ Gemini momentanément limité — réessaie dans quelques secondes.\n\nTon historique est intact.', src:'Limite', anomalies:payload.anomalies};
+        }
+        console.warn('[ALADDIN] Gemini error:',_gErr);
+      }
     } catch(e){ console.warn('[ALADDIN] Gemini failed:',e.message); }
   }
 
@@ -9768,7 +9896,14 @@ async function callAladdinAI(viewType, userQuery) {
         window._lastAISource = 'groq';
         return {text:txt, src:'Groq', anomalies:payload.anomalies};
       }
-      if(!r.ok) return {text:'⚠️ Groq: '+d.error?.message, src:'Erreur', anomalies:payload.anomalies};
+      const _gerr = d.error?.message||'';
+      if(!r.ok){
+        if(_gerr.toLowerCase().includes('rate limit')||_gerr.toLowerCase().includes('rate_limit')||r.status===429){
+          const _secs = (_gerr.match(/(\d+\.?\d*)s\b/)||[])[1];
+          return {text:'⏳ IA momentanément surchargée'+(_secs?` — réessaie dans ${Math.ceil(_secs)}s`:'')+'\n\n💡 Astuce : configure une clé Gemini dans Config pour des analyses illimitées.', src:'Limite', anomalies:payload.anomalies};
+        }
+        return {text:'⚠️ Erreur réseau — '+_gerr.slice(0,80), src:'Erreur', anomalies:payload.anomalies};
+      }
     } catch(e){ console.warn('[ALADDIN] Groq failed:',e.message); }
   }
 
@@ -10545,5 +10680,20 @@ console.log('[ALADDIN Engine v8.7] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_V
 
 </script>
 
+
+<!-- ══ CHAT MODAL OVERLAY ══════════════════════════════════════════════════ -->
+<div id="chatModalOverlay" aria-modal="true" aria-label="Chat IA">
+  <div class="cmo-header">
+    <button class="cmo-back" onclick="closeChatModal()" aria-label="Retour">‹</button>
+    <div class="cmo-title">🔮 Chat ALADDIN</div>
+    <span class="cmo-badge" id="cmoBadge">GEMINI ✨</span>
+    <button id="cmoClearBtn" title="Effacer" style="background:none;border:none;color:var(--mut);cursor:pointer;font-size:15px;padding:4px 6px;border-radius:8px;margin-left:4px" onclick="if(confirm('Effacer le chat ?')){aiMsgs=[];saveChatHistory();renderModalChat();}">🗑</button>
+  </div>
+  <div id="modalChatArea"></div>
+  <div class="cmo-input-row">
+    <input id="modalChatInput" type="text" placeholder="Pose ta question à ALADDIN…" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="modalSendBtn" aria-label="Envoyer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  </div>
+</div>
 </body>
 </html>

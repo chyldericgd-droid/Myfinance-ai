@@ -6,7 +6,7 @@
   <link rel="dns-prefetch" href="https://api.groq.com">
   <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 
-<!-- Finance AI OS v8.7.0 | Refactored PWA -->
+<!-- Finance AI OS v9.0.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -30,7 +30,7 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="8.7.0">
+<meta name="version" content="9.0.0">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -61,7 +61,10 @@ input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* SCROLL */
-.scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:var(--bg);z-index:1}
+#root{position:relative;background:transparent}
+/* v9 fix: prevent any stale-DOM ghost during async page swap */
+#root.swapping{opacity:.001;transition:opacity .12s}
 .page{max-width:600px;margin:0 auto;padding:14px 14px 24px}
 
 /* NAV */
@@ -116,7 +119,7 @@ input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
 .hd:active{transform:scale(.85)}
 
 /* MODAL */
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:200;display:none;align-items:flex-end;justify-content:center}
 .mo.on{display:flex;animation:fi .15s ease}
 .mb{background:linear-gradient(180deg,var(--surf2),var(--surf));border-radius:32px 32px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:6px 20px 36px;border-top:1px solid var(--brd2);box-shadow:0 -20px 60px -10px rgba(0,0,0,.7)}
 .mh{width:36px;height:4px;background:var(--brd2);border-radius:10px;margin:10px auto 14px;cursor:pointer}
@@ -201,7 +204,7 @@ select.fi{cursor:pointer}
 .ftab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 
 /* SECTION TITLE */
-.stitle{font-size:20px;font-weight:800;margin-bottom:14px;letter-spacing:-.3px}
+/* .stitle defined later (line ~483) — this earlier rule removed to avoid duplicate cascade ambiguity (v9 fix) */
 .ssub{font-size:12px;color:var(--mut);margin-bottom:14px;margin-top:-8px}
 
 /* ONLINE BADGE - hidden (connectivity is now shown via background ambiance) */
@@ -213,7 +216,7 @@ body{transition:background .8s ease,filter .6s ease}
 /* Connectivity layer — uses ::before pseudo-element so it doesn't clash with financial state bg */
 body::before{
   content:'';
-  position:fixed;inset:0;
+  position:fixed;top:0;left:0;right:0;bottom:0;
   pointer-events:none;
   z-index:0;
   opacity:0;
@@ -284,7 +287,7 @@ body.state-zero{
 /* AI INSIGHT CARD on home */
 .ai-insight{background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(99,102,241,.05));
   border:1px solid rgba(167,139,250,.35);border-radius:var(--r);padding:14px;margin-bottom:12px;position:relative;overflow:hidden}
-.ai-insight::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(167,139,250,.12),transparent 70%);pointer-events:none}
+.ai-insight::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at top right,rgba(167,139,250,.12),transparent 70%);pointer-events:none}
 .ai-insight .ai-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--acc3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .ai-insight .ai-b{font-size:13px;line-height:1.55;color:var(--txt);font-weight:500;position:relative}
 .ai-insight .ai-loading{display:inline-block;width:8px;height:8px;background:var(--acc3);border-radius:50%;
@@ -491,10 +494,10 @@ body.state-zero{
 .pill{border-radius:22px;padding:4px 12px}
 
 /* Onboarding overlay */
-#onbOv{position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;align-items:flex-end;justify-content:center;animation:fi .3s ease}
+#onbOv{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:rgba(0,0,0,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);display:flex;align-items:flex-end;justify-content:center;animation:fi .3s ease}
 
 /* ── TUTORIAL OVERLAY ── */
-#tutOv{position:fixed;inset:0;z-index:9100;background:#09090f;display:flex;flex-direction:column;animation:fi .4s ease}
+#tutOv{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:#09090f;display:flex;flex-direction:column;animation:fi .4s ease}
 #tutOv .tut-wrap{flex:1;overflow:hidden;position:relative}
 #tutOv .tut-slides{display:flex;height:100%;transition:transform .38s cubic-bezier(.4,0,.2,1)}
 #tutOv .tut-slide{min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 28px 0;text-align:center;gap:0}
@@ -620,21 +623,28 @@ body.state-zero{
 .council-pred-graph{margin:8px 14px;border-radius:14px;overflow:hidden;background:var(--surf2);border:1px solid var(--brd)}
 
 
-/* ══ CHAT MODAL OVERLAY ══════════════════════════════════════════════════ */
-#chatModalOverlay{position:fixed;inset:0;z-index:980;background:var(--bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);pointer-events:none}
-#chatModalOverlay.open{transform:translateY(0);pointer-events:all}
-.cmo-header{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--brd);background:var(--card);flex-shrink:0;padding-top:calc(14px + env(safe-area-inset-top))}
-.cmo-back{background:none;border:none;color:var(--txt);cursor:pointer;font-size:22px;padding:4px 8px;border-radius:10px;line-height:1;transition:background .15s}
-.cmo-back:active{background:rgba(255,255,255,.08)}
-.cmo-title{font-size:15px;font-weight:800;color:var(--txt);flex:1}
-.cmo-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;background:rgba(167,139,250,.18);color:#a78bfa;letter-spacing:.5px}
-#modalChatArea{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
-.cmo-input-row{display:flex;gap:8px;align-items:center;padding:12px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--brd);background:var(--card);flex-shrink:0}
-#modalChatInput{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(139,92,246,.22);border-radius:14px;padding:11px 14px;font-size:14px;color:var(--txt);outline:none;font-family:var(--sans)}
-#modalChatInput:focus{border-color:rgba(139,92,246,.5)}
-#modalSendBtn{width:42px;height:42px;border-radius:13px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .12s,opacity .12s}
-#modalSendBtn:active{transform:scale(.9)}
-#modalSendBtn:disabled{opacity:.4}
+/* ═══ LIVRE COMPTABLE ════════════════════════════════════ */
+.ledger-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.ledger-kpi{text-align:center;padding:10px 6px;background:var(--surf2);border-radius:12px}
+.ledger-kpi-v{font-size:14px;font-weight:800;font-family:monospace}
+.ledger-kpi-l{font-size:9px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.ledger-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--brd);cursor:pointer}
+.ledger-row:active{background:rgba(139,92,246,.06);border-radius:8px;margin:0 -6px;padding:9px 6px}
+.ledger-note{font-size:12px;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ledger-sub{font-size:10px;color:var(--mut)}
+.ledger-amt{font-family:monospace;font-weight:700;font-size:12px;text-align:right;white-space:nowrap}
+/* ═══ LILIA OFFLINE ══════════════════════════════════════ */
+.lilia-bar{padding:10px 14px;background:linear-gradient(135deg,rgba(251,146,60,.1),rgba(251,146,60,.04));border:1px solid rgba(251,146,60,.25);border-radius:14px;display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:12px}
+.lilia-dot{width:7px;height:7px;border-radius:50%;background:var(--org);flex-shrink:0;animation:liliaP 2s infinite}
+@keyframes liliaP{0%,100%{opacity:1}50%{opacity:.4}}
+/* ═══ TOGGLE SWITCH (if missing) ════════════════════════ */
+.sw{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw-sl{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.15);border-radius:24px;transition:.3s}
+.sw-sl:before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.sw input:checked+.sw-sl{background:var(--acc)}
+.sw input:checked+.sw-sl:before{transform:translateX(20px)}
+
 </style>
 </head>
 <body>
@@ -4032,6 +4042,23 @@ async function buildCtx(){
 
 async function askAI(userMsg){
   const key = getGroqKey();
+  // GEMINI FIRST — clé Gemini prioritaire sur Groq
+  var _gKey='';try{_gKey=window.safeStorage&&window.safeStorage.getItem('gemini_key')||'';}catch(_ex){}
+  if(navigator.onLine && _gKey && window._callGeminiRaw){
+    try{
+      var _gSys='Tu es IVY. MAX 3 PHRASES. 1 emoji. Chiffre precis, impact concret, 1 action. Zero remplissage.';
+      var _gCtx='';try{_gCtx=await buildCtx();}catch(_ex){}
+      var _gMsgs=[{role:'system',content:_gSys}].concat(
+        aiMsgs.slice(-4).map(function(m){return{role:m.r==='ai'?'assistant':'user',content:m.c};}),
+        [{role:'user',content:'DONNEES: '+_gCtx+' QUESTION: '+userMsg}]
+      );
+      var _gResult=await window._callGeminiRaw(_gMsgs,400);
+      if(_gResult){
+        window._lastAISource='gemini';
+        return{text:_gResult,src:'Gemini ✨'};
+      }
+    }catch(_ex){console.warn('[askAI] Gemini err:',_ex);}
+  }
   if(navigator.onLine && key){
     try{
       const langInstruction=langInstr();
@@ -4067,7 +4094,7 @@ A. Ne cite QUE des chiffres présents dans les données. Jamais inventer.
 B. COMPTE_ACTIF = dépensable. EPARGNE_VERROUILLEE = intouchable.
 C. Raisonner entrées ET sorties. Le net (revenu−dépense) prime tout.
 D. Si "aucunRevenuEnregistre"=true → priorité = manque de rentrée, pas dépenses.
-E. 4 phrases max. 1 seul emoji (⚡/🎯/🔥). ${langInstruction}
+E. MAX 3 PHRASES. 1 seul emoji (⚡/🎯/🔥). ${langInstruction}
 F. Structure: chiffre précis → impact en jours sur objectif → 1 action concrète.
 G. Besoin vital (repas/transport/santé) = jamais qualifié d'impulsion.
 H. Si silence >2j sans saisie → interroger l'évitement avant l'analyse.
@@ -4109,128 +4136,70 @@ Tu es IVY: brutal, loyal, factuel.`;
   if(!key && navigator.onLine){
     return{text:t('no_key_online')+'\n\n'+localAI(userMsg), src:'Local'};
   }
-  return{text:t('offline_prefix')+localAI(userMsg), src:'Local'};
+  return{text:localAI(userMsg), src:'Lilia'};
 }
 
 
 function localAI(q){
-  const k=computeKPIs();const ql=q.toLowerCase();
-  const now=new Date();
-  const h=now.getHours();
-
-  // ── ANALYSE SÉMANTIQUE DES NOTES ──────────────────────────────────────
-  // Extrait ce que l'utilisateur a mangé, où il est allé, etc.
-  const recentNotes=txs.slice(0,20).filter(tx=>tx.note&&tx.note.length>1).map(tx=>({
-    note:tx.note.toLowerCase(), amt:tx.amount, type:tx.type,
-    catId:tx.categoryId, date:new Date(tx.date)
-  }));
-  const foodNotes=recentNotes.filter(n=>['food','alimentation','resto','manger','repas','dejeuner','diner','pizza','burger','snack'].some(w=>n.note.includes(w)));
-  const todayFoodCount=foodNotes.filter(n=>n.date.toDateString()===now.toDateString()).length;
-
-  // ── DÉTECTION D'INTENTION dans la question ─────────────────────────────
-  const isAboutFood=['mang','alim','repas','nourriture','resto','déj','dîner','lunch','food','eat'].some(w=>ql.includes(w));
-  const isAboutGoal=['objectif','goal','pc','achat','économie','épargne','save','target'].some(w=>ql.includes(w));
-  const isAboutToday=['aujourd','today','journée','day'].some(w=>ql.includes(w));
-  const isAboutNote=['note',"j'ai",'j ai',"j'avais",'écrit','marqué'].some(w=>ql.includes(w));
-
-  // ── RÉPONSE CONTEXTUELLE ALIMENTAIRE ──────────────────────────────────
-  if(isAboutFood||isAboutNote){
-    const todayFoodTxs=txs.filter(tx=>{
-      const d=new Date(tx.date);
-      return d.toDateString()===now.toDateString()&&tx.type==='expense'&&
-        (tx.categoryId==='food'||(tx.note&&['manger','repas','resto','pizza','burger','snack','déj','dîner'].some(w=>(tx.note||'').toLowerCase().includes(w))));
-    });
-    if(todayFoodTxs.length===0){
-      return _lang==='en'
-        ?'📍 No food expense logged today yet. If you just ate, log it now — your brain forgets 60% of purchases within 3 hours.'
-        :`📍 Aucune dépense alimentaire enregistrée aujourd'hui. Si tu viens de manger, saisis-la maintenant — ton cerveau oublie 60% des achats en 3h.`;
+  var kpi={};try{kpi=computeKPIs();}catch(ex){}
+  var allTx=window.txs||[];var allAccs=window.accs||[];
+  var cur_='XAF';try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  var lang=typeof _lang!=='undefined'?_lang:'fr';
+  var ql=(q||'').toLowerCase();
+  var activeBal=allAccs.filter(function(a){return a.type!=='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
+  var savBal=allAccs.filter(function(a){return a.type==='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
+  var burnRate=kpi.burnRate||0;
+  var j0=burnRate>0?Math.floor(activeBal/burnRate):999;
+  var exp30=allTx.filter(function(t){return t.type==='expense'&&(Date.now()-new Date(t.date))<2592000000;});
+  var inc30=allTx.filter(function(t){return t.type==='income'&&(Date.now()-new Date(t.date))<2592000000;});
+  var totalExp30=exp30.reduce(function(s,t){return s+t.amount;},0);
+  var totalInc30=inc30.reduce(function(s,t){return s+t.amount;},0);
+  var netMois=totalInc30-totalExp30;
+  var fmt=function(n){try{return typeof fmtFull==='function'?fmtFull(n):Math.round(n)+' '+cur_;}catch(ex){return Math.round(n)+' '+cur_;}};
+  var isEn=lang==='en',isEs=lang==='es',isPt=lang==='pt';
+  if(!allTx.length){
+    if(isEn) return 'Lilia (offline): No data yet. Add your first transaction to start tracking.';
+    if(isEs) return 'Lilia (offline): Sin datos. Agrega tu primera transacción.';
+    if(isPt) return 'Lilia (offline): Sem dados. Adiciona a primeira transação.';
+    return 'Lilia (hors ligne): Aucune donnée. Saisis ta première transaction pour démarrer.';
+  }
+  var catMap={};
+  exp30.forEach(function(t){var cn='?';try{cn=catById(t.categoryId).name;}catch(ex){}catMap[cn]=(catMap[cn]||0)+t.amount;});
+  var topCat=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];})[0];
+  var topStr=topCat?topCat[0]+' '+fmt(topCat[1]):'N/A';
+  var j0Str=j0===999?'illimité':j0+'j';
+  if(/sold|balan|combien|how much|cuanto|quanto/.test(ql)){
+    if(isEn) return 'Lilia: Balance '+fmt(activeBal)+(savBal>0?', savings '+fmt(savBal):'')+'. '+j0Str+' before zero. Top spend: '+topStr+'.';
+    if(isEs) return 'Lilia: Saldo '+fmt(activeBal)+(savBal>0?', ahorros '+fmt(savBal):'')+'. '+j0Str+' hasta cero. Mayor gasto: '+topStr+'.';
+    if(isPt) return 'Lilia: Saldo '+fmt(activeBal)+(savBal>0?', poupança '+fmt(savBal):'')+'. '+j0Str+' até zero. Maior gasto: '+topStr+'.';
+    return 'Lilia: Solde '+fmt(activeBal)+(savBal>0?', épargne '+fmt(savBal):'')+'. '+j0Str+' avant zéro. Top dépense: '+topStr+'.';
+  }
+  if(/depens|spend|gast|dépens|budget|burn/.test(ql)){
+    var net2=(netMois>=0?'+':'')+fmt(netMois);
+    if(isEn) return 'Lilia: Month — in '+fmt(totalInc30)+', out '+fmt(totalExp30)+' (net '+net2+'). Burn rate '+fmt(burnRate)+'/d.';
+    if(isEs) return 'Lilia: Mes — entrada '+fmt(totalInc30)+', salida '+fmt(totalExp30)+' (neto '+net2+'). Ritmo '+fmt(burnRate)+'/d.';
+    if(isPt) return 'Lilia: Mês — entrada '+fmt(totalInc30)+', saída '+fmt(totalExp30)+' (líquido '+net2+'). Ritmo '+fmt(burnRate)+'/d.';
+    return 'Lilia: Mois — entrée '+fmt(totalInc30)+', sortie '+fmt(totalExp30)+' (net '+net2+'). Rythme '+fmt(burnRate)+'/j.';
+  }
+  if(/risqu|risk|danger|alert|critique/.test(ql)){
+    var evap=kpi.evaporationRate||0;
+    var risk=j0<15?'CRITIQUE':evap>100?'ÉLEVÉ':'MODÉRÉ';
+    if(isEn) return 'Lilia: Risk '+risk+'. '+j0Str+' balance left. Evaporation '+evap+'%. Ask in chat for full analysis.';
+    return 'Lilia: Risque '+risk+'. '+j0Str+' de solde. Évaporation '+evap+'%. Ouvre le chat pour une analyse complète.';
+  }
+  var pg=null;try{pg=typeof getPriorityGoal==='function'?getPriorityGoal():null;}catch(ex){}
+  if(/object|goal|target|épargn|sav|ahorro|poupar/.test(ql)){
+    if(!pg){
+      if(isEn) return 'Lilia: No active goal. Go to Config to set one.';
+      return 'Lilia: Aucun objectif actif. Configure-le dans les Paramètres.';
     }
-    const totalFood=todayFoodTxs.reduce((s,tx)=>s+tx.amount,0);
-    const notes=todayFoodTxs.map(tx=>tx.note).filter(Boolean).join(', ');
-    const avgFoodCost=k.expense>0?Math.round(foodNotes.slice(0,14).reduce((s,n)=>s+n.amt,0)/Math.max(1,foodNotes.slice(0,14).length)):0;
-    const isExpensive=avgFoodCost>0&&totalFood>avgFoodCost*1.5;
-    return _lang==='en'
-      ?`🍽️ Today's food: ${fmtFull(totalFood)} (${todayFoodTxs.length} time${todayFoodTxs.length>1?'s':''})${notes?' — '+notes:''}. ${isExpensive?'That\'s '+Math.round((totalFood/avgFoodCost-1)*100)+'% above your usual food budget.':'Within your normal range.'} Each meal is a choice: eating is necessary, the restaurant is optional.`
-      :`🍽️ Alimentation aujourd'hui: ${fmtFull(totalFood)} (${todayFoodTxs.length} fois)${notes?' — '+notes:''}. ${isExpensive?'C\'est '+Math.round((totalFood/avgFoodCost-1)*100)+'% au-dessus de ta moyenne alimentation.':'Dans ta norme habituelle.'} Manger est nécessaire — c'est le lieu et la fréquence qui coûtent.`;
+    var pct=Math.round((pg.saved/pg.target)*100);
+    if(isEn) return 'Lilia: Goal "'+pg.name+'" at '+pct+'% ('+fmt(pg.saved)+'/'+fmt(pg.target)+'). Gap: '+fmt(pg.target-pg.saved)+'.';
+    return 'Lilia: Objectif "'+pg.name+'" à '+pct+'% ('+fmt(pg.saved)+'/'+fmt(pg.target)+'). Manque: '+fmt(pg.target-pg.saved)+'.';
   }
-
-  // ── RÉPONSE SUR LES OBJECTIFS ─────────────────────────────────────────
-  if(isAboutGoal){
-    const pg=getPriorityGoal();
-    if(!pg) return _lang==='en'?'🎯 No goal set yet. Go to Config → Goals to add one. A goal makes every sacrifice tangible.':'🎯 Aucun objectif défini. Va dans Config → Objectifs pour en créer un. Un objectif rend chaque sacrifice concret.';
-    const gap=pg.target-pg.saved;
-    const dailySurplus=Math.max(0,(k.inc30/30)-k.burnRate);
-    const daysNeeded=dailySurplus>0?Math.ceil(gap/dailySurplus):null;
-    const pct=Math.round(((pg.saved/pg.target)*100));
-    return _lang==='en'
-      ?`🎯 "${pg.name}": ${pct}% done (${fmtFull(pg.saved)}/${fmtFull(pg.target)}). ${daysNeeded?'At current pace: ~'+daysNeeded+' days away.':'No surplus available right now — cut one recurring expense to accelerate.'} Every ${fmtFull(Math.round(gap/Math.max(1,daysNeeded||90)))}/day gets you there.`
-      :`🎯 "${pg.name}": ${pct}% fait (${fmtFull(pg.saved)}/${fmtFull(pg.target)}). ${daysNeeded?'Au rythme actuel: ~'+daysNeeded+' jours.':'Pas de surplus disponible — coupe une dépense récurrente pour accélérer.'} Chaque ${fmtFull(Math.round(gap/Math.max(1,daysNeeded||90)))}/jour te rapproche.`;
-  }
-
-  // ── RÉPONSE SUR AUJOURD'HUI ───────────────────────────────────────────
-  if(isAboutToday){
-    const todayTxs=txs.filter(tx=>new Date(tx.date).toDateString()===now.toDateString());
-    const todayExp=todayTxs.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0);
-    const todayInc=todayTxs.filter(tx=>tx.type==='income').reduce((s,tx)=>s+tx.amount,0);
-    const todayNotes=todayTxs.filter(tx=>tx.note).map(tx=>tx.note).join(', ');
-    const dailyBudget=k.burnRate>0?k.burnRate:k.expense/Math.max(1,k.dataDays);
-    const overBudget=todayExp>dailyBudget*1.3;
-    return _lang==='en'
-      ?`📅 Today so far: ${fmtFull(todayExp)} spent, ${fmtFull(todayInc)} received (${todayTxs.length} transaction${todayTxs.length!==1?'s':''})${todayNotes?' — '+todayNotes:''}. ${overBudget?'⚠️ 30% above your daily average.':'Within your daily average of '+fmtFull(Math.round(dailyBudget))+'.'} ${h>=18?'Evening spending risk is higher now — cortex fatigue.':h>=12?'Afternoon: decision fatigue starts at 14h.':'Morning: best decisions of the day.'}`
-      :`📅 Aujourd'hui: ${fmtFull(todayExp)} dépensés, ${fmtFull(todayInc)} reçus (${todayTxs.length} transaction${todayTxs.length!==1?'s':''})${todayNotes?' — '+todayNotes:''}. ${overBudget?'⚠️ 30% au-dessus de ta moyenne journalière.':'Dans ta norme journalière de '+fmtFull(Math.round(dailyBudget))+'.'} ${h>=18?'Soirée = zone de risque — cortex fatigué, résistance faible.':h>=12?"Après-midi: la fatigue décisionnelle s'installe vers 14h.":'Matin: meilleures décisions de la journée.'}`;
-  }
-
-  // ── RÉPONSES CLASSIQUES ───────────────────────────────────────────────
-  const riskKw=_lang==='en'?['risk','projection','end of month']:_lang==='es'?['riesgo','proyección']:_lang==='pt'?['risco','projeção']:['risque','projection','fin de mois'];
-  const expKw =_lang==='en'?['expense','category','spending']:_lang==='es'?['gasto','categoría']:_lang==='pt'?['despesa','categoria']:['dépense','catégorie'];
-  const balKw =_lang==='en'?['balance','wealth','money','net worth']:_lang==='es'?['saldo','patrimonio']:_lang==='pt'?['saldo','patrimônio']:['solde','patrimoine','argent'];
-  const discKw=_lang==='en'?['discipline','score']:_lang==='es'?['disciplina']:_lang==='pt'?['disciplina']:['discipline','score'];
-  const advKw =_lang==='en'?['advice','improve','help','tip']:_lang==='es'?['consejo','mejorar']:_lang==='pt'?['conselho','melhorar']:['conseil','améliorer','aide'];
-  const accKw =_lang==='en'?['account','wallet','cash']:_lang==='es'?['cuenta','billetera']:_lang==='pt'?['conta','carteira']:['compte','argent','espèce','wallet'];
-
-  if(riskKw.some(w=>ql.includes(w))){
-    const r=riskLevel(k);
-    const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
-    const sens=k.projDelta>=0?t('local_risk_good'):t('local_risk_bad');
-    const delta=(k.projDelta>=0?'+':'')+fmtFull(k.projDelta);
-    // Add savings context
-    const savingsCtx=k.savingsBalance>0?(_lang==='en'?` Savings buffer: ${fmtFull(k.savingsBalance)} (+${k.safetyDaysWithSavings}d).`:` Épargne: ${fmtFull(k.savingsBalance)} (+${k.safetyDaysWithSavings}j de tampon).`):'';
-    return t('local_risk_msg').replace('{level}',r.l).replace('{sens}',sens).replace('{delta}',delta).replace('{br}',fmtFull(k.burnRate)).replace('{safe}',safe)+savingsCtx;
-  }
-  if(expKw.some(w=>ql.includes(w))){
-    if(!k.topCat) return t('local_no_top_cat');
-    const save=fmtFull(k.expense*0.1);
-    // Add period context
-    const periodCtx=k.isShortHistory?(_lang==='en'?` (${k.dataDays}-day sample — numbers will stabilize over time).`:` (Échantillon ${k.dataDays}j — les chiffres s'affinent avec le temps).`):'';
-    return t('local_exp_msg').replace('{icon}',k.topCat.icon).replace('{name}',k.topCat.name).replace('{total}',fmtFull(k.expense)).replace('{br}',fmtFull(k.burnRate)).replace('{save}',save)+periodCtx;
-  }
-  if(accKw.some(w=>ql.includes(w))||balKw.some(w=>ql.includes(w))){
-    const safe=k.safetyDays===9999?t('local_safe_inf'):t('local_safe_days').replace('{n}',k.safetyDays);
-    // Clarify clearly what is active vs savings
-    const accDetail=accs.map(a=>`${a.icon} ${a.name}: ${fmtFull(a.balance)} (${a.type==='savings'?(_lang==='en'?'LOCKED':'VERROUILLÉ'):(_lang==='en'?'active':'actif')})`).join(', ');
-    return (_lang==='en'
-      ?`💳 Your accounts: ${accDetail}. AVAILABLE to spend: ${fmtFull(k.activeBalance)}. Savings are locked. This month: +${fmtFull(k.income)} in, -${fmtFull(k.expense)} out. ${safe} of runway without income.`
-      :`💳 Tes comptes: ${accDetail}. DISPONIBLE à dépenser: ${fmtFull(k.activeBalance)}. L'épargne est verrouillée. Ce mois: +${fmtFull(k.income)} entrés, -${fmtFull(k.expense)} sortis. ${safe} d'autonomie sans revenu.`);
-  }
-  if(discKw.some(w=>ql.includes(w))){
-    const tip=k.discipline<60?t('local_disc_low'):t('local_disc_ok');
-    return t('local_disc_msg').replace('{score}',k.discipline).replace('{stab}',Math.round(k.stability)).replace('{tip}',tip);
-  }
-  if(advKw.some(w=>ql.includes(w))){
-    const issues=[];
-    if(k.burnRate>k.income/25) issues.push(t('local_issue_burnrate').replace('{br}',fmtFull(k.burnRate)));
-    if(k.projDelta<0) issues.push(t('local_issue_deficit').replace('{v}',fmtFull(Math.abs(k.projDelta))));
-    if(k.discipline<60) issues.push(t('local_issue_disc'));
-    if(k.dopamineIdx>50) issues.push(t('local_issue_dopamine').replace('{n}',k.dopamineIdx));
-    if(k.nightPct>15) issues.push(t('local_issue_night').replace('{n}',k.nightPct));
-    if(k.evaporationRate>60) issues.push(_lang==='en'?`${k.evaporationRate}% of each income gone in 48h (evaporation)`:_lang==='fr'?`${k.evaporationRate}% de chaque revenu disparaît en 48h (évaporation)`:`${k.evaporationRate}% de cada ingreso se evapora en 48h`);
-    if(!issues.length) return t('local_advice_ok').replace('{br}',fmtFull(k.burnRate));
-    return t('local_advice_issues').replace('{issues}',issues.join('\n• '));
-  }
-  // ── Fallback enrichi avec contexte temporel ───────────────────────────
-  const timeCtx=h>=21?(_lang==='en'?'\n⚠️ Late night = impulse zone. Your next purchase costs your brain more than during the day.':_lang==='fr'?'\n⚠️ Soirée tardive = zone impulsion. Ton prochain achat coûte plus cher à ton cerveau.':''):
-    h>=18?(_lang==='en'?'\n🌇 Evening: decision fatigue is active.':_lang==='fr'?'\n🌇 Soirée: la fatigue décisionnelle est active.':''):'';
-  return t('local_default').replace('{active}',fmtFull(k.activeBalance||k.balance)).replace('{exp}',fmtFull(k.expense)).replace('{disc}',k.discipline)+timeCtx;
+  var snapshot='Lilia (hors ligne) — Solde: '+fmt(activeBal)+' | '+j0Str+' avant zéro | Mois: +'+fmt(totalInc30)+' / -'+fmt(totalExp30)+' | Net: '+(netMois>=0?'+':'')+fmt(netMois);
+  if(isEn) snapshot='Lilia (offline) — Balance: '+fmt(activeBal)+' | '+j0Str+' to zero | Month: +'+fmt(totalInc30)+' / -'+fmt(totalExp30)+' | Net: '+(netMois>=0?'+':'')+fmt(netMois);
+  return snapshot;
 }
 
 
@@ -4434,6 +4403,8 @@ function renderModalChat(){
 function openChatModal(prefillQuery){
   var overlay = document.getElementById('chatModalOverlay');
   if(!overlay) return;
+  overlay.style.display='flex';
+  void overlay.offsetHeight; /* force reflow before transition */
   overlay.classList.add('open');
   renderModalChat();
   var ci = document.getElementById('modalChatInput');
@@ -4457,6 +4428,11 @@ function closeChatModal(){
   if(!overlay) return;
   overlay.classList.remove('open');
   document.body.style.overflow='';
+  setTimeout(function(){
+    if(overlay && !overlay.classList.contains('open')){
+      overlay.style.display='none';
+    }
+  }, 280);
 }
 
 /* Init modal send logic (runs once DOM is ready) */
@@ -4510,21 +4486,8 @@ function openAIQuick(){
     return;
   }
 
-  // Navigation vers la vue IA + déclenchement du Conseil si auto-trigger détecté
-  go('ai');
-  setTimeout(()=>{
-    try{
-      const kpi=computeKPIs();
-      const trigger=window.detectCouncilTrigger?window.detectCouncilTrigger(kpi):null;
-      if(window.runAladdinCouncil && !window.councilRunning && !(window.councilMsgs&&window.councilMsgs.length)){
-        const councilTrigger=trigger||{reason:'manuel',label:'Analyse rapide',severity:'manual'};
-        window.runAladdinCouncil(councilTrigger);
-      } else {
-        const el=document.querySelector('.council-wrap');
-        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-      }
-    }catch(e){ console.warn('[FAB]',e); }
-  },150);
+  // Ouvre le modal chat complet (plein écran)
+  openChatModal();
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -4843,13 +4806,21 @@ function renderNav(){
   }).join('');
 }
 function ni(n,i){return`<button class="ni ${screen===n.id?'on':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.svg}</svg><span>${typeof n.l==='function'?n.l():n.l}</span></button>`}
-function go(s){screen=s;render()}
+function go(s){
+  screen=s;
+  window._currentScreen=s;
+  // v9: hard-clear stale DOM immediately so previous page can't ghost behind the new one while render() awaits
+  try{var _r=document.getElementById('root'); if(_r){_r.innerHTML='';}}catch(_){}
+  try{if(typeof closeChatModal==='function')closeChatModal();}catch(_){}
+  render();
+}
 
 // ════════════════════════════════════════
 // RENDER ROUTER
 // ════════════════════════════════════════
 let _cycleSuggestionShown=false;
 async function render(){
+  window._currentScreen=screen;
   if(!_cycleSuggestionShown){_cycleSuggestionShown=true;setTimeout(()=>{try{maybeOfferCycleSuggestion()}catch(e){}},2500);}
 
   try{await loadAll()}catch(e){console.warn('loadAll',e)}
@@ -4861,7 +4832,8 @@ async function render(){
   $('root').innerHTML='<div class="fin">'+html+'</div>';
   try{renderNav()}catch(e){console.warn(e)}
   try{updateOnlineStatus()}catch(e){console.warn(e)}
-  if(screen==='ai'){try{setupChat()}catch(e){console.warn(e)}}
+  if(screen==='ai'){try{setupChat()}catch(e){console.warn(e)}
+  setTimeout(function(){try{if(typeof addKpiTapHandlers==='function')addKpiTapHandlers();}catch(_ex){}},300);}
   if(screen==='home'){setTimeout(()=>{try{maybeAutoInsight()}catch(e){}},500);setTimeout(()=>{try{checkCelebrations()}catch(e){}},800)}
   // FIX v7.1 — déclenche Groq automatiquement à l'ouverture de la page Analyse
   if(screen==='analytics'){setTimeout(()=>{try{fetchPeriodInsight(analyticsPeriod)}catch(e){console.warn('[Analyse] fetchPeriodInsight',e)}},350)}
@@ -5057,6 +5029,87 @@ function txItem(t){
 // ════════════════════════════════════════
 // TX LIST SCREEN
 // ════════════════════════════════════════
+
+/* ═══════════════════════════════════════════════════════════
+   LIVRE COMPTABLE — modal comptabilite
+   Opened via openLedger() button in tx list
+   ═══════════════════════════════════════════════════════════ */
+
+
+/* === LIVRE COMPTABLE === */
+window._lg={groups:[]};
+window.openLedger=function(){
+  var cur_='XAF';try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  var txList=window.txs||[];
+  var fmt=function(n){try{return typeof fmtFull==='function'?fmtFull(n):Math.round(n)+' '+cur_;}catch(ex){return Math.round(n)+' '+cur_;}}
+  var totalD=txList.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalC=txList.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var net=totalC-totalD;
+  var groups={};
+  txList.forEach(function(t){
+    var key=(t.note&&t.note.trim().length>0)?t.note.trim():(function(){try{return catById(t.categoryId).name;}catch(ex){return 'Divers';}}());
+    if(!groups[key])groups[key]={label:key,debit:0,credit:0,count:0};
+    if(t.type==='expense')groups[key].debit+=t.amount;
+    else if(t.type==='income')groups[key].credit+=t.amount;
+    groups[key].count++;
+  });
+  var sorted=Object.values(groups).sort(function(a,b){return (b.debit+b.credit)-(a.debit+a.credit);}).slice(0,30);
+  window._lg.groups=sorted;
+  var rows=sorted.map(function(g,idx){
+    var bal=g.credit-g.debit;
+    var col=bal>=0?'var(--grn)':' var(--red)';
+    return '<div class="ledger-row" onclick="window._lg.tap('+idx+')">'  
+      +'<div style="flex:1;min-width:0"><div class="ledger-note">'+g.label+'</div><div class="ledger-sub">'+g.count+' op.</div></div>'
+      +(g.debit>0?'<div class="ledger-amt" style="color:var(--red)">-'+fmt(g.debit)+'</div>':'')
+      +(g.credit>0?'<div class="ledger-amt" style="color:var(--grn)">+'+fmt(g.credit)+'</div>':'')
+      +'<div class="ledger-amt" style="color:'+col+'">'+fmt(Math.abs(bal))+'</div></div>';
+  }).join('');
+  openModal(''
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:14px">☁ Livre Comptable</div>'
+    +'<div class="ledger-summary">'
+    +'<div class="ledger-kpi"><div class="ledger-kpi-v" style="color:var(--grn)">'+fmt(totalC)+'</div><div class="ledger-kpi-l">Entr\u00e9es</div></div>'
+    +'<div class="ledger-kpi"><div class="ledger-kpi-v" style="color:var(--red)">'+fmt(totalD)+'</div><div class="ledger-kpi-l">Sorties</div></div>'
+    +'<div class="ledger-kpi"><div class="ledger-kpi-v" style="color:'+(net>=0?'var(--grn)':'var(--red)')+'">'+fmt(Math.abs(net))+'</div><div class="ledger-kpi-l">'+(net>=0?'Surplus':'D\u00e9ficit')+'</div></div>'
+    +'</div>'
+    +'<div style="max-height:55vh;overflow-y:auto">'+rows+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<button class="btn btn-ghost" style="flex:1" onclick="closeModal()">Fermer</button>'
+    +'<button class="btn" style="flex:1" onclick="window._lg.ai()">Analyser \u2728</button>'
+    +'</div>');
+};
+window._lg.tap=function(idx){
+  var g=window._lg.groups[idx];if(!g)return;
+  var cur_='XAF';try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  closeModal();
+  openChatModal('Analyse: '+g.label+' sorties='+Math.round(g.debit)+' '+cur_+' entrees='+Math.round(g.credit)+' '+cur_);
+};
+window._lg.ai=function(){
+  var cur_='XAF';try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+  var txList=window.txs||[];
+  var totalD=txList.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalC=txList.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  closeModal();
+  openChatModal('Analyse livre: '+window._lg.groups.length+' postes, sorties='+Math.round(totalD)+' '+cur_+' entrees='+Math.round(totalC)+' '+cur_);
+};
+
+/* === TAP-TO-ANALYZE KPI === */
+window._tapAnalyze = function(el){
+  var label = el.getAttribute('data-kpi-label') || el.textContent.trim().slice(0,40);
+  openChatModal('Analyse ce KPI: ' + label);
+};
+function addKpiTapHandlers(){
+  var els = document.querySelectorAll('[data-kpi-label]');
+  for(var i=0;i<els.length;i++){
+    (function(el){
+      if(el._tapDone) return; el._tapDone=true;
+      el.style.cursor='pointer';
+      var timer=null;
+      el.addEventListener('touchstart',function(){timer=setTimeout(function(){window._tapAnalyze(el);},600);},{passive:true});
+      el.addEventListener('touchend',function(){if(timer)clearTimeout(timer);},{passive:true});
+      el.addEventListener('dblclick',function(){window._tapAnalyze(el);});
+    })(els[i]);
+  }
+}
 function renderTxList(){
   let filtered=txs;
   if(txFilter!=='all')filtered=filtered.filter(t=>t.type===txFilter);
@@ -5082,7 +5135,7 @@ function renderTxList(){
 
 
   return`
-  <div class="stitle">Transactions</div>
+  <div class="stitle" style="display:flex;align-items:center;justify-content:space-between">Transactions <button class="btn btn-ghost btn-sm" onclick="window.openLedger&&window.openLedger()" style="font-size:11px">📒 Livre</button></div>
   <!-- ACCOUNTS (déplacé depuis HOME en v6) -->
   <div class="card">
     <div class="ch">${t('home_accounts')} <button class="btn btn-ghost btn-sm" onclick="openAddAccountModal()">${t('add_short')}</button></div>
@@ -5908,7 +5961,8 @@ function renderAI(){
 
   return`
   <div class="stitle">${t('ai_title')}</div>
-  <div class="ssub" id="aiOnlineStatus" style="color:${isOnline?'var(--grn)':'var(--org)'}">● ${isOnline?t('ai_online'):t('ai_offline')}</div>
+  <div class="ssub" id="aiOnlineStatus" style="color:${isOnline?'var(--grn)':'var(--org)'}">&#9679; ${isOnline?t('ai_online'):t('ai_offline')}</div>
+  ${!isOnline?'<div class="lilia-bar"><div class="lilia-dot"></div><div><strong style="color:var(--org)">Lilia active</strong> — analyse locale sans connexion. Toutes tes donn\u00e9es sont disponibles.</div></div>':''}
 
   ${pulseBanner}
 
@@ -6065,7 +6119,7 @@ function setupChat(){
     // ── Fin détection Council ─────────────────────────────────────
 
     try{const res=await askAI(q);aiMsgs.push({r:'ai',c:res.text,src:res.src,ts:Date.now()})}
-    catch(e){aiMsgs.push({r:'ai',c:localAI(q),src:'Local',ts:Date.now()})}
+    catch(e){aiMsgs.push({r:'ai',c:localAI(q),src:'Lilia',ts:Date.now()})}
     aiTyping=false;
     saveChatHistory();
     render();
@@ -7789,8 +7843,29 @@ try{ if(typeof saveTx==='function') window.saveTx = saveTx; }catch(_){}
 
   var overlay = document.createElement('div');
   overlay.id = 'loadingScreen';
-  overlay.setAttribute('style','position:fixed;inset:0;background:#09090f;display:flex;align-items:center;justify-content:center;z-index:99999;color:#f1f5f9;font-family:Inter,-apple-system,sans-serif;');
+  overlay.setAttribute('style','position:fixed;top:0;left:0;right:0;bottom:0;background:#09090f;display:flex;align-items:center;justify-content:center;z-index:99999;color:#f1f5f9;font-family:Inter,-apple-system,sans-serif;');
   overlay.innerHTML = '<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:16px">💰</div><div style="font-size:14px;margin-bottom:20px;color:#94a3b8">'+T.title+'</div><div style="width:40px;height:40px;border:3px solid rgba(139,92,246,.2);border-top-color:#8b5cf6;border-radius:50%;animation:fa-spin 1s linear infinite;margin:0 auto"></div><div id="ldStatus" style="margin-top:18px;font-size:12px;color:#64748b">'+T.loading+'</div><style>@keyframes fa-spin{to{transform:rotate(360deg)}}</style></div>';
+  // v9: chat modal styles moved to a persistent <style> in <head> so they survive loader removal
+  (function injectCmoStyles(){
+    if(document.getElementById('cmoStyles')) return;
+    var s=document.createElement('style');
+    s.id='cmoStyles';
+    s.textContent='#chatModalOverlay{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:9990;background:var(--bg);display:none;flex-direction:column;opacity:0;transform:translateY(16px);transition:opacity .22s ease,transform .22s ease;pointer-events:none}'
+      +'#chatModalOverlay.open{display:flex;opacity:1;transform:translateY(0);pointer-events:all}'
+      +'.cmo-header{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--brd);background:var(--card);flex-shrink:0;padding-top:calc(14px + env(safe-area-inset-top))}'
+      +'.cmo-back{background:none;border:none;color:var(--txt);cursor:pointer;font-size:22px;padding:4px 8px;border-radius:10px;line-height:1;transition:background .15s}'
+      +'.cmo-back:active{background:rgba(255,255,255,.08)}'
+      +'.cmo-title{font-size:15px;font-weight:800;color:var(--txt);flex:1}'
+      +'.cmo-badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;background:rgba(167,139,250,.18);color:#a78bfa;letter-spacing:.5px}'
+      +'#modalChatArea{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px}'
+      +'.cmo-input-row{display:flex;gap:8px;align-items:center;padding:12px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--brd);background:var(--card);flex-shrink:0}'
+      +'#modalChatInput{flex:1;background:rgba(255,255,255,.07);border:1.5px solid rgba(139,92,246,.22);border-radius:14px;padding:11px 14px;font-size:14px;color:var(--txt);outline:none;font-family:var(--sans)}'
+      +'#modalChatInput:focus{border-color:rgba(139,92,246,.5)}'
+      +'#modalSendBtn{width:42px;height:42px;border-radius:13px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .12s,opacity .12s}'
+      +'#modalSendBtn:active{transform:scale(.9)}'
+      +'#modalSendBtn:disabled{opacity:.4}';
+    (document.head||document.documentElement).appendChild(s);
+  })();
   function attach(){ if(document.body && !document.getElementById('loadingScreen')) document.body.appendChild(overlay); }
   if (document.body) attach(); else document.addEventListener('DOMContentLoaded', attach);
 
@@ -9428,7 +9503,7 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GROQ_MODEL           : 'llama-3.3-70b-versatile',  // meilleure qualité pour le Conseil ALADDIN
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
-  MAX_TOKENS           : 500,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
+  MAX_TOKENS           : 900,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
   TEMPERATURE          : 0.75,  // Gemini 3.5 Flash — équilibre naturel/précision
   // Seuils anomalies
   FRAG_WINDOW_MIN      : 30,   // fenêtre de fragmentation (minutes)
@@ -9823,7 +9898,7 @@ RÈGLES ABSOLUES :
 • Zéro invention de chiffres
 • Zéro balises entre crochets dans ta réponse (pas de [État Rapide], pas de [Action])
 • Réponds en prose naturelle et fluide
-• Sois CONCIS : 3 à 5 phrases courtes maximum. Va droit au but. Pas de remplissage, pas de redites, pas de plans en jours/semaines/mois/années sauf si on te le demande explicitement.
+• Développe tes réponses — ne te coupe pas avant d'avoir fini ton analyse
 CAPACITÉS PRÉDICTIVES : Tu connais les habitudes de l'utilisateur. Anticipe les prochaines dépenses récurrentes et revenus attendus. Sois proactif sur les risques à venir.
 Si on te demande d'analyser le graphe de projection, commente la courbe, la tendance, et le risque de découvert avec les chiffres exacts.${langNote}
 ${anomalyBlock}
@@ -9856,7 +9931,7 @@ async function callAladdinAI(viewType, userQuery) {
     {role:'user', content:userQuery}
   ];
   /* Tokens dynamiques selon le mode — Gemini n'est plus bridé */
-  const modeTokens = { HOME:280, ANALYSE:800, PRÉVISIONS:900 };
+  const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000 };
   const tokensForMode = modeTokens[viewType] || AI_CONFIG.MAX_TOKENS;
   const body     = JSON.stringify({
     model: AI_CONFIG.GEMINI_MODEL_VERSION,
@@ -9932,7 +10007,7 @@ window.callAladdinAI = callAladdinAI;
   const _orig = window.askAI;
   window.askAI = async function(userMsg){
     /* Détermine le viewType selon l'écran et la question */
-    const scr = (()=>{ try{return (typeof screen!=='undefined'?screen:null)||window._currentScreen||'home';}catch(_){return 'home';} })();
+    const scr = (()=>{ try{return window._currentScreen||'home';}catch(_){return 'home';} })();
     let vt = 'HOME';
     if(scr==='analytics') {
       vt = 'ANALYSE';
@@ -10173,7 +10248,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v8.7</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.0</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -10285,7 +10360,7 @@ window.renderAnomalyBanner = renderAnomalyBanner;
   if(typeof _origRender!=='function') return;
   window.render = function(){
     const r = _origRender.apply(this, arguments);
-    const scr = (()=>{ try{return (typeof screen!=='undefined'?screen:null)||window._currentScreen||'home';}catch(_){return 'home';} })();
+    const scr = (()=>{ try{return window._currentScreen||'home';}catch(_){return 'home';} })();
     if(scr==='home') setTimeout(renderAnomalyBanner, 100);
     return r;
   };
@@ -10451,7 +10526,7 @@ window.runAladdinCouncil = async function(trigger){
     +'- Déclencheur: '+window.councilTrigger.label+'\n';
 
   /* ── TOUR 1 : Gemini (Stratège) ouvre le débat ─────────────────── */
-  var t1sys='Tu es ALADDIN-STRATÈGE (Gemini). Tu analyses la situation financière en profondeur. '
+  var t1sys='Tu es ALADDIN-STRATÈGE (Gemini). MAX 3 PHRASES, zéro remplissage. Tu analyses en profondeur. '
     +'Tu détectes les patterns comportementaux, les risques cachés, les causes racines. '
     +'Tu t\'adresses directement à l\'utilisateur (tutoiement). '
     +'IMPORTANT: Sois concis (max 4 phrases). Termine par ta principale hypothèse sur la cause racine.';
@@ -10465,7 +10540,7 @@ window.runAladdinCouncil = async function(trigger){
   await new Promise(function(r){setTimeout(r,600);});
 
   /* ── TOUR 2 : Groq (Tacticien) répond avec chiffres précis ──────── */
-  var t2sys='Tu es ALADDIN-TACTICIEN (Groq). Tu valides ou corriges l\'analyse du Stratège avec des CHIFFRES PRÉCIS. '
+  var t2sys='Tu es ALADDIN-TACTICIEN (Groq). MAX 2 PHRASES, chiffres uniquement. Valide ou corrige. '
     +'Si tu vois une erreur de calcul, émets [CORRECTION: élément | valeur corrigée]. '
     +'Tutoiement exclusif (tu/toi). Concis (max 3 phrases). Focus sur les chiffres et les corrections factuelles.';
   var t2usr=ctx+'\nAnalyse du Stratège:\n'+gem1
@@ -10687,7 +10762,7 @@ var _councilRenderHook = (function(){
 
 console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
 
-console.log('[ALADDIN Engine v8.7] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v9.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

@@ -1,100 +1,91 @@
 /* ════════════════════════════════════════════════════════════════════
-   Finance AI Service Worker v7.0.0 — Single-file build
+   Finance AI OS — Service Worker v9.0.0
+   Strategy: stale-while-revalidate for shell, network-first for AI APIs
    ════════════════════════════════════════════════════════════════════ */
-const VERSION = '8.7.0';
-const CACHE = 'finance-ai-v' + VERSION;
-const SHELL = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-96.png',
-  './icon-192.png',
-  './icon-512.png'
-];
+const VERSION = '9.0.0';
+const CACHE_NAME = 'finance-ai-v' + VERSION;
+const SHELL = ['./','./index.html','./manifest.json','./icon-96.png','./icon-192.png','./icon-512.png','./icon-aladdin.svg'];
 
-self.addEventListener('install', (e) => {
+self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE).then(c =>
-      c.addAll(SHELL).catch(err => {
-        console.error('[SW] Shell install partiel ou échoué:', err);
-      })
+    caches.open(CACHE_NAME).then(c =>
+      c.addAll(SHELL.map(u => new Request(u, {cache:'reload'}))).catch(() =>
+        c.addAll(['./','./index.html'])
+      )
     )
   );
 });
 
-self.addEventListener('activate', (e) => {
+self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('message', (e) => {
+self.addEventListener('message', e => {
   if (e.data === 'SKIP_WAITING' || (e.data && e.data.type === 'SKIP_WAITING')) {
     self.skipWaiting();
   }
+  if (e.data && e.data.type === 'GET_VERSION') {
+    e.ports[0] && e.ports[0].postMessage({ version: VERSION });
+  }
 });
 
-async function swr(req) {
-  const cache = await caches.open(CACHE);
-  const cached = await cache.match(req);
-  const network = fetch(req).then(resp => {
-    if (resp && resp.status === 200 && (resp.type === 'basic' || resp.type === 'cors')) {
-      cache.put(req, resp.clone()).catch(() => {});
-    }
-    return resp;
-  }).catch(() => cached);
-  return cached || network;
-}
+/* Network-first for AI APIs, stale-while-revalidate for shell */
+self.addEventListener('fetch', e => {
+  const url = e.request.url;
 
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-
-  if (/groq\.com|googleapis\.com|google\.com\/o\/oauth2|accounts\.google\.com|supabase|ai\.gateway\.lovable\.dev/i.test(url.href)) {
+  /* Always network for AI APIs and external auth */
+  if (/groq\.com|googleapis\.com|generativelanguage|openai\.com|accounts\.google|supabase/i.test(url)) {
     e.respondWith(
       fetch(e.request).catch(() => {
         if (e.request.method === 'GET') return caches.match('./index.html');
-        return new Response('Offline', { status: 503 });
+        return new Response('{"error":"offline"}', {status:503, headers:{'Content-Type':'application/json'}});
       })
     );
     return;
   }
 
+  /* Navigate → serve shell */
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).then(r => {
-        const clone = r.clone();
-        caches.open(CACHE).then(c => c.put('./index.html', clone)).catch(() => {});
-        return r;
-      }).catch(() => caches.match('./index.html'))
+      caches.match('./index.html').then(cached => cached || fetch(e.request)).catch(() => fetch('./index.html'))
     );
     return;
   }
 
-  if (/fonts\.(googleapis|gstatic)\.com/.test(url.host) || url.origin === self.location.origin) {
-    e.respondWith(swr(e.request));
+  /* Shell files → cache-first with background update */
+  if (e.request.method === 'GET' && (url.includes(self.location.origin) || url.startsWith('.'))) {
+    e.respondWith(
+      caches.open(CACHE_NAME).then(async cache => {
+        const cached = await cache.match(e.request);
+        const networkPromise = fetch(e.request).then(resp => {
+          if (resp && resp.ok && resp.type !== 'opaque') cache.put(e.request, resp.clone()).catch(() => {});
+          return resp;
+        }).catch(() => null);
+        return cached || networkPromise;
+      })
+    );
     return;
   }
 });
 
-self.addEventListener('notificationclick', (e) => {
+self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) {
-      if ('focus' in c) {
-        c.postMessage({ type: 'NOTIF_CLICK', tag: e.notification.tag });
-        return c.focus();
-      }
+    const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
+    for (const c of clients) {
+      if ('focus' in c) { c.postMessage({type:'NOTIF_CLICK', tag:e.notification.tag}); return c.focus(); }
     }
     if (self.clients.openWindow) return self.clients.openWindow('./');
   })());
 });
 
-self.addEventListener('push', (e) => {
-  const data = e.data ? e.data.json() : { title: 'Finance AI OS', body: '' };
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : {};
   e.waitUntil(
     self.registration.showNotification(data.title || 'Finance AI OS', {
       body: data.body || '',
@@ -102,7 +93,7 @@ self.addEventListener('push', (e) => {
       badge: './icon-96.png',
       tag: data.tag || 'finance-ai',
       renotify: true,
-      vibrate: [150, 80, 150]
+      vibrate: [120, 60, 120]
     })
   );
 });

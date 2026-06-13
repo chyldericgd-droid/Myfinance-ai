@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0533"/>
+      <stop offset="100%" style="stop-color:#09090f"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="50%" style="stop-color:#06b6d4"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+  <!-- Glow effect -->
+  <circle cx="256" cy="256" r="200" fill="url(#glow)" filter="url(#blur)"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="185" fill="none" stroke="url(#ring)" stroke-width="3" stroke-dasharray="12 6" opacity="0.6"/>
+  <!-- Middle ring -->
+  <circle cx="256" cy="256" r="155" fill="none" stroke="#8b5cf6" stroke-width="1.5" opacity="0.3"/>
+  <!-- Central emblem - hexagon -->
+  <polygon points="256,110 340,158 340,254 256,302 172,254 172,158" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.9"/>
+  <!-- Inner hexagon -->
+  <polygon points="256,145 320,180 320,250 256,285 192,250 192,180" fill="#8b5cf620"/>
+  <!-- Gold coin symbol -->
+  <circle cx="256" cy="215" r="42" fill="url(#coin)"/>
+  <circle cx="256" cy="215" r="34" fill="#f59e0b"/>
+  <circle cx="256" cy="215" r="26" fill="none" stroke="#fbbf24" stroke-width="3"/>
+  <!-- A letter in coin -->
+  <text x="256" y="226" text-anchor="middle" font-family="Georgia,serif" font-weight="900" font-size="32" fill="#1a0533">A</text>
+  <!-- Chart bars below -->
+  <rect x="196" y="285" width="16" height="36" rx="3" fill="#8b5cf6" opacity="0.7"/>
+  <rect x="220" y="272" width="16" height="49" rx="3" fill="#8b5cf6" opacity="0.85"/>
+  <rect x="244" y="260" width="16" height="61" rx="3" fill="#8b5cf6"/>
+  <rect x="268" y="270" width="16" height="51" rx="3" fill="#06b6d4" opacity="0.85"/>
+  <rect x="292" y="280" width="16" height="41" rx="3" fill="#06b6d4" opacity="0.7"/>
+  <!-- Trend line -->
+  <polyline points="204,310 228,296 252,278 276,288 300,298" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Stars / AI sparkles -->
+  <circle cx="145" cy="160" r="3" fill="#fbbf24" opacity="0.8"/>
+  <circle cx="367" cy="160" r="3" fill="#8b5cf6" opacity="0.8"/>
+  <circle cx="145" cy="350" r="2.5" fill="#06b6d4" opacity="0.6"/>
+  <circle cx="367" cy="350" r="2.5" fill="#fbbf24" opacity="0.6"/>
+  <circle cx="130" cy="255" r="2" fill="#8b5cf6" opacity="0.5"/>
+  <circle cx="382" cy="255" r="2" fill="#06b6d4" opacity="0.5"/>
+  <!-- Bottom text -->
+  <text x="256" y="390" text-anchor="middle" font-family="'Arial',sans-serif" font-weight="800" font-size="28" letter-spacing="8" fill="#8b5cf6">ALADDIN</text>
+  <text x="256" y="415" text-anchor="middle" font-family="'Arial',sans-serif" font-weight="400" font-size="13" letter-spacing="4" fill="#64748b">FINANCE AI OS</text>
+</svg>

@@ -1,116 +1,39 @@
 {
-  "name": "Finance AI OS",
-  "short_name": "FinanceAI",
-  "description": "Smart personal finance with behavioral AI · Gestion financière avec IA comportementale · Finanzas personales con IA conductual · Finanças pessoais com IA comportamental",
-  "start_url": "./index.html",
+  "name": "Finance AI OS — ALADDIN",
+  "short_name": "ALADDIN",
+  "description": "Gestionnaire financier IA avec moteur ALADDIN (Gemini + Groq)",
+  "version": "9.0.0",
+  "start_url": "./index.html?v=9.0.0",
   "scope": "./",
-  "display": "fullscreen",
-  "display_override": [
-    "fullscreen",
-    "standalone",
-    "minimal-ui"
-  ],
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#09090f",
-  "theme_color": "#09090f",
-  "categories": [
-    "finance",
-    "productivity",
-    "lifestyle"
-  ],
-  "dir": "auto",
-  "prefer_related_applications": false,
-  "screenshots": [
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
+  "theme_color": "#8b5cf6",
+  "categories": ["finance", "productivity"],
+  "lang": "fr",
   "icons": [
-    {
-      "src": "icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "./icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-aladdin.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
+  "screenshots": [],
+  "prefer_related_applications": false,
+  "related_applications": [],
   "shortcuts": [
     {
-      "name": "Add expense · Ajouter dépense · Agregar gasto · Adicionar despesa",
-      "short_name": "Expense",
-      "url": "./index.html?action=expense",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "name": "Ajouter transaction",
+      "short_name": "Ajouter",
+      "description": "Ajouter une nouvelle transaction",
+      "url": "./index.html?action=add",
+      "icons": [{ "src": "./icon-96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Add income · Ajouter revenu · Agregar ingreso · Adicionar receita",
-      "short_name": "Income",
-      "url": "./index.html?action=income",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Talk to AI · Parler à Ivy · Hablar con Ivy · Falar com Ivy",
-      "short_name": "AI",
-      "url": "./index.html?action=ai",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "name": "Chat ALADDIN",
+      "short_name": "Chat IA",
+      "description": "Ouvrir le conseiller IA",
+      "url": "./index.html?action=chat",
+      "icons": [{ "src": "./icon-96.png", "sizes": "96x96" }]
     }
-  ],
-  "id": "/?v=8.7.0",
-  "version": "8.7.0",
-  "lang": "auto",
-  "share_target": {
-    "action": "./",
-    "method": "POST",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text"
-    }
-  }
+  ]
 }

@@ -1,8 +1,8 @@
 /* ════════════════════════════════════════════════════════════════════
-   Finance AI OS — Service Worker v9.2.2
+   Finance AI OS — Service Worker v9.2.3
    Strategy: stale-while-revalidate for shell, network-first for AI APIs
    ════════════════════════════════════════════════════════════════════ */
-const VERSION = '9.2.2';
+const VERSION = '9.2.3';
 const CACHE_NAME = 'finance-ai-v' + VERSION;
 const SHELL = ['./','./index.html','./manifest.json','./icon-96.png','./icon-192.png','./icon-512.png','./icon-aladdin.svg'];
 

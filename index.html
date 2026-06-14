@@ -6,7 +6,7 @@
   <link rel="dns-prefetch" href="https://api.groq.com">
   <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 
-<!-- Finance AI OS v9.2.1 | Refactored PWA -->
+<!-- Finance AI OS v9.2.2 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -30,10 +30,10 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="9.2.1">
-<link rel="manifest" href="./manifest.json?v=9.2.1">
-<link rel="icon" href="./icon-192.png?v=9.2.1">
-<link rel="apple-touch-icon" href="./icon-192.png?v=9.2.1">
+<meta name="version" content="9.2.2">
+<link rel="manifest" href="./manifest.json?v=9.2.2">
+<link rel="icon" href="./icon-192.png?v=9.2.2">
+<link rel="apple-touch-icon" href="./icon-192.png?v=9.2.2">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -5967,14 +5967,18 @@ function renderAI(){
   var _actionsHtml = '';
   if(!window.councilDone){
     var _cls2 = window._lastCouncilSummary;
-    var _clsR = _cls2 && (Date.now()-_cls2.ts)<1800000;
+    var _clsR = _cls2 && (Date.now()-_cls2.ts)<6*3600000; /* garder 6h au lieu de 30min */
     var _clsSnip = '';
     if(_clsR){
       var _mAgo = Math.round((Date.now()-_cls2.ts)/60000);
-      var _ctxt = (_cls2.groqConclusion||'').slice(0,150);
-      _clsSnip = '<div style="padding:8px 12px;border-radius:10px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);margin-bottom:10px">'
-        +'<div style="font-size:10px;color:#a78bfa;font-weight:700;margin-bottom:4px">CONSEIL il y a '+_mAgo+'min</div>'
-        +'<div style="font-size:12px;color:var(--txt);line-height:1.5">'+_ctxt+(_ctxt.length>=150?'...':'')+'</div></div>';
+      var _esc = function(s){return String(s||'').replace(/[&<>]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];});};
+      var _full = _esc(_cls2.groqConclusion||'') + (_cls2.geminiPlan?'\n\n— Plan Stratège —\n'+_esc(_cls2.geminiPlan):'');
+      _clsSnip = '<div style="padding:12px 14px;border-radius:12px;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.25);margin-bottom:12px;max-height:none">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<div style="font-size:10px;color:#a78bfa;font-weight:800;letter-spacing:.5px">CONSEIL · il y a '+_mAgo+'min</div>'
+        +'<button onclick="event.stopPropagation();try{go(\'ai\')}catch(_){}" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.35);border-radius:8px;color:#a78bfa;font-size:10px;padding:3px 8px;cursor:pointer">Voir tout →</button>'
+        +'</div>'
+        +'<div style="font-size:12.5px;color:var(--txt);line-height:1.6;white-space:pre-wrap;word-wrap:break-word">'+_full+'</div></div>';
     }
     var _actR = getNextActions(kpi).map(function(a){
       return '<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--brd)">'
@@ -7316,8 +7320,8 @@ async function checkCelebrations(){
 // ════════════════════════════════════════
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=9.2.1',{scope:'./'}).then(reg=>{
-      console.log('SW v9.2.1 enregistré ✓');
+    navigator.serviceWorker.register('./sw.js?v=9.2.2',{scope:'./'}).then(reg=>{
+      console.log('SW v9.2.2 enregistré ✓');
       reg.addEventListener('updatefound',()=>{
         const w=reg.installing;if(!w)return;
         w.addEventListener('statechange',()=>{
@@ -10316,7 +10320,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.2.1</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.2.2</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -10830,7 +10834,7 @@ var _councilRenderHook = (function(){
 
 console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
 
-console.log('[ALADDIN Engine v9.2.1] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v9.2.2] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

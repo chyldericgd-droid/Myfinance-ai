@@ -6,7 +6,7 @@
   <link rel="dns-prefetch" href="https://api.groq.com">
   <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 
-<!-- Finance AI OS v9.2.3 | Refactored PWA -->
+<!-- Finance AI OS v9.3.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -228,9 +228,24 @@ body.online::before{
     radial-gradient(700px 400px at 100% 110%, rgba(6,182,212,.18), transparent 60%);
   opacity:1;
 }
-body.offline::before{opacity:0}
-body.offline{filter:saturate(.75) brightness(.92)}
-body.offline .aifab{filter:grayscale(.6)}
+body.offline::before{
+  background:
+    radial-gradient(900px 420px at 12% -10%, rgba(15,23,42,.70), transparent 58%),
+    radial-gradient(760px 420px at 100% 110%, rgba(2,6,23,.72), transparent 62%);
+  opacity:.78;
+}
+body.offline{filter:saturate(.82) brightness(.86)}
+body.offline .aifab{filter:grayscale(.45)}
+body.online.state-critical::before{background:radial-gradient(900px 420px at 8% -10%, rgba(244,63,94,.30), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(249,115,22,.18), transparent 62%);opacity:1}
+body.online.state-high::before{background:radial-gradient(900px 420px at 8% -10%, rgba(249,115,22,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(251,191,36,.16), transparent 62%);opacity:1}
+body.online.state-moderate::before{background:radial-gradient(900px 420px at 8% -10%, rgba(251,191,36,.18), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(99,102,241,.16), transparent 62%);opacity:1}
+body.online.state-stable::before{background:radial-gradient(900px 420px at 8% -10%, rgba(16,185,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(6,182,212,.18), transparent 62%);opacity:1}
+body.online.state-zero::before{background:radial-gradient(900px 420px at 8% -10%, rgba(139,92,246,.20), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(30,41,59,.18), transparent 62%);opacity:1}
+body.offline.state-critical::before{background:radial-gradient(900px 420px at 10% -10%, rgba(127,29,29,.34), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.92}
+body.offline.state-high::before{background:radial-gradient(900px 420px at 10% -10%, rgba(154,52,18,.28), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.88}
+body.offline.state-moderate::before{background:radial-gradient(900px 420px at 10% -10%, rgba(113,63,18,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.84}
+body.offline.state-stable::before{background:radial-gradient(900px 420px at 10% -10%, rgba(6,78,59,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.78), transparent 62%);opacity:.82}
+body.offline.state-zero::before{background:radial-gradient(900px 420px at 10% -10%, rgba(49,46,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.82}
 
 /* Financial State Ambiance Layer */
 body.state-critical{
@@ -3321,26 +3336,30 @@ function updateFinancialAmbiance(){
     const kpi=computeKPIs();
     const body=document.body;
     body.classList.remove('state-critical','state-high','state-moderate','state-stable','state-zero');
-    // L'ambiance reflète l'autonomie RÉELLE (capital actif + épargne + revenus attendus)
-    // pour rester cohérente avec le badge hero qui atténue déjà CRITIQUE quand l'épargne couvre.
-    const eff = kpi.safetyDaysWithSavings;
+    // Ambiance = état financier réel, puis connectivité = intensité lumineuse.
+    // Offline ne coupe plus la couleur: il l'assombrit seulement.
+    const eff = Number.isFinite(kpi.safetyDaysWithSavings) ? kpi.safetyDaysWithSavings : kpi.safetyDays;
+    let state='stable';
     if(!txs.length){
-      body.classList.add('state-zero');
+      state='zero';
     } else if(kpi.effectiveRisk && kpi.cycleContext && kpi.cycleContext.mode!=='IRREGULAR'){
-      // ALADDIN v5 cycle-aware ambiance
       const r=kpi.effectiveRisk;
-      if(r==='CRITICAL') body.classList.add('state-critical');
-      else if(r==='HIGH') body.classList.add('state-high');
-      else if(r==='MODERATE_PENDING_INCOME'||r==='HIGH_NORMAL_END_CYCLE') body.classList.add('state-moderate');
-      else body.classList.add('state-stable');
+      if(r==='CRITICAL') state='critical';
+      else if(r==='HIGH') state='high';
+      else if(r==='MODERATE_PENDING_INCOME'||r==='HIGH_NORMAL_END_CYCLE') state='moderate';
+      else state='stable';
     } else if(kpi.safetyDays<7 && eff<7){
-      body.classList.add('state-critical');
+      state='critical';
     } else if(eff<15 || kpi.projDelta<-kpi.income*.3){
-      body.classList.add('state-high');
+      state='high';
     } else if(eff<30 || kpi.projDelta<0){
-      body.classList.add('state-moderate');
-    } else {
-      body.classList.add('state-stable');
+      state='moderate';
+    }
+    body.classList.add('state-'+state);
+    body.setAttribute('data-financial-state', state);
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta){
+      meta.setAttribute('content', state==='critical'?'#250812':state==='high'?'#211006':state==='moderate'?'#1d1607':state==='stable'?'#061b16':'#0b1020');
     }
   }catch(e){}
 }
@@ -3525,8 +3544,9 @@ async function quickCatchupAdd(catId, estimatedAmt){
 // ONLINE STATUS
 // ════════════════════════════════════════
 function updateOnlineStatus(){
-  const on=navigator.onLine;
-  const hasKey=!!getGroqKey();
+  const hasGem=(()=>{try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(_){return false;}})();
+  const hasKey=!!getGroqKey() || hasGem;
+  const on=navigator.onLine || hasKey;
   const fab=$('aiFab');
   if(fab){
     // FIX v7.1 — le FAB est actif si on a une clé, même si navigator.onLine
@@ -3538,6 +3558,7 @@ function updateOnlineStatus(){
   }
   document.body.classList.toggle('online',on);
   document.body.classList.toggle('offline',!on);
+  try{updateFinancialAmbiance()}catch(_){}
   // v6.1 — mise à jour dynamique sans re-render
   const badge=document.getElementById('homeAIBadge');
   if(badge){
@@ -3569,7 +3590,7 @@ function updateOnlineStatus(){
     aiChatFooter.textContent=t('ai_data_local')+' · '+_footerTxt;
   }
   if(on && hasKey && screen==='home'){
-    setTimeout(()=>{ try{ maybeAutoInsight(); }catch(e){} }, 800);
+    setTimeout(()=>{ try{ maybeAutoInsight(); }catch(e){} }, 450);
   }
 }
 
@@ -4103,8 +4124,11 @@ Tu es IVY: brutal, loyal, factuel.`;
       const history = aiMsgs.slice(-6).map(m=>({role: m.r==='ai'?'assistant':'user', content: m.c}));
       const prompt = 'BEHAVIORAL DATA:\n'+(await buildCtx())+'\n\nQuestion: '+userMsg;
       // BUG 7 — bypass interceptor: askAI a déjà son contexte complet via buildCtx()
+      const _askAc = new AbortController();
+      const _askTo = setTimeout(()=>{try{_askAc.abort()}catch(_){}}, 9000);
       const resp = await _origFetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
+        signal:_askAc.signal,
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
         body:JSON.stringify({
           model:'llama-3.1-8b-instant',
@@ -4117,6 +4141,7 @@ Tu es IVY: brutal, loyal, factuel.`;
           ]
         })
       });
+      clearTimeout(_askTo);
       const d = await resp.json();
       if(!resp.ok){
         const msg = d.error?.message||t('groq_api_err');
@@ -4125,7 +4150,7 @@ Tu es IVY: brutal, loyal, factuel.`;
         return{text:'⚠️ Groq: '+msg+advice+'\n\n'+localAI(userMsg), src:'Erreur'};
       }
       const aiResponse = d.choices?.[0]?.message?.content;
-      if(aiResponse) return{text:aiResponse, src:'Groq'};
+      if(aiResponse){ window._lastAISource='groq'; return{text:aiResponse, src:'Groq'}; }
     }catch(e){
       console.warn('Groq failed:',e);
       const isSandbox = window.location.href.includes('claude.ai');
@@ -4244,7 +4269,8 @@ async function fetchHomeInsight(){
   // Cache 10 min (toutes sources)
   if(_lastInsight && Date.now()-_lastInsightTime < 600000) return _lastInsight;
   // === MOTEUR HEURISTIQUE OFFLINE — l'interface reste intelligente ===
-  if(!navigator.onLine || !getGroqKey()){
+  const _hasGemInsight=(()=>{try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(_){return false;}})();
+  if(!navigator.onLine || (!getGroqKey() && !_hasGemInsight)){
     const local=buildOfflineInsight();
     _lastInsight=local;
     _lastInsightTime=Date.now();
@@ -4284,7 +4310,7 @@ async function fetchHomeInsight(){
     const ctx = (await buildCtx());
     // BUG 1 — bypass fetch interceptor pour préserver max_tokens:60 et sys prompt ciblé
     const _ac = new AbortController();
-    const _to = setTimeout(()=>{ try{_ac.abort()}catch(_){} }, 7000);
+    const _to = setTimeout(()=>{ try{_ac.abort()}catch(_){} }, 4500);
     const resp = await _origFetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       signal:_ac.signal,
@@ -4352,7 +4378,8 @@ async function maybeAutoInsight(){
   const el = $('aiInsightBody');
   if(!el) return;
   if(!txs.length){ el.innerHTML = t('no_tx_first'); return; }
-  if(!getGroqKey()){
+  const _hasGemForHome=(()=>{try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(_){return false;}})();
+  if(!getGroqKey() && !_hasGemForHome){
     const local = buildOfflineInsight();
     _lastInsight=local||'(pas assez de données)'; _lastInsightTime=Date.now(); _lastInsightSource='offline';
     updateInsightUI(_lastInsight);
@@ -4364,17 +4391,17 @@ async function maybeAutoInsight(){
     updateInsightUI(_lastInsight);
     return;
   }
-  // ── WATCHDOG : jamais bloqué sur "Analyse en cours…" ──
-  // Si fetchHomeInsight n'a rien rendu après 6s, on bascule en local immédiatement.
+  // ── WATCHDOG : ne jamais rester bloqué sans couper l'IA online ──
+  // En ligne, on affiche un statut d'attente mais on laisse Gemini/Groq terminer.
   let _settled = false;
   const _watchdog = setTimeout(()=>{
-    if(_settled || _lastInsight) return;
+    if(_settled) return;
     try{
-      const local = buildOfflineInsight() || '⚡ Analyse en différé — réessaie dans un instant.';
-      _lastInsight=local; _lastInsightTime=Date.now(); _lastInsightSource='offline';
-      updateInsightUI(local);
+      const msg = '⏳ IA encore en ligne — calcul des prédictions…';
+      const el=$('aiInsightBody');
+      if(el) el.innerHTML='<span style="display:inline-block;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;letter-spacing:.5px;background:rgba(99,102,241,.18);color:var(--acc3);margin-right:6px;vertical-align:middle">ONLINE</span>'+msg;
     }catch(_){}
-  }, 6000);
+  }, 10000);
   try{
     const txt = await fetchHomeInsight();
     _settled = true;
@@ -6076,6 +6103,9 @@ function renderAI(){
   </div>
   `}
 
+  <!-- CHARTE PRÉDICTIVE ALADDIN — visible même sans Conseil lancé -->
+  ${window.renderPredictionCharter ? window.renderPredictionCharter(kpi) : ''}
+
   <!-- CONSEIL ALADDIN ─── Zone principale vue IA ─────────────────────── -->
   ${(()=>{
     if(window.renderCouncilCard){ return window.renderCouncilCard(); }
@@ -7354,7 +7384,7 @@ async function checkCelebrations(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js?v=9.2.3',{scope:'./'}).then(reg=>{
-      console.log('SW v9.2.3 enregistré ✓');
+      console.log('SW v9.3.0 enregistré ✓');
       reg.addEventListener('updatefound',()=>{
         const w=reg.installing;if(!w)return;
         w.addEventListener('statechange',()=>{
@@ -8876,7 +8906,7 @@ window.openHealthDetailModal = function openHealthDetailModal(){
       ${rows}
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn" onclick="closeModal()" style="flex:1">OK</button>
-        <button class="btn" onclick="closeModal();setTimeout(()=>openChatModal(`Analyse complète de ma santé financière ${h.score}/100 (${h.label}) — explique chaque sous-score avec des données précises et donne un plan pour passer à un niveau supérieur`),60)" style="flex:1;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.1));border:1px solid rgba(167,139,250,.4);color:#a78bfa">✨ Analyse IA complète</button>
+        <button class="btn" onclick="closeModal();setTimeout(function(){openChatModal('Analyse complète de ma santé financière ${h.score}/100 (${h.label}) — explique chaque sous-score avec des données précises et donne un plan pour passer à un niveau supérieur')},60)" style="flex:1;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(167,139,250,.1));border:1px solid rgba(167,139,250,.4);color:#a78bfa">✨ Analyse IA complète</button>
       </div>
     `);
   }catch(e){ console.warn('[Health modal] fail',e); }
@@ -10036,12 +10066,11 @@ async function callAladdinAI(viewType, userQuery) {
     {role:'user', content:userQuery}
   ];
   /* Tokens dynamiques selon le mode — Gemini n'est plus bridé */
-  const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000 };
+  const modeTokens = { HOME:1000, ANALYSE:2000, PRÉVISIONS:2000, SANTE_FINANCIERE:1800 };
   const tokensForMode = modeTokens[viewType] || AI_CONFIG.MAX_TOKENS;
   const body     = JSON.stringify({
     model: AI_CONFIG.GEMINI_MODEL_VERSION,
-    max_tokens: tokensForMode,                 // OpenAI-compat classique
-    max_completion_tokens: tokensForMode,      // alias Gemini 3.x
+    max_tokens: tokensForMode,
     temperature: AI_CONFIG.TEMPERATURE,
     messages: msgs
   });
@@ -10050,11 +10079,15 @@ async function callAladdinAI(viewType, userQuery) {
   const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
   if(gemKey && navigator.onLine){
     try{
+      const _gemAc=new AbortController();
+      const _gemTo=setTimeout(()=>{try{_gemAc.abort()}catch(_){}}, viewType==='HOME'?8500:16000);
       const r = await fetch_(`${AI_CONFIG.GEMINI_BASE}/chat/completions`,{
         method:'POST',
+        signal:_gemAc.signal,
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+gemKey},
         body: JSON.stringify({...JSON.parse(body), model:AI_CONFIG.GEMINI_MODEL_VERSION}),
       });
+      clearTimeout(_gemTo);
       const d = await r.json();
       if(r.ok && d.choices?.[0]?.message?.content){
         const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
@@ -10077,11 +10110,15 @@ async function callAladdinAI(viewType, userQuery) {
   if(groqKey && navigator.onLine){
     try{
       const groqBody = JSON.stringify({model:AI_CONFIG.GROQ_MODEL, max_tokens:AI_CONFIG.MAX_TOKENS, temperature:AI_CONFIG.TEMPERATURE, messages:msgs});
+      const _groqAc=new AbortController();
+      const _groqTo=setTimeout(()=>{try{_groqAc.abort()}catch(_){}}, viewType==='HOME'?7000:13000);
       const r = await fetch_('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
+        signal:_groqAc.signal,
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
         body:groqBody,
       });
+      clearTimeout(_groqTo);
       const d = await r.json();
       if(r.ok && d.choices?.[0]?.message?.content){
         const txt = typeof window.detutoyer==='function' ? window.detutoyer(d.choices[0].message.content) : d.choices[0].message.content;
@@ -10099,7 +10136,11 @@ async function callAladdinAI(viewType, userQuery) {
     } catch(e){ console.warn('[ALADDIN] Groq failed:',e.message); }
   }
 
-  /* ── Fallback local ── */
+  /* ── Fallback local seulement hors-ligne ou sans clé ── */
+  const anyKey = !!gemKey || !!groqKey;
+  if(navigator.onLine && anyKey){
+    return {text:'⚠️ IA en ligne indisponible momentanément. Réessaie dans quelques secondes — je ne bascule pas en local tant que tu es connecté.', src:'Online', anomalies:payload.anomalies};
+  }
   const localTxt = (()=>{ try{return window.localAI?window.localAI(userQuery):'Configure ta clé Gemini ou Groq dans Config.';}catch(_){return 'Analyse locale indisponible.';} })();
   return {text:localTxt, src:'Local', anomalies:payload.anomalies};
 }
@@ -10353,7 +10394,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.2.3</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.3.0</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -10473,7 +10514,7 @@ window.renderAnomalyBanner = renderAnomalyBanner;
 
 
 /* ═══════════════════════════════════════════════════════════════════
-   §H  CONSEIL DÉLIBÉRATIF ALADDIN
+   §H  CONSEIL PRÉDICTIF ALADDIN
    Gemini (Stratège) + Groq (Tacticien) raisonnent ensemble.
    Auto-déclenché sur conditions KPI critiques.
    Les AIs émettent des [COMMANDES] qui modifient l'app.
@@ -10483,13 +10524,17 @@ window.renderAnomalyBanner = renderAnomalyBanner;
 window._callGeminiRaw = async function(messages, maxTok){
   maxTok = maxTok || 400;
   var gemKey=''; try{gemKey=window.safeStorage?.getItem('gemini_key')||'';}catch(ex){}
-  if(!gemKey) return null;
+  if(!gemKey || !navigator.onLine) return null;
   var fetch_=window._origFetch||window.fetch;
+  var ac=new AbortController();
+  var to=setTimeout(function(){try{ac.abort()}catch(_){}}, 12000);
   var r=await fetch_('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',{
     method:'POST',
+    signal:ac.signal,
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+gemKey},
-    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'gemini-3.5-flash',max_tokens:maxTok,temperature:0.78,messages:messages})
+    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'gemini-3.5-flash',max_tokens:maxTok,temperature:0.45,messages:messages})
   });
+  clearTimeout(to);
   if(!r.ok) return null;
   var d=await r.json();
   return d.choices?.[0]?.message?.content||null;
@@ -10498,13 +10543,17 @@ window._callGeminiRaw = async function(messages, maxTok){
 window._callGroqRaw = async function(messages, maxTok){
   maxTok = maxTok || 300;
   var groqKey=''; try{groqKey=window.getGroqKey?window.getGroqKey():'';}catch(ex){}
-  if(!groqKey) return null;
+  if(!groqKey || !navigator.onLine) return null;
   var fetch_=window._origFetch||window.fetch;
+  var ac=new AbortController();
+  var to=setTimeout(function(){try{ac.abort()}catch(_){}}, 10000);
   var r=await fetch_('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
+    signal:ac.signal,
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.3-70b-versatile',max_tokens:maxTok,temperature:0.6,messages:messages})
+    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.3-70b-versatile',max_tokens:maxTok,temperature:0.35,messages:messages})
   });
+  clearTimeout(to);
   if(!r.ok) return null;
   var d=await r.json();
   return d.choices?.[0]?.message?.content||null;
@@ -10591,124 +10640,145 @@ window.applyCouncilCommands = function(cmds){
 };
 
 /* ── Orchestrateur principal ─────────────────────────────────────── */
+window.buildCouncilPredictionSnapshot = function(kpi){
+  try{
+    kpi = kpi || window.computeKPIs();
+    var cur_='XAF'; try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
+    var proj = (window.buildCashflowProjection?window.buildCashflowProjection('month'):null);
+    var rec = (window.detectRecurringPatterns?window.detectRecurringPatterns():[]);
+    var active = kpi.activeBalance||0;
+    var burn = Math.max(0,kpi.burnRate||0);
+    var incDay = Math.max(0,(kpi.inc30||0)/30);
+    function sim(incF, expF){
+      var bal=active, zero=null, min=active;
+      for(var d=1; d<=30; d++){
+        bal += incDay*incF - burn*expF;
+        if(proj && proj.incomeEvents && proj.incomeEvents[d]) bal += proj.incomeEvents[d];
+        if(proj && proj.expenseEvents && proj.expenseEvents[d]) bal -= proj.expenseEvents[d];
+        if(zero===null && bal<0) zero=d;
+        if(bal<min) min=bal;
+      }
+      return {final:Math.round(bal), zeroDay:zero, min:Math.round(min)};
+    }
+    var scenarios={
+      choc:sim(0.70,1.20),
+      actuel:sim(1,1),
+      optimal:sim(1.20,0.90)
+    };
+    var nextIncome=(kpi.cycleContext&&kpi.cycleContext.expectedCycleIncome)?{amount:kpi.cycleContext.expectedCycleIncome,days:kpi.cycleContext.daysToNextExpected}:null;
+    var recurring=rec.slice(0,5).map(function(r){return {label:r.categoryName, amount:Math.round(r.amount), date:r.nextExpectedDate&&r.nextExpectedDate.toISOString?r.nextExpectedDate.toISOString().slice(0,10):String(r.nextExpectedDate||'')};});
+    return {currency:cur_, active:Math.round(active), savings:Math.round(kpi.savingsBalance||0), burn:Math.round(burn), inc30:Math.round(kpi.inc30||0), exp30:Math.round(kpi.exp30||0), safety:kpi.safetyDays, scenarios:scenarios, recurring:recurring, nextIncome:nextIncome, health:(window.computeFinancialHealthScore?window.computeFinancialHealthScore(kpi):null)};
+  }catch(e){ return null; }
+};
+
+window.renderPredictionCharter = function(kpi){
+  try{
+    if(!window.txs||window.txs.length<2) return '';
+    var snap=window.buildCouncilPredictionSnapshot(kpi);
+    if(!snap) return '';
+    var vals=[snap.scenarios.choc.final,snap.scenarios.actuel.final,snap.scenarios.optimal.final,snap.active,0];
+    var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals), range=(max-min)||1;
+    function y(v){return 78-(v-min)/range*58;}
+    var points=[snap.active,snap.scenarios.choc.final,snap.scenarios.actuel.final,snap.scenarios.optimal.final];
+    var xs=[12,96,180,264];
+    var path=points.map(function(v,i){return (i?'L':'M')+xs[i]+','+y(v).toFixed(1);}).join(' ');
+    var zero=y(0).toFixed(1);
+    var health=snap.health;
+    var color=(snap.scenarios.actuel.zeroDay?'var(--red)':snap.scenarios.actuel.final<0?'var(--org)':'var(--grn)');
+    var rec=snap.recurring.slice(0,3).map(function(r){return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:5px 0;border-top:1px solid var(--brd)"><span>'+esc(r.label||'Dépense')+'</span><strong style="color:var(--red)">-'+r.amount+' '+snap.currency+'</strong></div>';}).join('');
+    return '<div class="card" style="border-color:rgba(167,139,250,.35);background:linear-gradient(135deg,rgba(167,139,250,.08),rgba(52,211,153,.03))">'
+      +'<div class="ch" style="color:#a78bfa">📊 Charte prédictive ALADDIN <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="window.runAladdinCouncil&&window.runAladdinCouncil({reason:\'charte\',label:\'Charte prédictive\',severity:\'manual\'})">Conseil</button></div>'
+      +'<svg viewBox="0 0 280 88" preserveAspectRatio="none" style="width:100%;height:88px;display:block;margin-top:2px">'
+      +'<line x1="8" y1="'+zero+'" x2="272" y2="'+zero+'" stroke="var(--red)" stroke-dasharray="4 4" opacity=".5"/>'
+      +'<path d="'+path+'" fill="none" stroke="#a78bfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+      +points.map(function(v,i){var c=i===1?'var(--red)':i===2?color:'var(--grn)';return '<circle cx="'+xs[i]+'" cy="'+y(v).toFixed(1)+'" r="4" fill="'+c+'"/><text x="'+xs[i]+'" y="84" fill="var(--mut)" font-size="8" text-anchor="middle">'+['J0','Choc','Actuel','Optimal'][i]+'</text>';}).join('')
+      +'</svg>'
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px">'
+      +'<div class="kt"><div class="kl">Choc</div><div class="kv" style="font-size:14px;color:var(--red)">'+snap.scenarios.choc.final+' '+snap.currency+'</div><div class="ks">'+(snap.scenarios.choc.zeroDay?'zéro J+'+snap.scenarios.choc.zeroDay:'30j tenus')+'</div></div>'
+      +'<div class="kt"><div class="kl">Actuel</div><div class="kv" style="font-size:14px;color:'+color+'">'+snap.scenarios.actuel.final+' '+snap.currency+'</div><div class="ks">'+(snap.scenarios.actuel.zeroDay?'zéro J+'+snap.scenarios.actuel.zeroDay:'trajectoire')+'</div></div>'
+      +'<div class="kt"><div class="kl">Santé</div><div class="kv" style="font-size:14px;color:'+(health?health.color:'var(--mut)')+'">'+(health?health.score+'/100':'—')+'</div><div class="ks">'+(health?health.label:'indice')+'</div></div>'
+      +'</div>'
+      +(snap.nextIncome?'<div class="tm" style="font-size:11px;margin-top:8px;color:var(--grn)">▲ Revenu attendu: '+Math.round(snap.nextIncome.amount)+' '+snap.currency+' dans '+snap.nextIncome.days+'j</div>':'')
+      +(rec?'<div style="margin-top:8px">'+rec+'</div>':'')
+      +'</div>';
+  }catch(e){ console.warn('[PredictionCharter] fail',e); return ''; }
+};
+
+/* ── Orchestrateur principal ─────────────────────────────────────── */
 window.runAladdinCouncil = async function(trigger){
   if(window.councilRunning) return;
   window.councilRunning = true;
   window.councilDone = false;
   window.councilPending = [];
-  window.councilTrigger = trigger || {reason:'manuel',label:'Analyse demandée',severity:'manual'};
+  window.councilTrigger = trigger || {reason:'manuel',label:'Prédictions demandées',severity:'manual'};
   window.councilMsgs = [];
 
-  /* Rend l'interface avec état "en cours" */
   try{if(typeof render==='function')render();}catch(ex){}
 
-  var kpi={};
-  try{kpi=window.computeKPIs();}catch(ex){}
-  var cur_='XAF'; try{cur_=window.cur?window.cur():'XAF';}catch(ex){}
-  var allTx=window.txs||[];
-  var accs_=window.accs||[];
-  var goals_=window.goals||[];
-  var activeBal=accs_.filter(function(a){return a.type!=='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
-  var savingsBal=accs_.filter(function(a){return a.type==='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
-  var j0=kpi.burnRate>0?Math.floor(activeBal/kpi.burnRate):999;
-  var exp30=allTx.filter(function(t){return t.type==='expense'&&(Date.now()-new Date(t.date))<30*86400000;});
-  var catMap={}; exp30.forEach(function(t){var n=(()=>{try{return window.catById?window.catById(t.categoryId).name:'?';}catch(ex){return '?';}})();catMap[n]=(catMap[n]||0)+t.amount;});
-  var top3=Object.entries(catMap).sort(function(a,b){return b[1]-a[1];}).slice(0,3).map(function(e){return e[0]+':'+Math.round(e[1])+cur_;});
-  var notesSample=allTx.filter(function(t){return t.note&&t.note.length>1;}).slice(0,8).map(function(t){return t.note;}).join(' | ');
-  var goalsInfo=goals_.map(function(g){return g.name+':'+(g.saved||0)+'/'+g.target+cur_;}).join(', ')||'aucun';
-
-  var ctx='CONTEXTE FINANCIER RÉEL:\n'
-    +'- Solde actif: '+Math.round(activeBal)+' '+cur_+'\n'
-    +'- Solde épargne: '+Math.round(savingsBal)+' '+cur_+'\n'
-    +'- Burn rate: '+Math.round(kpi.burnRate||0)+' '+cur_+'/j\n'
-    +'- Jours avant découvert: '+(j0===999?'∞':j0)+'\n'
-    +'- Évaporation post-revenu: '+(kpi.evaporationRate||0)+'%\n'
-    +'- Pression 7j: +'+(kpi.pressureIdx||0)+'%\n'
-    +'- Dopamine/impulsion: '+(kpi.dopamineIdx||0)+'%\n'
-    +'- Top dépenses 30j: '+top3.join(', ')+'\n'
-    +'- Notes transactions: '+(notesSample||'aucune')+'\n'
-    +'- Objectifs: '+goalsInfo+'\n'
+  var kpi={}; try{kpi=window.computeKPIs();}catch(ex){}
+  var snap=window.buildCouncilPredictionSnapshot(kpi);
+  var cur_=(snap&&snap.currency)||'XAF';
+  var recLines=(snap&&snap.recurring&&snap.recurring.length)?snap.recurring.map(function(r){return '- '+r.label+': '+r.amount+' '+cur_+' prévu le '+r.date;}).join('\n'):'- aucune dépense récurrente fiable détectée';
+  var ctx='MISSION: produire des PRÉDICTIONS financières, pas un discours général.\n'
+    +'Données vérifiées:\n'
+    +'- Solde actif: '+(snap?snap.active:0)+' '+cur_+'\n'
+    +'- Épargne: '+(snap?snap.savings:0)+' '+cur_+'\n'
+    +'- Burn rate: '+(snap?snap.burn:0)+' '+cur_+'/j\n'
+    +'- Revenus 30j: '+(snap?snap.inc30:0)+' '+cur_+' | Dépenses 30j: '+(snap?snap.exp30:0)+' '+cur_+'\n'
+    +'- Scénario choc J+30: '+(snap?snap.scenarios.choc.final:0)+' '+cur_+'; zéro: '+(snap&&snap.scenarios.choc.zeroDay?('J+'+snap.scenarios.choc.zeroDay):'non')+'\n'
+    +'- Scénario actuel J+30: '+(snap?snap.scenarios.actuel.final:0)+' '+cur_+'; zéro: '+(snap&&snap.scenarios.actuel.zeroDay?('J+'+snap.scenarios.actuel.zeroDay):'non')+'\n'
+    +'- Scénario optimal J+30: '+(snap?snap.scenarios.optimal.final:0)+' '+cur_+'\n'
+    +'- Prochain revenu attendu: '+(snap&&snap.nextIncome?(Math.round(snap.nextIncome.amount)+' '+cur_+' dans '+snap.nextIncome.days+'j'):'inconnu')+'\n'
+    +'Dépenses récurrentes prédites:\n'+recLines+'\n'
     +'- Déclencheur: '+window.councilTrigger.label+'\n';
 
-  /* ── TOUR 1 : Gemini (Stratège) ouvre le débat ─────────────────── */
-  var t1sys='Tu es ALADDIN-STRATÈGE (Gemini). MAX 3 PHRASES, zéro remplissage. Tu analyses en profondeur. '
-    +'Tu détectes les patterns comportementaux, les risques cachés, les causes racines. '
-    +'Tu t\'adresses directement à l\'utilisateur (tutoiement). '
-    +'IMPORTANT: Sois concis (max 4 phrases). Termine par ta principale hypothèse sur la cause racine.';
-  var t1usr=ctx+'\nDéclencheur du Conseil: '+window.councilTrigger.label
-    +'\n\nOuvre le Conseil par ton analyse initiale. Identifie le problème central et ton hypothèse.';
-  var gem1=await window._callGeminiRaw([{role:'system',content:t1sys},{role:'user',content:t1usr}],350);
-  if(!gem1) gem1='⚠️ Gemini indisponible — utilise ta clé Gemini dans la Config.';
+  var fallback1='Prédiction actuelle: à ce rythme, ton solde estimé à J+30 est '+(snap?snap.scenarios.actuel.final:0)+' '+cur_+'. Le vrai risque est '+(snap&&snap.scenarios.actuel.zeroDay?'un passage sous zéro à J+'+snap.scenarios.actuel.zeroDay:'la tenue du rythme jusqu\'au prochain revenu')+'.';
+  var fallback2='Validation chiffres: burn rate '+(snap?snap.burn:0)+' '+cur_+'/j, scénario choc '+(snap?snap.scenarios.choc.final:0)+' '+cur_+'. [PRÉDICTION: scénario actuel | '+(snap?snap.scenarios.actuel.final:0)+' | J+30]';
+  var fallback3='[PLAN: Vérifier les dépenses récurrentes prévues | Protéger le prochain revenu dès réception | Réduire le burn rate cette semaine] [PRÉDICTION: solde J+30 | '+(snap?snap.scenarios.actuel.final:0)+' | J+30]';
+  var fallback4='Plan validé ✓ — surveille surtout le scénario actuel et les dépenses récurrentes imminentes.';
+
+  var t1sys='Tu es ALADDIN-STRATÈGE. Réponds en français, tutoiement. Analyse prédictive uniquement: scénario choc/actuel/optimal, date de passage sous zéro si présente, revenu attendu, dépense récurrente. MAX 5 lignes. Zéro blabla.';
+  var gem1=await window._callGeminiRaw([{role:'system',content:t1sys},{role:'user',content:ctx+'\nTour 1: formule la prédiction principale et l\'incertitude.'}],260);
+  if(!gem1) gem1=fallback1;
   window.councilMsgs.push({agent:'gemini',text:gem1,cmds:[],ts:Date.now()});
   try{if(typeof render==='function')render();}catch(ex){}
 
-  await new Promise(function(r){setTimeout(r,600);});
-
-  /* ── TOUR 2 : Groq (Tacticien) répond avec chiffres précis ──────── */
-  var t2sys='Tu es ALADDIN-TACTICIEN (Groq). MAX 2 PHRASES, chiffres uniquement. Valide ou corrige. '
-    +'Si tu vois une erreur de calcul, émets [CORRECTION: élément | valeur corrigée]. '
-    +'Tutoiement exclusif (tu/toi). Concis (max 3 phrases). Focus sur les chiffres et les corrections factuelles.';
-  var t2usr=ctx+'\nAnalyse du Stratège:\n'+gem1
-    +'\n\nValide ou corrige avec des chiffres précis. Si le Stratège a une erreur, utilise [CORRECTION: élément | valeur].';
-  var groq1=await window._callGroqRaw([{role:'system',content:t2sys},{role:'user',content:t2usr}],280);
-  if(!groq1) groq1='⚡ Groq indisponible — fonctionnement en mode Gemini seul.';
+  var t2sys='Tu es ALADDIN-TACTICIEN. Tu corriges les chiffres et tu dois émettre au moins une [PRÉDICTION: libellé | montant | date] basée sur les données. MAX 4 lignes.';
+  var groq1=await window._callGroqRaw([{role:'system',content:t2sys},{role:'user',content:ctx+'\nAnalyse Stratège:\n'+gem1+'\nValide ou corrige.'}],220);
+  if(!groq1) groq1=fallback2;
   var cmds1=window.parseCouncilCommands(groq1);
   window.councilMsgs.push({agent:'groq',text:groq1,cmds:cmds1,ts:Date.now()});
   if(cmds1.length) window.councilPending=window.councilPending.concat(cmds1);
   try{if(typeof render==='function')render();}catch(ex){}
 
-  await new Promise(function(r){setTimeout(r,700);});
-
-  /* ── TOUR 3 : Gemini (Stratège) propose un plan avec commandes ───── */
-  var t3sys='Tu es ALADDIN-STRATÈGE (Gemini). '
-    +'Sur la base du débat, propose un PLAN CONCRET avec des COMMANDES STRUCTURÉES.\n'
-    +'Commandes disponibles (utilise-les si pertinent):\n'
-    +'[OBJECTIF: nom | montant en chiffres | délai en jours]\n'
-    +'[PRÉDICTION: catégorie | montant | date YYYY-MM-DD]\n'
-    +'[ALERTE: condition | seuil numérique]\n'
-    +'[PLAN: étape1 | étape2 | étape3]\n'
-    +'[CORRECTION: élément | nouvelle valeur]\n'
-    +'Max 3 phrases d\'explication + les commandes pertinentes.';
-  var t3usr=ctx
-    +'\nAnalyse Stratège: '+gem1
-    +'\nValidation Tacticien: '+groq1
-    +'\n\nPropose le plan d\'action avec les commandes structurées. Sois précis sur les montants.';
-  var gem2=await window._callGeminiRaw([{role:'system',content:t3sys},{role:'user',content:t3usr}],420);
-  if(!gem2) gem2='[PLAN: Réduire burn rate | Bloquer épargne automatique | Bilan hebdomadaire]';
+  var t3sys='Tu es ALADDIN-STRATÈGE. Transforme les prédictions en charte d’action. Utilise exactement: [PLAN: étape1 | étape2 | étape3] et au moins une [PRÉDICTION: ...]. MAX 5 lignes.';
+  var gem2=await window._callGeminiRaw([{role:'system',content:t3sys},{role:'user',content:ctx+'\nDébat:\n'+gem1+'\n'+groq1+'\nTour 3: plan + prédictions structurées.'}],280);
+  if(!gem2) gem2=fallback3;
   var cmds2=window.parseCouncilCommands(gem2);
   window.councilMsgs.push({agent:'gemini',text:gem2,cmds:cmds2,ts:Date.now()});
   if(cmds2.length) window.councilPending=window.councilPending.concat(cmds2);
   try{if(typeof render==='function')render();}catch(ex){}
 
-  await new Promise(function(r){setTimeout(r,500);});
-
-  /* ── TOUR 4 : Groq (Tacticien) valide + rapide wins ─────────────── */
-  var t4sys='Tu es ALADDIN-TACTICIEN (Groq). Tu valides le plan du Stratège et ajoutes 1 quick win immédiat. '
-    +'Tu peux aussi émettre [CORRECTION: élément | valeur] si un chiffre du plan est inexact. '
-    +'Max 2 phrases. Tutoiement exclusif. Termine par "Plan validé ✓" ou "Plan révisé ✓".';
-  var t4usr=ctx
-    +'\nPlan proposé par le Stratège:\n'+gem2
-    +'\n\nValide ce plan et ajoute 1 action immédiate que l\'utilisateur peut faire maintenant (<5 min).';
-  var groq2=await window._callGroqRaw([{role:'system',content:t4sys},{role:'user',content:t4usr}],250);
-  if(!groq2) groq2='Plan validé ✓ — Action immédiate : note ta prochaine dépense dès qu\'elle arrive.';
+  var t4sys='Tu es ALADDIN-TACTICIEN. Valide uniquement si les prédictions suivent les chiffres. Ajoute 1 quick win immédiat. MAX 3 lignes. Termine par Plan validé ✓ ou Plan révisé ✓.';
+  var groq2=await window._callGroqRaw([{role:'system',content:t4sys},{role:'user',content:ctx+'\nPlan proposé:\n'+gem2+'\nTour 4: validation finale.'}],190);
+  if(!groq2) groq2=fallback4;
   var cmds3=window.parseCouncilCommands(groq2);
   window.councilMsgs.push({agent:'groq',text:groq2,cmds:cmds3,ts:Date.now()});
   if(cmds3.length) window.councilPending=window.councilPending.concat(cmds3);
 
+  try{
+    if(!window.councilPreds) window.councilPreds=[];
+    window.councilPreds.unshift({cat:'Scénario actuel J+30',amount:(snap?snap.scenarios.actuel.final:0),date:'J+30',label:'Actuel',addedAt:Date.now()});
+    if(snap&&snap.scenarios.choc) window.councilPreds.unshift({cat:'Scénario choc J+30',amount:snap.scenarios.choc.final,date:'J+30',label:'Choc',addedAt:Date.now()});
+    (snap&&snap.recurring||[]).slice(0,2).forEach(function(r){window.councilPreds.unshift({cat:r.label,amount:r.amount,date:r.date,label:r.label,addedAt:Date.now()});});
+    window.councilPreds=window.councilPreds.slice(0,12);
+  }catch(ex){}
+
   window.councilRunning = false;
   window.councilDone = true;
-
-  // ── Synchroniser ACTIONS DU MOMENT avec les conclusions du Council ──
   try {
-    window._lastCouncilSummary = {
-      ts: Date.now(),
-      groqConclusion: groq2,
-      geminiPlan: gem2,
-      cmds: window.councilPending.slice()
-    };
-    console.log('[Council] Résumé stocké pour ACTIONS DU MOMENT');
-  } catch(ex) { console.warn('[Council sync]', ex); }
-
+    window._lastCouncilSummary = {ts: Date.now(), groqConclusion: groq2, geminiPlan: gem2, cmds: window.councilPending.slice(), snapshot:snap};
+  } catch(ex) {}
   try{if(typeof render==='function')render();}catch(ex){}
 };
 
@@ -10734,13 +10804,13 @@ window.renderCouncilCard = function(){
   if(!window.councilRunning && !window.councilMsgs.length){
     var autoMsg = trigger
       ? 'Condition détectée : '+trigger.label+'. Le Conseil va analyser et proposer un plan d\'action.'
-      : 'Les deux IA raisonnent ensemble sur ta situation et te proposent un plan concret.';
+      : 'Les IA construisent des prédictions de solde, revenus et dépenses récurrentes, puis une charte d’action.';
     return '<div class="card council-wrap" style="border-color:rgba(167,139,250,.35);background:linear-gradient(135deg,rgba(167,139,250,.05),rgba(15,23,42,.02))">'
       +'<div class="council-header" style="color:#a78bfa;padding:14px 14px 10px">'
       +'<span style="font-size:18px">🔮</span>'
       +'<div>'
-      +'<div style="font-size:12px;font-weight:800;letter-spacing:.8px">CONSEIL DÉLIBÉRATIF ALADDIN</div>'
-      +'<div style="font-size:10px;color:var(--mut);font-weight:400;letter-spacing:0;margin-top:1px">'+(hasGemKey&&hasGroqKey?'Gemini Stratège × Groq Tacticien — 4 tours de délibération':hasGemKey?'Gemini Stratège — analyse en profondeur':'Groq Tacticien — analyse rapide')+'</div>'
+      +'<div style="font-size:12px;font-weight:800;letter-spacing:.8px">CONSEIL PRÉDICTIF ALADDIN</div>'
+      +'<div style="font-size:10px;color:var(--mut);font-weight:400;letter-spacing:0;margin-top:1px">'+(hasGemKey&&hasGroqKey?'Gemini Stratège × Groq Tacticien — 4 tours prédictifs':hasGemKey?'Gemini Stratège — analyse en profondeur':'Groq Tacticien — analyse rapide')+'</div>'
       +'</div>'
       +(trigger?'<span style="margin-left:auto;align-self:flex-start">'+triggerLabel+'</span>':'')
       +'</div>'
@@ -10752,7 +10822,7 @@ window.renderCouncilCard = function(){
         : '<button class="council-start-btn" onclick="window.runAladdinCouncil('+JSON.stringify(trigger||{reason:'manuel',label:'Analyse demandée',severity:'manual'})+')">'
           +'<span style="font-size:16px">✨</span> Analyser avec '+(hasGemKey?'Gemini':'Groq')+'</button>'
       )
-      +'<div style="font-size:10px;color:var(--mut);text-align:center;padding:2px 0">⏱ ~15-30 secondes · Dialogue en 4 échanges · Commandes action incluses</div>'
+      +'<div style="font-size:10px;color:var(--mut);text-align:center;padding:2px 0">⏱ ~10-20 secondes · Prédictions + charte · Raisonnement disponible</div>'
       +'</div>'
       +'</div>';
   }
@@ -10816,9 +10886,10 @@ window.renderCouncilCard = function(){
   if(window.councilDone){
     actionsHtml='<div class="council-actions">'
       +(window.councilPending.length
-        ?'<button class="council-apply-btn" onclick="window._applyAndReset()">✓ Appliquer les modifications</button>':''
+        ?'<button class="council-apply-btn" onclick="window._applyAndReset()">✓ Sauver la charte</button>':''
       )
-      +'<button class="council-dismiss-btn" onclick="window._resetCouncil()">Nouveau Conseil</button>'
+      +'<button class="council-dismiss-btn" onclick="window.openCouncilChat()">💬 Raisonnement</button>'
+      +'<button class="council-dismiss-btn" onclick="window._resetCouncil();window.runAladdinCouncil({reason:&quot;manuel&quot;,label:&quot;Nouveau Conseil&quot;,severity:&quot;manual&quot;})">↻ Nouveau</button>'
       +'</div>';
   }
 
@@ -10840,9 +10911,8 @@ window.renderCouncilCard = function(){
 
 window._applyAndReset = function(){
   var applied=window.applyCouncilCommands(window.councilPending||[]);
-  window.councilPending=[];
-  window.councilDone=false;
-  if(applied.length) try{window.showNotif('Modifications appliquées: '+applied.length,'success');}catch(ex){}
+  try{window.safeStorage&&window.safeStorage.setItem('last_council_charter', JSON.stringify({ts:Date.now(),pending:window.councilPending||[],summary:window._lastCouncilSummary||null,preds:window.councilPreds||[]}));}catch(ex){}
+  if(applied.length) try{window.showNotif('Charte sauvegardée: '+applied.length,'success');}catch(ex){}
   try{if(typeof render==='function')render();}catch(ex){}
 };
 
@@ -10935,7 +11005,7 @@ var _councilRenderHook = (function(){
 
 console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
 
-console.log('[ALADDIN Engine v9.2.3] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v9.3.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>

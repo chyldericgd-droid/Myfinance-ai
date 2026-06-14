@@ -4475,7 +4475,7 @@ function closeChatModal(){
 })();
 
 function openAIQuick(){
-  // v8.7 — FAB ✨ redirige vers le Conseil Délibératif dans la vue IA
+  // v9.2 — FAB 🔮 : menu rapide (Conseil ALADDIN + Chat)
   const _online = navigator.onLine;
   const _hasGem = (()=>{try{return !!(window.safeStorage?.getItem('gemini_key'));}catch(ex){return false;}})();
   const _hasGroq = !!getGroqKey();
@@ -4490,8 +4490,30 @@ function openAIQuick(){
     return;
   }
 
-  // Ouvre le modal chat complet (plein écran)
-  openChatModal();
+  // Menu rapide : Conseil ALADDIN (priorité) + Chat
+  const _councilLabel = (_hasGem && _hasGroq) ? 'Conseil ALADDIN · Gemini × Groq' : (_hasGem ? 'Conseil ALADDIN · Gemini' : 'Conseil ALADDIN · Groq');
+  openModal(`
+    <h3 style="margin-bottom:4px">🔮 ALADDIN</h3>
+    <p style="color:var(--mut);font-size:12px;margin-bottom:14px">Choisis ton mode d'interaction</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn" style="background:linear-gradient(135deg,rgba(167,139,250,.85),rgba(99,102,241,.85));padding:14px;text-align:left;display:flex;align-items:center;gap:12px"
+        onclick="closeModal();(window.runAladdinCouncil?window.runAladdinCouncil({reason:'fab',label:'Conseil depuis bulle',severity:'manual'}):openChatModal());try{go('ai');}catch(_){}">
+        <span style="font-size:22px">🏛</span>
+        <span style="flex:1">
+          <div style="font-weight:700;font-size:13px">${_councilLabel}</div>
+          <div style="font-size:10px;opacity:.85;margin-top:2px">Délibération multi-agents · plan d'action</div>
+        </span>
+      </button>
+      <button class="btn" style="background:var(--card2,#1a2238);border:1px solid var(--brd);padding:14px;text-align:left;display:flex;align-items:center;gap:12px;color:var(--txt)"
+        onclick="closeModal();openChatModal();">
+        <span style="font-size:22px">💬</span>
+        <span style="flex:1">
+          <div style="font-weight:700;font-size:13px">Chat libre</div>
+          <div style="font-size:10px;color:var(--mut);margin-top:2px">Question rapide à ALADDIN</div>
+        </span>
+      </button>
+    </div>
+  `);
 }
 async function quickAISubmit(){
   const i=$('quickAIInput');const a=$('quickAIArea');
@@ -9522,6 +9544,46 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
 });
 
 /* ─────────────────────────────────────────────────────────────────────
+   §A-bis  AI_OVERRIDES — coefficients ajustables par Gemini (v9.2)
+   Gemini peut appeler window.setAICoefficient('KEY', value) pour
+   affiner les seuils en fonction du comportement réel de l'utilisateur.
+   Toute valeur invalide ou hors-plage est ignorée → fallback AI_CONFIG.
+   ───────────────────────────────────────────────────────────────────── */
+const AI_COEF_BOUNDS = {
+  FRAG_WINDOW_MIN   : [5, 120],
+  FRAG_MIN_COUNT    : [2, 10],
+  PRICE_SPIKE_RATIO : [1.2, 5],
+  NIGHT_RATIO_ALERT : [0.15, 0.75],
+  EVAP_THRESHOLD    : [0.30, 0.95],
+};
+function _loadOverrides(){
+  try{ return JSON.parse(window.safeStorage?.getItem('ai_overrides')||'{}')||{}; }
+  catch(_){ return {}; }
+}
+window.AI_OVERRIDES = _loadOverrides();
+window.aiCoef = function(key){
+  const ov = window.AI_OVERRIDES||{};
+  const b  = AI_COEF_BOUNDS[key];
+  const v  = ov[key];
+  if(typeof v==='number' && isFinite(v) && b && v>=b[0] && v<=b[1]) return v;
+  return AI_CONFIG[key];
+};
+window.setAICoefficient = function(key, value){
+  const b = AI_COEF_BOUNDS[key];
+  if(!b){ console.warn('[AI_OVERRIDES] clé inconnue', key); return false; }
+  const v = Number(value);
+  if(!isFinite(v) || v<b[0] || v>b[1]){ console.warn('[AI_OVERRIDES] valeur hors-plage', key, value, b); return false; }
+  window.AI_OVERRIDES[key] = v;
+  try{ window.safeStorage?.setItem('ai_overrides', JSON.stringify(window.AI_OVERRIDES)); }catch(_){}
+  try{ window.showNotif && window.showNotif('Coefficient IA ajusté: '+key+' = '+v,'info'); }catch(_){}
+  return true;
+};
+window.resetAICoefficients = function(){
+  window.AI_OVERRIDES = {};
+  try{ window.safeStorage?.removeItem('ai_overrides'); }catch(_){}
+};
+
+/* ─────────────────────────────────────────────────────────────────────
    §B  MOTEUR DE DÉTECTION D'ANOMALIES LOCAL
    Tourne en arrière-plan. Résultat injecté en tête de TOUT prompt.
    ───────────────────────────────────────────────────────────────────── */
@@ -9539,16 +9601,16 @@ function detectAnomalies() {
     const recentExp = expenses.filter(t => now-new Date(t.date).getTime() < 7*86400000);
     const buckets   = {};
     recentExp.forEach(t => {
-      const slot = Math.floor(new Date(t.date).getTime()/(AI_CONFIG.FRAG_WINDOW_MIN*60000));
+      const slot = Math.floor(new Date(t.date).getTime()/(window.aiCoef('FRAG_WINDOW_MIN')*60000));
       (buckets[slot]=buckets[slot]||[]).push(t);
     });
     Object.values(buckets).forEach(grp => {
-      if(grp.length < AI_CONFIG.FRAG_MIN_COUNT) return;
+      if(grp.length < window.aiCoef('FRAG_MIN_COUNT')) return;
       const total = grp.reduce((s,t)=>s+t.amount,0);
       const cats  = [...new Set(grp.map(t=>catN(t.categoryId)))];
       anomalies.push({
         type:'FRAGMENTATION', severity: grp.length>=5?'CRITIQUE':'MODÉRÉ',
-        message:`${grp.length} achats en ${AI_CONFIG.FRAG_WINDOW_MIN}min — total ${Math.round(total)} ${cur_()}`,
+        message:`${grp.length} achats en ${window.aiCoef('FRAG_WINDOW_MIN')}min — total ${Math.round(total)} ${cur_()}`,
         detail:`Catégories: ${cats.join(', ')}`,
       });
     });
@@ -9563,7 +9625,7 @@ function detectAnomalies() {
       if(amts.length<3) return;
       const med = amts.slice().sort((a,b)=>a-b)[Math.floor(amts.length/2)];
       const lat = amts[0];
-      if(lat <= med*AI_CONFIG.PRICE_SPIKE_RATIO) return;
+      if(lat <= med*window.aiCoef('PRICE_SPIKE_RATIO')) return;
       anomalies.push({
         type:'PRICE_SPIKE', severity: lat>med*3?'CRITIQUE':'MODÉRÉ',
         message:`Hausse soudaine "${cat}": ${Math.round(lat)} vs médiane ${Math.round(med)} ${cur_()}`,
@@ -9576,7 +9638,7 @@ function detectAnomalies() {
     const nightExp  = last30exp.filter(t=>{ const h=new Date(t.date).getHours(); return h>=AI_CONFIG.NIGHT_START||h<AI_CONFIG.NIGHT_END; });
     const totalAll  = last30exp.reduce((s,t)=>s+t.amount,0);
     const nightTot  = nightExp.reduce((s,t)=>s+t.amount,0);
-    if(totalAll>0 && nightTot/totalAll > AI_CONFIG.NIGHT_RATIO_ALERT) {
+    if(totalAll>0 && nightTot/totalAll > window.aiCoef('NIGHT_RATIO_ALERT')) {
       anomalies.push({
         type:'NIGHT_SPENDING', severity: nightTot/totalAll>0.5?'CRITIQUE':'MODÉRÉ',
         message:`${Math.round(nightTot/totalAll*100)}% des dépenses sont nocturnes (${Math.round(nightTot)} ${cur_()}/30j)`,
@@ -9592,7 +9654,7 @@ function detectAnomalies() {
         .filter(t=>{ const ms=new Date(t.date).getTime()-t0; return ms>0&&ms<172800000; })
         .reduce((s,t)=>s+t.amount,0);
       const rate = inc.amount>0 ? spent48h/inc.amount : 0;
-      if(rate < AI_CONFIG.EVAP_THRESHOLD) return;
+      if(rate < window.aiCoef('EVAP_THRESHOLD')) return;
       anomalies.push({
         type:'EVAPORATION', severity: rate>0.9?'CRITIQUE':'MODÉRÉ',
         message:`Évaporation ${Math.round(rate*100)}% du revenu en 48h (${Math.round(spent48h)}/${Math.round(inc.amount)} ${cur_()})`,

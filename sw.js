@@ -1,8 +1,8 @@
 /* ════════════════════════════════════════════════════════════════════
-   Finance AI OS — Service Worker v9.1.0
+   Finance AI OS — Service Worker v9.2.1
    Strategy: stale-while-revalidate for shell, network-first for AI APIs
    ════════════════════════════════════════════════════════════════════ */
-const VERSION = '9.1.0';
+const VERSION = '9.2.1';
 const CACHE_NAME = 'finance-ai-v' + VERSION;
 const SHELL = ['./','./index.html','./manifest.json','./icon-96.png','./icon-192.png','./icon-512.png','./icon-aladdin.svg'];
 
@@ -49,24 +49,27 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  /* Navigate → serve shell */
+  /* Navigate → network-first so a newly downloaded package cannot keep v9.1 alive */
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      caches.match('./index.html').then(cached => cached || fetch(e.request)).catch(() => fetch('./index.html'))
+      fetch(e.request, {cache:'reload'}).then(resp => {
+        if (resp && resp.ok) caches.open(CACHE_NAME).then(c => c.put('./index.html', resp.clone())).catch(() => {});
+        return resp;
+      }).catch(() => caches.match('./index.html').then(cached => cached || fetch('./index.html')))
     );
     return;
   }
 
-  /* Shell files → cache-first with background update */
+  /* Shell files → network-first with cache fallback */
   if (e.request.method === 'GET' && (url.includes(self.location.origin) || url.startsWith('.'))) {
     e.respondWith(
       caches.open(CACHE_NAME).then(async cache => {
         const cached = await cache.match(e.request);
-        const networkPromise = fetch(e.request).then(resp => {
+        const networkPromise = fetch(e.request, {cache:'reload'}).then(resp => {
           if (resp && resp.ok && resp.type !== 'opaque') cache.put(e.request, resp.clone()).catch(() => {});
           return resp;
         }).catch(() => null);
-        return cached || networkPromise;
+        return networkPromise || cached;
       })
     );
     return;

@@ -2,8 +2,8 @@
   "name": "Finance AI OS — ALADDIN",
   "short_name": "ALADDIN",
   "description": "Gestionnaire financier IA avec moteur ALADDIN (Gemini + Groq)",
-  "version": "9.1.0",
-  "start_url": "./index.html?v=9.1.0",
+  "version": "9.2.1",
+  "start_url": "./index.html?v=9.2.1",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -25,14 +25,14 @@
       "name": "Ajouter transaction",
       "short_name": "Ajouter",
       "description": "Ajouter une nouvelle transaction",
-      "url": "./index.html?action=add",
+      "url": "./index.html?v=9.2.1&action=add",
       "icons": [{ "src": "./icon-96.png", "sizes": "96x96" }]
     },
     {
       "name": "Chat ALADDIN",
       "short_name": "Chat IA",
       "description": "Ouvrir le conseiller IA",
-      "url": "./index.html?action=chat",
+      "url": "./index.html?v=9.2.1&action=chat",
       "icons": [{ "src": "./icon-96.png", "sizes": "96x96" }]
     }
   ]

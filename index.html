@@ -6,7 +6,7 @@
   <link rel="dns-prefetch" href="https://api.groq.com">
   <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 
-<!-- Finance AI OS v9.3.0 | Refactored PWA -->
+<!-- Finance AI OS v9.4.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -30,10 +30,10 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="9.2.3">
-<link rel="manifest" href="./manifest.json?v=9.2.3">
-<link rel="icon" href="./icon-192.png?v=9.2.3">
-<link rel="apple-touch-icon" href="./icon-192.png?v=9.2.3">
+<meta name="version" content="9.4.0">
+<link rel="manifest" href="./manifest.json?v=9.4.0">
+<link rel="icon" href="./icon-192.png?v=9.4.0">
+<link rel="apple-touch-icon" href="./icon-192.png?v=9.4.0">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -2452,14 +2452,14 @@ function getLocaleForDates(){
 // ════════════════════════════════════════
 const DB='FinOS_v3';let db=null;
 function openDB(){return new Promise((res,rej)=>{
-  const r=indexedDB.open(DB,3);
+  const r=indexedDB.open(DB,4);
   r.onerror=()=>rej(r.error);
   r.onsuccess=()=>{db=r.result;res(db)};
   r.onupgradeneeded=e=>{
     const d=e.target.result;
-    ['transactions','accounts','categories','goals','settings','ivy_state','income_profile'].forEach(s=>{
+    ['transactions','accounts','categories','goals','settings','ivy_state','income_profile','pockets'].forEach(s=>{
       if(!d.objectStoreNames.contains(s)){
-        const st=d.createObjectStore(s,{keyPath:(s==='settings')?'key':'id'});
+        const st=d.createObjectStore(s,{keyPath:(s==='settings'||s==='pockets')?'key':'id'});
         if(s==='transactions'){st.createIndex('date','date');st.createIndex('type','type')}
       }
     });
@@ -2498,6 +2498,18 @@ const DEF_CATS=[
   {id:'unforeseen',name:'Imprévus',icon:'⚠️',type:'expense'},
   {id:'other_exp',name:'Autre dépense',icon:'💸',type:'expense'},
 ];
+
+// ════════════════════════════════════════
+// POCHES — configuration uniquement
+// Les poches sont une couche d'allocation au-dessus des transactions.
+// Elles ne remplacent jamais le calcul des soldes des comptes.
+// ════════════════════════════════════════
+const POCKET_DEFAULT_CONFIG={
+  key:'config',
+  S:300,
+  ratios:{projets:0.60,urgence:0.20,social:0.10,bonus:0.10}
+};
+const POCKET_KEYS=['vieQuotidienne','projets','urgence','social','bonus'];
 
 // ════════════════════════════════════════
 // STATE
@@ -7383,8 +7395,8 @@ async function checkCelebrations(){
 // ════════════════════════════════════════
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=9.2.3',{scope:'./'}).then(reg=>{
-      console.log('SW v9.3.0 enregistré ✓');
+    navigator.serviceWorker.register('./sw.js?v=9.4.0',{scope:'./'}).then(reg=>{
+      console.log('SW v9.4.0 enregistré ✓');
       reg.addEventListener('updatefound',()=>{
         const w=reg.installing;if(!w)return;
         w.addEventListener('statechange',()=>{
@@ -10394,7 +10406,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.3.0</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.4.0</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -11005,9 +11017,389 @@ var _councilRenderHook = (function(){
 
 console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
 
-console.log('[ALADDIN Engine v9.3.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v9.4.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SEUIL DE SURVIE + POCHES — couche additive, sans second registre
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function installPocketLayer(){
+  'use strict';
+
+  const POCKET_LABELS={
+    vieQuotidienne:'Vie quotidienne',
+    projets:'Projets & futur',
+    urgence:'Fonds d’urgence',
+    social:'Social & proches',
+    bonus:'Bonus / plaisir'
+  };
+  const POCKET_TRANSFER_OPTIONS=['vieQuotidienne','projets','urgence','social','bonus'];
+  let pocketConfigCache={...POCKET_DEFAULT_CONFIG,ratios:{...POCKET_DEFAULT_CONFIG.ratios}};
+
+  function pocketNormalizeConfig(raw){
+    const source=raw||POCKET_DEFAULT_CONFIG;
+    const ratios={...POCKET_DEFAULT_CONFIG.ratios,...(source.ratios||{})};
+    const total=Object.values(ratios).reduce((sum,n)=>sum+(Number(n)||0),0);
+    if(total<=0) return {...POCKET_DEFAULT_CONFIG,ratios:{...POCKET_DEFAULT_CONFIG.ratios}};
+    return {
+      key:'config',
+      S:Math.max(0,Number(source.S)||POCKET_DEFAULT_CONFIG.S),
+      ratios:{
+        projets:(Number(ratios.projets)||0)/total,
+        urgence:(Number(ratios.urgence)||0)/total,
+        social:(Number(ratios.social)||0)/total,
+        bonus:(Number(ratios.bonus)||0)/total
+      }
+    };
+  }
+
+  async function pocketGetConfig(){
+    try{
+      const rows=await dbAll('pockets');
+      const found=rows.find(row=>row&&row.key==='config');
+      if(found){
+        pocketConfigCache=pocketNormalizeConfig(found);
+      }else{
+        pocketConfigCache=pocketNormalizeConfig(POCKET_DEFAULT_CONFIG);
+        await dbPut('pockets',pocketConfigCache);
+      }
+    }catch(error){
+      console.warn('[POCKETS] config indisponible:',error);
+    }
+    return pocketConfigCache;
+  }
+
+  function pocketRows(){
+    try{
+      if(typeof txs!=='undefined'&&Array.isArray(txs)) return txs;
+    }catch(_){}
+    return Array.isArray(window.txs)?window.txs:[];
+  }
+
+  function pocketComputeAllocation(amount,config){
+    const cfg=pocketNormalizeConfig(config);
+    const R=Math.max(0,Number(amount)||0);
+    if(R<=cfg.S){
+      return {
+        mode:'survie',
+        threshold:cfg.S,
+        sourceAmount:R,
+        vieQuotidienne:R,
+        projets:0,
+        urgence:0,
+        social:0,
+        bonus:0
+      };
+    }
+    const surplus=R-cfg.S;
+    const projets=Math.round(surplus*cfg.ratios.projets);
+    const urgence=Math.round(surplus*cfg.ratios.urgence);
+    const social=Math.round(surplus*cfg.ratios.social);
+    const bonus=surplus-projets-urgence-social;
+    return {
+      mode:'surplus',
+      threshold:cfg.S,
+      sourceAmount:R,
+      surplus,
+      vieQuotidienne:cfg.S,
+      projets,
+      urgence,
+      social,
+      bonus
+    };
+  }
+
+  function pocketComputeBalances(rows){
+    const balances={vieQuotidienne:0,projets:0,urgence:0,social:0,bonus:0};
+    (rows||[]).forEach(tx=>{
+      const a=tx&&tx.pocketAllocations;
+      if(a){
+        POCKET_KEYS.forEach(key=>{balances[key]+=Number(a[key])||0;});
+      }
+      const transfer=tx&&tx.pocketTransfer;
+      if(transfer&&POCKET_KEYS.includes(transfer.from)&&POCKET_KEYS.includes(transfer.to)){
+        const amount=Math.max(0,Number(tx.amount)||0);
+        balances[transfer.from]-=amount;
+        balances[transfer.to]+=amount;
+      }
+      if(tx&&tx.type==='expense'&&POCKET_KEYS.includes(tx.pocketDestination)){
+        balances[tx.pocketDestination]-=Math.max(0,Number(tx.amount)||0);
+      }
+    });
+    return balances;
+  }
+
+  async function pocketSaveLock(until){
+    settings.pocketLockUntil=until;
+    await dbPut('settings',{key:'pocketLockUntil',value:until});
+  }
+
+  async function pocketCheckTransferLock(intent){
+    if(!intent||intent.from!=='projets'||!['vieQuotidienne','social'].includes(intent.to)){
+      return false;
+    }
+    const balances=pocketComputeBalances(pocketRows());
+    if(balances.social>0) return false;
+
+    const now=Date.now();
+    const currentLock=Number(settings.pocketLockUntil)||0;
+    if(currentLock>now){
+      const minutes=Math.max(1,Math.ceil((currentLock-now)/60000));
+      alert('Friction active : attends encore '+minutes+' min avant de déplacer la poche Projets.');
+      return true;
+    }
+    if(!currentLock){
+      const until=now+15*60*1000;
+      await pocketSaveLock(until);
+      alert('Pause de 15 minutes : la poche Social est vide. Réévalue ce transfert ensuite.');
+      return true;
+    }
+    // Un verrou expiré autorise enfin l’action. Il sera nettoyé après succès.
+    return false;
+  }
+
+  async function pocketFindNewTransactions(beforeIds){
+    try{
+      const rows=await dbAll('transactions');
+      return rows.filter(tx=>tx&&!beforeIds.has(String(tx.id)));
+    }catch(error){
+      console.warn('[POCKETS] lecture transaction impossible:',error);
+      return [];
+    }
+  }
+
+  function pocketMergeInMemory(updated){
+    try{
+      if(typeof txs==='undefined'||!Array.isArray(txs)) return;
+      const index=txs.findIndex(tx=>String(tx.id)===String(updated.id));
+      if(index>=0) txs[index]=updated;
+    }catch(_){}
+  }
+
+  function pocketTransferFields(){
+    const options=POCKET_TRANSFER_OPTIONS.map(key=>`<option value="${key}">${POCKET_LABELS[key]}</option>`).join('');
+    return `
+      <div id="pocketTransferFields" style="margin-top:8px;padding:10px;border:1px solid rgba(139,92,246,.25);border-radius:10px;background:rgba(139,92,246,.06)">
+        <div style="font-size:10px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px">Poches — facultatif</div>
+        <select id="pocketTransferFrom" class="fi"><option value="">Source de poche</option>${options}</select>
+        <select id="pocketTransferTo" class="fi"><option value="">Destination de poche</option>${options}</select>
+        <div id="pocketLockNotice" style="font-size:10px;color:var(--mut);line-height:1.4">Le transfert bancaire reste le registre comptable principal.</div>
+      </div>`;
+  }
+
+  function pocketExpenseField(){
+    const options=POCKET_TRANSFER_OPTIONS.map((key,index)=>`<option value="${key}"${index===0?' selected':''}>${POCKET_LABELS[key]}</option>`).join('');
+    return `
+      <select id="pocketExpenseDestination" class="fi">
+        <option value="" disabled>Imputer la dépense à une poche</option>${options}
+      </select>`;
+  }
+
+  function pocketSyncModalFields(){
+    const transfer=document.getElementById('pocketTransferFields');
+    const pardon=document.getElementById('pocketPardonWrap');
+    const expense=document.getElementById('pocketExpenseDestination');
+    if(transfer) transfer.style.display=typeof _txType!=='undefined'&&_txType==='transfer'?'':'none';
+    if(pardon) pardon.style.display=typeof _txType!=='undefined'&&_txType==='expense'?'':'none';
+    if(expense) expense.style.display=typeof _txType!=='undefined'&&_txType==='expense'?'':'none';
+  }
+
+  // Extend updateTxFields sans remplacer son rendu existant.
+  const _origUpdateTxFields=window.updateTxFields;
+  if(typeof _origUpdateTxFields==='function'){
+    window.updateTxFields=function(){
+      const result=_origUpdateTxFields.apply(this,arguments);
+      const fields=document.getElementById('txFields');
+      if(fields){
+        if(typeof _txType!=='undefined'&&_txType==='transfer'&&!document.getElementById('pocketTransferFields')){
+          fields.insertAdjacentHTML('beforeend',pocketTransferFields());
+        }
+        if(typeof _txType!=='undefined'&&_txType==='expense'&&!document.getElementById('pocketExpenseDestination')){
+          fields.insertAdjacentHTML('beforeend',pocketExpenseField());
+        }
+      }
+      pocketSyncModalFields();
+      return result;
+    };
+  }
+
+  // switchType appelle parfois la liaison lexicale d'origine : on repasse
+  // explicitement par le wrapper pour reconstruire les champs de poches.
+  const _origSwitchType=window.switchType;
+  if(typeof _origSwitchType==='function'){
+    window.switchType=function(){
+      const result=_origSwitchType.apply(this,arguments);
+      if(typeof window.updateTxFields==='function') window.updateTxFields();
+      pocketSyncModalFields();
+      return result;
+    };
+  }
+
+  const _origOpenAddModal=window.openAddModal;
+  if(typeof _origOpenAddModal==='function'){
+    window.openAddModal=function(){
+      const result=_origOpenAddModal.apply(this,arguments);
+      const fields=document.getElementById('txFields');
+      if(fields&&!document.getElementById('pocketPardonWrap')){
+        fields.insertAdjacentHTML('afterend',`
+          <label id="pocketPardonWrap" style="display:none;margin:8px 0;padding:10px;border:1px solid rgba(251,191,36,.3);border-radius:10px;background:rgba(251,191,36,.06);font-size:12px;line-height:1.4;cursor:pointer">
+            <input id="pocketPardon" type="checkbox" style="margin-right:7px">
+            <strong>🫶 Pardon</strong> — enregistrer cette dépense sans message de pénalité.
+          </label>`);
+      }
+      if(typeof window.updateTxFields==='function') window.updateTxFields();
+      pocketSyncModalFields();
+      return result;
+    };
+  }
+
+  // Configuration des poches dans Paramètres.
+  window.savePocketConfig=async function(){
+    const S=Math.max(0,Number.parseFloat(document.getElementById('pocketThresholdInput')?.value));
+    const ratios={
+      projets:Number.parseFloat(document.getElementById('pocketRatioProjetsInput')?.value)/100,
+      urgence:Number.parseFloat(document.getElementById('pocketRatioUrgenceInput')?.value)/100,
+      social:Number.parseFloat(document.getElementById('pocketRatioSocialInput')?.value)/100,
+      bonus:Number.parseFloat(document.getElementById('pocketRatioBonusInput')?.value)/100
+    };
+    const total=Object.values(ratios).reduce((sum,n)=>sum+(Number.isFinite(n)?n:0),0);
+    if(!Number.isFinite(S)||S<0||Object.values(ratios).some(n=>!Number.isFinite(n)||n<0)||Math.abs(total-1)>0.001){
+      alert('Vérifie le seuil et les ratios : leur somme doit être égale à 100 %.');
+      return;
+    }
+    pocketConfigCache=pocketNormalizeConfig({S,ratios});
+    await dbPut('pockets',pocketConfigCache);
+    showToast('Configuration des poches enregistrée.');
+    if(typeof render==='function') await render();
+  };
+
+  const _origRenderSettings=window.renderSettings;
+  if(typeof _origRenderSettings==='function'){
+    window.renderSettings=function(){
+      const html=_origRenderSettings.apply(this,arguments);
+      const cfg=pocketNormalizeConfig(pocketConfigCache);
+      const card=`
+      <div class="card" id="pocketConfigCard">
+        <div class="ch">🧭 Seuil de survie & poches</div>
+        <div style="font-size:12px;color:var(--mut);line-height:1.5;margin-bottom:10px">
+          Chaque revenu est réparti sans modifier le solde global. Sous le seuil, tout reste disponible pour la vie quotidienne.
+        </div>
+        <label style="font-size:11px;color:var(--mut)">Seuil de survie (${cur()})</label>
+        <input id="pocketThresholdInput" class="fi" type="number" min="0" inputmode="decimal" value="${Math.round(cfg.S)}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label style="font-size:11px;color:var(--mut)">Projets %<input id="pocketRatioProjetsInput" class="fi" type="number" min="0" max="100" value="${Math.round(cfg.ratios.projets*100)}"></label>
+          <label style="font-size:11px;color:var(--mut)">Urgence %<input id="pocketRatioUrgenceInput" class="fi" type="number" min="0" max="100" value="${Math.round(cfg.ratios.urgence*100)}"></label>
+          <label style="font-size:11px;color:var(--mut)">Social %<input id="pocketRatioSocialInput" class="fi" type="number" min="0" max="100" value="${Math.round(cfg.ratios.social*100)}"></label>
+          <label style="font-size:11px;color:var(--mut)">Bonus %<input id="pocketRatioBonusInput" class="fi" type="number" min="0" max="100" value="${Math.round(cfg.ratios.bonus*100)}"></label>
+        </div>
+        <div style="font-size:10px;color:var(--mut);margin:6px 0 10px">Répartition du surplus uniquement · total requis : 100 %</div>
+        <button class="btn" onclick="savePocketConfig()">Enregistrer les poches</button>
+      </div>`;
+      return html.replace('<!-- NOTIFICATIONS -->',card+'\n  <!-- NOTIFICATIONS -->');
+    };
+  }
+
+  // Wrapper de l’ancienne fonction Ivy : le bouton Pardon désactive
+  // seulement les deux messages de friction de cette saisie.
+  const _origIvyVerdict=window.ivyVerdict;
+  if(typeof _origIvyVerdict==='function'){
+    window.ivyVerdict=function(){
+      if(window.__pocketForgiveActive) return null;
+      return _origIvyVerdict.apply(this,arguments);
+    };
+  }
+
+  const _origSaveTx=window.saveTx;
+  if(typeof _origSaveTx==='function'){
+    window.saveTx=async function(){
+      const type=typeof _txType!=='undefined'?_txType:'';
+      const pardon=type==='expense'&&document.getElementById('pocketPardon')?.checked===true;
+      const expenseDestination=type==='expense'
+        ?(document.getElementById('pocketExpenseDestination')?.value||'vieQuotidienne')
+        :'';
+      const intent=type==='transfer'?{
+        from:document.getElementById('pocketTransferFrom')?.value||'',
+        to:document.getElementById('pocketTransferTo')?.value||''
+      }:null;
+
+      if(intent&&intent.from&&intent.to&&await pocketCheckTransferLock(intent)) return;
+
+      let beforeIds=new Set();
+      try{
+        const before=await dbAll('transactions');
+        before.forEach(tx=>beforeIds.add(String(tx.id)));
+      }catch(error){ console.warn('[POCKETS] snapshot impossible:',error); }
+
+      const originalConfirm=window.confirm;
+      window.__pocketForgiveActive=pardon;
+      if(pardon) window.confirm=()=>true;
+
+      let result;
+      try{
+        result=await _origSaveTx.apply(this,arguments);
+      }finally{
+        window.confirm=originalConfirm;
+        window.__pocketForgiveActive=false;
+      }
+
+      const created=await pocketFindNewTransactions(beforeIds);
+      const cfg=await pocketGetConfig();
+      const allocations=[];
+      for(const tx of created){
+        let updated={...tx};
+        if(tx.type==='income'){
+          const pocketAllocations=pocketComputeAllocation(tx.amount,cfg);
+          updated={...updated,pocketAllocations};
+          allocations.push(pocketAllocations);
+        }else if(tx.type==='expense'){
+          updated={...updated,pocketDestination:expenseDestination};
+          if(pardon) updated={...updated,impulsive:true,forgiven:true};
+        }else if(tx.type==='transfer'&&intent&&intent.from&&intent.to){
+          updated={...updated,pocketTransfer:{from:intent.from,to:intent.to}};
+          await pocketSaveLock(0);
+        }
+        if(updated!==tx){
+          await dbPut('transactions',updated);
+          pocketMergeInMemory(updated);
+        }
+      }
+
+      if(allocations.some(allocation=>(Number(allocation.bonus)||0)>0)){
+        const bonus=allocations.reduce((sum,allocation)=>sum+(Number(allocation.bonus)||0),0);
+        celebrate('Bonus alloué !',fmtFull(bonus)+' ajoutés à la poche Bonus.');
+      }
+      return result;
+    };
+  }
+
+  // Extension du prompt existant : aucune modification d’askAI.
+  const _origBuildPrompt=window.buildAladdinSystemPrompt;
+  if(typeof _origBuildPrompt==='function'){
+    window.buildAladdinSystemPrompt=function(){
+      const base=_origBuildPrompt.apply(this,arguments);
+      const social=Math.round(pocketComputeBalances(pocketRows()).social);
+      const pocketRules=`
+
+RÈGLES DE GARDE-FOUS — SEUIL DE SURVIE ET POCHES :
+• Ne reproche jamais l’absence d’épargne lorsque le revenu concerné est inférieur ou égal au seuil de survie.
+• Traite la poche « Projets & futur » comme un capital d’investissement intouchable, sauf choix explicite de l’utilisateur après la friction prévue.
+• Solde analytique actuel de la poche Social : ${social} ${typeof cur==='function'?cur():'XAF'}.
+• Si la poche Social est à zéro et que l’utilisateur mentionne qu’un proche demande de l’argent, interromps fermement la recommandation de transfert depuis Projets et redirige vers un choix explicite avec délai de 15 minutes.
+• L’épargne manquée un jour sous le seuil n’est jamais une dette et ne doit jamais être cumulée ou reprochée.`;
+      return base+pocketRules;
+    };
+  }
+
+  // Charge la configuration sans bloquer le démarrage.
+  setTimeout(()=>{pocketGetConfig().then(()=>{
+    if(typeof screen!=='undefined'&&screen==='settings'&&typeof render==='function') render();
+  });},0);
+
+  console.log('[POCKETS] Seuil de survie et garde-fous chargés');
+})();
 </script>
 
 

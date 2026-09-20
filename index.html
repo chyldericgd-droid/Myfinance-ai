@@ -3356,6 +3356,7 @@ function _computeKPIsImpl(){
 
   const result={
     balance,activeBalance,savingsBalance,expectedIncome7d,
+    hasData:txs.length>0,
     dataDays,isShortHistory,isEndOfMonth,
     antTotal,antCount,antThreshold:ANT_THRESHOLD,
     safetyDaysWithSavings,
@@ -3391,6 +3392,10 @@ function _computeKPIsImpl(){
 // RISK
 // ════════════════════════════════════════
 function riskLevel(kpi){
+  // Aucune transaction encore = état neutre, pas un risque
+  if(!kpi.hasData || (kpi.balance===0 && kpi.burnRate===0 && (window.txs||[]).length===0)){
+    return{l:t('risk_stable'),c:'var(--mut)'};
+  }
   // ── ALADDIN v5 : cycle-aware override ──
   try{
     if(kpi.effectiveRisk && kpi.cycleContext && kpi.cycleContext.mode!=='IRREGULAR'){
@@ -7409,7 +7414,11 @@ async function processImport(){
     for(const c of p.cats||[])await dbPut('categories',c);
     for(const g of p.goals||[])await dbPut('goals',g);
     for(const s of p.settings||[])await dbPut('settings',s);
-    closeModal();await render();alert(t('data_restored'));
+    closeModal();await render();
+    window.__aladdinAnomalies=[];
+    if(typeof window.invalidateLiaCache==='function')window.invalidateLiaCache('import');
+    if(typeof window.runAnomalyCheck==='function')window.runAnomalyCheck();
+    alert(t('data_restored'));
   }catch(e){alert(t('code_invalid'))}
 }
 function exportCSV(){
@@ -7427,6 +7436,9 @@ async function confirmClear(){
   if(!confirm(t('wipe_confirm')))return;
   for(const s of['transactions','accounts','categories','goals','settings'])await dbClear(s);
   await initData();await render();
+  window.__aladdinAnomalies=[];
+  if(typeof window.invalidateLiaCache==='function')window.invalidateLiaCache('wipe');
+  if(typeof window.runAnomalyCheck==='function')window.runAnomalyCheck();
 }
 
 // ════════════════════════════════════════
@@ -7672,6 +7684,9 @@ async function cloudRestore(skipConfirm){
     for(const g of p.goals||[]) await dbPut('goals', g);
     for(const sset of p.settings||[]) await dbPut('settings', sset);
     await loadAll(); await render();
+    window.__aladdinAnomalies=[];
+    if(typeof window.invalidateLiaCache==='function') window.invalidateLiaCache('cloud-restore');
+    if(typeof window.runAnomalyCheck==='function') window.runAnomalyCheck();
     alert(t('cloud_restored'));
   }catch(e){ console.warn('cloudRestore', e); alert(t('cloud_restore_fail')+cloudErrMsg(e)); }
 }
@@ -12050,6 +12065,18 @@ RÈGLES DE GARDE-FOUS — SEUIL DE SURVIE ET POCHES :
       dbDel=async function(store,id){
         const result=await originalDel(store,id);
         if(['transactions','accounts','goals','categories','settings'].includes(store))window.invalidateLiaCache('delete:'+store);
+        return result;
+      };
+    }
+    const originalClear=dbClear;
+    if(typeof originalClear==='function'&&!window.__liaDbClearWrapped){
+      window.__liaDbClearWrapped=true;
+      dbClear=async function(store){
+        const result=await originalClear(store);
+        if(['transactions','accounts','goals','categories','settings'].includes(store)){
+          window.__aladdinAnomalies=[];
+          window.invalidateLiaCache&&window.invalidateLiaCache('clear:'+store);
+        }
         return result;
       };
     }

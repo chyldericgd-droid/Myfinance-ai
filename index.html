@@ -5876,7 +5876,17 @@ async function testGroqKey(){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
       body:JSON.stringify({model:'openai/gpt-oss-20b',max_tokens:20,messages:[{role:'user',content:'Réponds juste: OK'}]})
     });
-    const d = await resp.json();
+    let d={};
+    try{
+      d = await resp.json();
+    }catch(parseErr){
+      const raw = await resp.text().catch(()=> '');
+      const parseMessage = 'HTTP '+resp.status+' — '+String(raw||'').slice(0,120);
+      el.style.background='rgba(244,63,94,.15)';
+      el.style.color='var(--red)';
+      el.textContent='❌ '+parseMessage;
+      return;
+    }
     if(resp.ok && d.choices?.[0]?.message?.content){
       el.style.background='rgba(16,185,129,.15)';
       el.style.color='var(--grn)';
@@ -5884,7 +5894,9 @@ async function testGroqKey(){
     } else {
       el.style.background='rgba(244,63,94,.15)';
       el.style.color='var(--red)';
-      el.textContent='❌ '+(d.error?.message||'Erreur inconnue');
+      const m = (d.error && d.error.message) ||
+        ('HTTP '+resp.status+' — réponse sans message d\'erreur exploitable');
+      el.textContent='❌ '+m;
     }
   }catch(e){
     el.style.background='rgba(244,63,94,.15)';
@@ -10432,12 +10444,15 @@ window._saveGeminiKey = function(){
   }
   /* Validation souple : clé Google AI Studio commence toujours par AIza
      (capital A, capital I, lowercase z, lowercase a)             */
-  const normalized = raw.replace(/[^A-Za-z0-9_\-]/g, '');
+  const normalized = raw.replace(/[^A-Za-z0-9_\-.]/g, '');
   if(normalized.length < 20){
     if(msg){ msg.style.color='var(--red)'; msg.textContent='⚠️ Clé trop courte — vérifie le copier-coller'; }
     return;
   }
-  if(!normalized.startsWith('AIza') && !normalized.startsWith('Alza')){
+  const validPrefix = normalized.startsWith('AIza') ||
+                       normalized.startsWith('Alza') ||
+                       normalized.startsWith('AQ.');
+  if(!validPrefix){
     if(msg){
       msg.style.color='var(--red)';
       msg.innerHTML='⚠️ Format inattendu — la clé Google commence normalement par <b>AIza</b>.<br><span style="font-size:11px;color:var(--mut)">Si tu es sûr·e de ta clé, appuie quand même sur Sauver.</span>';
@@ -10506,19 +10521,26 @@ window.testGeminiKey = async function(){
       })
     });
     clearTimeout(to);
-    var d={}; try{ d = await r.json(); }catch(_){}
+    var d={};
+    try{
+      d = await r.json();
+    }catch(parseErr){
+      var rawBody = await r.text().catch(function(){return '';});
+      var parseMessage = 'HTTP '+r.status+' — '+String(rawBody||'').slice(0,120);
+      window._lastGeminiError = parseMessage;
+      el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
+      el.textContent='❌ '+parseMessage;
+      return;
+    }
     if(r.ok && d.choices?.[0]?.message?.content){
       window._lastGeminiError='';
       el.style.background='rgba(16,185,129,.15)'; el.style.color='var(--grn)';
       el.textContent='✅ Clé valide — '+((window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'Gemini')+' opérationnel.';
     } else {
-      var m = (d.error&&d.error.message)||('HTTP '+r.status);
+      var m = (d.error&&d.error.message)||('HTTP '+r.status+' — réponse sans message d\'erreur exploitable');
       window._lastGeminiError = m;
       el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
-      el.textContent='❌ '+String(m).slice(0,200)
-        + (r.status===404?' — modèle introuvable pour cette clé.':'')
-        + (r.status===401||r.status===403?' — clé refusée.':'')
-        + (r.status===429?' — quota atteint.':'');
+      el.textContent='❌ '+String(m).slice(0,200);
     }
   }catch(e){
     window._lastGeminiError = e.message||'réseau';
@@ -10528,6 +10550,11 @@ window.testGeminiKey = async function(){
 };
 
 function injectGeminiKeyUI(){
+  const stored = window.safeStorage?.getItem('gemini_key') || '';
+  if(stored && /^AQ[A-Za-z0-9_-]/.test(stored) && !stored.startsWith('AQ.')){
+    window.safeStorage?.setItem('gemini_key','');
+    console.warn('[ALADDIN] Clé Gemini corrompue (préfixe AQ tronqué) — effacée, à ressaisir.');
+  }
   if(document.getElementById('aladdinGeminiSection')) return;
   const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
   const groqKey= (()=>{ try{return window.getGroqKey?window.getGroqKey():'';   }catch(_){return '';} })();

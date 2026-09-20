@@ -61,7 +61,7 @@ input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* SCROLL */
-.scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:var(--bg);z-index:1}
+.scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:transparent;z-index:1}
 #root{position:relative;background:transparent}
 /* v9 fix: prevent any stale-DOM ghost during async page swap */
 #root.swapping{opacity:.001;transition:opacity .12s}
@@ -121,7 +121,9 @@ input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
 /* MODAL */
 .mo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:200;display:none;align-items:flex-end;justify-content:center}
 .mo.on{display:flex;animation:fi .15s ease}
-.mb{background:linear-gradient(180deg,var(--surf2),var(--surf));border-radius:32px 32px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:6px 20px 36px;border-top:1px solid var(--brd2);box-shadow:0 -20px 60px -10px rgba(0,0,0,.7)}
+.mb{background:linear-gradient(180deg,var(--surf2),var(--surf));border-radius:32px 32px 0 0;width:100%;max-width:600px;max-height:min(90vh,calc(var(--visual-vh,100dvh) - 12px));overflow-y:auto;padding:6px 20px calc(36px + env(safe-area-inset-bottom));border-top:1px solid var(--brd2);box-shadow:0 -20px 60px -10px rgba(0,0,0,.7)}
+body.keyboard-open .mo{align-items:flex-start;padding-top:env(safe-area-inset-top)}
+body.keyboard-open .mb{max-height:calc(var(--visual-vh,100dvh) - env(safe-area-inset-top) - 8px);border-radius:20px}
 .mh{width:36px;height:4px;background:var(--brd2);border-radius:10px;margin:10px auto 14px;cursor:pointer}
 .mb h3{font-size:17px;font-weight:800;margin-bottom:14px}
 
@@ -225,27 +227,27 @@ body::before{
 body.online::before{
   background:
     radial-gradient(900px 400px at 12% -10%, rgba(139,92,246,.22), transparent 55%),
-    radial-gradient(700px 400px at 100% 110%, rgba(6,182,212,.18), transparent 60%);
+    radial-gradient(700px 400px at 100% 92%, rgba(6,182,212,.18), transparent 60%);
   opacity:1;
 }
 body.offline::before{
   background:
     radial-gradient(900px 420px at 12% -10%, rgba(15,23,42,.70), transparent 58%),
-    radial-gradient(760px 420px at 100% 110%, rgba(2,6,23,.72), transparent 62%);
+    radial-gradient(760px 420px at 100% 92%, rgba(2,6,23,.72), transparent 62%);
   opacity:.78;
 }
 body.offline{filter:saturate(.82) brightness(.86)}
 body.offline .aifab{filter:grayscale(.45)}
-body.online.state-critical::before{background:radial-gradient(900px 420px at 8% -10%, rgba(244,63,94,.30), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(249,115,22,.18), transparent 62%);opacity:1}
-body.online.state-high::before{background:radial-gradient(900px 420px at 8% -10%, rgba(249,115,22,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(251,191,36,.16), transparent 62%);opacity:1}
-body.online.state-moderate::before{background:radial-gradient(900px 420px at 8% -10%, rgba(251,191,36,.18), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(99,102,241,.16), transparent 62%);opacity:1}
-body.online.state-stable::before{background:radial-gradient(900px 420px at 8% -10%, rgba(16,185,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(6,182,212,.18), transparent 62%);opacity:1}
-body.online.state-zero::before{background:radial-gradient(900px 420px at 8% -10%, rgba(139,92,246,.20), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(30,41,59,.18), transparent 62%);opacity:1}
-body.offline.state-critical::before{background:radial-gradient(900px 420px at 10% -10%, rgba(127,29,29,.34), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.92}
-body.offline.state-high::before{background:radial-gradient(900px 420px at 10% -10%, rgba(154,52,18,.28), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.88}
-body.offline.state-moderate::before{background:radial-gradient(900px 420px at 10% -10%, rgba(113,63,18,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.84}
-body.offline.state-stable::before{background:radial-gradient(900px 420px at 10% -10%, rgba(6,78,59,.24), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.78), transparent 62%);opacity:.82}
-body.offline.state-zero::before{background:radial-gradient(900px 420px at 10% -10%, rgba(49,46,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 110%, rgba(2,6,23,.80), transparent 62%);opacity:.82}
+body.online.state-critical::before{background:radial-gradient(900px 420px at 8% -10%, rgba(244,63,94,.30), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(249,115,22,.18), transparent 62%);opacity:1}
+body.online.state-high::before{background:radial-gradient(900px 420px at 8% -10%, rgba(249,115,22,.24), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(251,191,36,.16), transparent 62%);opacity:1}
+body.online.state-moderate::before{background:radial-gradient(900px 420px at 8% -10%, rgba(251,191,36,.18), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(99,102,241,.16), transparent 62%);opacity:1}
+body.online.state-stable::before{background:radial-gradient(900px 420px at 8% -10%, rgba(16,185,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(6,182,212,.18), transparent 62%);opacity:1}
+body.online.state-zero::before{background:radial-gradient(900px 420px at 8% -10%, rgba(139,92,246,.20), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(30,41,59,.18), transparent 62%);opacity:1}
+body.offline.state-critical::before{background:radial-gradient(900px 420px at 10% -10%, rgba(127,29,29,.34), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(2,6,23,.80), transparent 62%);opacity:.92}
+body.offline.state-high::before{background:radial-gradient(900px 420px at 10% -10%, rgba(154,52,18,.28), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(2,6,23,.80), transparent 62%);opacity:.88}
+body.offline.state-moderate::before{background:radial-gradient(900px 420px at 10% -10%, rgba(113,63,18,.24), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(2,6,23,.80), transparent 62%);opacity:.84}
+body.offline.state-stable::before{background:radial-gradient(900px 420px at 10% -10%, rgba(6,78,59,.24), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(2,6,23,.78), transparent 62%);opacity:.82}
+body.offline.state-zero::before{background:radial-gradient(900px 420px at 10% -10%, rgba(49,46,129,.22), transparent 58%),radial-gradient(760px 460px at 100% 92%, rgba(2,6,23,.80), transparent 62%);opacity:.82}
 
 /* Financial State Ambiance Layer */
 body.state-critical{
@@ -253,9 +255,14 @@ body.state-critical{
     radial-gradient(900px 600px at 50% 0%, rgba(244,63,94,.22), transparent 60%),
     radial-gradient(600px 400px at 100% 100%, rgba(190,24,93,.12), transparent 65%),
     var(--bg) !important;
-  animation:criticalPulse 3s ease-in-out infinite;
 }
-@keyframes criticalPulse{0%,100%{filter:saturate(1)}50%{filter:saturate(1.15)}}
+body.state-critical::after{
+  content:'';
+  position:fixed;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(900px 600px at 50% 0%, rgba(244,63,94,.12), transparent 60%);
+  animation:criticalPulseOpacity 3s ease-in-out infinite;
+}
+@keyframes criticalPulseOpacity{0%,100%{opacity:.6}50%{opacity:1}}
 body.state-high{
   background:
     radial-gradient(900px 500px at 20% 0%, rgba(249,115,22,.16), transparent 60%),
@@ -265,13 +272,13 @@ body.state-high{
 body.state-moderate{
   background:
     radial-gradient(1000px 600px at 12% -8%, rgba(251,191,36,.12), transparent 60%),
-    radial-gradient(700px 500px at 100% 110%, rgba(249,115,22,.08), transparent 65%),
+    radial-gradient(700px 500px at 100% 92%, rgba(249,115,22,.08), transparent 65%),
     var(--bg) !important;
 }
 body.state-stable{
   background:
     radial-gradient(1200px 700px at 12% -8%, rgba(16,185,129,.14), transparent 60%),
-    radial-gradient(900px 600px at 100% 110%, rgba(6,182,212,.10), transparent 65%),
+    radial-gradient(900px 600px at 100% 92%, rgba(6,182,212,.10), transparent 65%),
     radial-gradient(600px 400px at 50% 50%, rgba(167,139,250,.04), transparent 70%),
     var(--bg) !important;
 }
@@ -2541,9 +2548,37 @@ function saveChatHistory(){
 }
 let txFilter='all',searchQ='';
 
+// Pont de compatibilité : les patches ajoutés plus bas sont des scripts
+// séparés et lisent window.*. Les déclarations let racine n'alimentent pas
+// automatiquement window, ce qui vidait le Livre, l'IA et les projections.
+try{
+  Object.defineProperties(window,{
+    txs:{configurable:true,get:()=>txs,set:v=>{if(Array.isArray(v))txs=v;}},
+    accs:{configurable:true,get:()=>accs,set:v=>{if(Array.isArray(v))accs=v;}},
+    cats:{configurable:true,get:()=>cats,set:v=>{if(Array.isArray(v))cats=v;}},
+    goals:{configurable:true,get:()=>goals,set:v=>{if(Array.isArray(v))goals=v;}},
+    settings:{configurable:true,get:()=>settings,set:v=>{if(v&&typeof v==='object')settings=v;}},
+    aiMsgs:{configurable:true,get:()=>aiMsgs,set:v=>{if(Array.isArray(v))aiMsgs=v;}},
+    councilMsgs:{configurable:true,get:()=>councilMsgs,set:v=>{if(Array.isArray(v))councilMsgs=v;}},
+    councilRunning:{configurable:true,get:()=>councilRunning,set:v=>{councilRunning=!!v;}},
+    councilPending:{configurable:true,get:()=>councilPending,set:v=>{if(Array.isArray(v))councilPending=v;}},
+    councilTrigger:{configurable:true,get:()=>councilTrigger,set:v=>{councilTrigger=v;}},
+    councilDone:{configurable:true,get:()=>councilDone,set:v=>{councilDone=!!v;}},
+    councilPreds:{configurable:true,get:()=>councilPreds,set:v=>{if(Array.isArray(v))councilPreds=v;}},
+    analyticsPeriod:{configurable:true,get:()=>analyticsPeriod,set:v=>{if(typeof v==='string')analyticsPeriod=v;}}
+  });
+  // Ces fonctions sont appelées via window par les patches tardifs.
+  window.getPeriodTxs=getPeriodTxs;
+  window.getPrevPeriodTxs=getPrevPeriodTxs;
+  window.periodLabel=periodLabel;
+  window.computeKPIs=computeKPIs;
+  window.catById=catById;
+}catch(e){ console.warn('[STATE BRIDGE] impossible',e); }
+
 async function loadAll(){
   if(!db)await openDB();
   [txs,accs,cats,goals]=await Promise.all([dbAll('transactions'),dbAll('accounts'),dbAll('categories'),dbAll('goals')]);
+  window.txs=txs; window.accs=accs; window.cats=cats; window.goals=goals;
   const sa=await dbAll('settings');sa.forEach(s=>settings[s.key]=s.value);
   txs.sort((a,b)=>new Date(b.date)-new Date(a.date));
 }
@@ -2561,6 +2596,7 @@ const $=id=>document.getElementById(id);
 const uid=()=>Date.now()+'-'+Math.random().toString(36).slice(2,7);
 // cur() lit d'abord le setting DB, sinon auto-détection
 const cur=()=>settings.currency||detectCurrency();
+try{ window.cur=cur; }catch(_){}
 const L=(fr,en,es,pt)=>_lang==='en'?en:_lang==='es'?es:_lang==='pt'?pt:fr;
 
 function fmt(n){
@@ -3169,11 +3205,20 @@ function _computeKPIsImpl(){
   const savingsBalance=accs.filter(a=>a.type==='savings').reduce((s,a)=>s+a.balance,0);
   const balance=activeBalance;
 
-  // ── Burn rate lissé — ADAPTATIF au silence ──────────────────────────────
-  // Si silence prolongé (≥4j), le burn rate est mis à 0 : l'utilisateur ne saisit plus,
-  // on ne peut pas extrapoler une consommation journalière fictive.
-  // On conserve le burnRateHistorique pour les Safety Days "avec épargne".
-  const burnRateHistorique=win30>0&&exp30>0?exp30/win30:0;
+  // ── Référence historique pour silence, rattrapage et projections ─────────
+  // Le KPI "live" reste à 0 pendant un silence : il signale qu'il n'y a pas
+  // de saisie récente. Les modules prévisionnels, eux, doivent encore avoir
+  // une base réelle et ne peuvent pas retomber sur zéro.
+  const datedTxs=txs.map(t=>({...t,_ms:new Date(t.date).getTime()}))
+    .filter(t=>Number.isFinite(t._ms));
+  const oldestMs=datedTxs.length?Math.min(...datedTxs.map(t=>t._ms)):now.getTime();
+  const historicalDays=datedTxs.length
+    ?Math.max(1,Math.ceil((now.getTime()-oldestMs)/86400000)+1):0;
+  const historicalIncome=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const historicalExpense=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const historicalBurn=historicalDays>0?historicalExpense/historicalDays:0;
+  const historicalIncomeDaily=historicalDays>0?historicalIncome/historicalDays:0;
+  const burnRateHistorique=exp30>0?exp30/win30:historicalBurn;
   const burnRate=isSilent?0:burnRateHistorique;
 
   // ── Revenus attendus (Cushion prévisionnel) ─────────
@@ -3181,6 +3226,7 @@ function _computeKPIsImpl(){
   // Safety days : si burnRate=0 (silence) et capital>0, on affiche ∞ pour le capital
   // mais on utilise burnRateHistorique pour calculer les jours avec épargne
   const safetyDays=burnRate>0?Math.floor(balance/burnRate):(balance>0?9999:0);
+  const safetyDaysForecast=burnRateHistorique>0?Math.floor(balance/burnRateHistorique):(balance>0?9999:0);
   const safetyDaysWithSavings=burnRateHistorique>0
     ?Math.floor((balance+savingsBalance+expectedIncome7d)/burnRateHistorique)
     :(balance+savingsBalance>0?9999:0);
@@ -3291,7 +3337,8 @@ function _computeKPIsImpl(){
     antTotal,antCount,antThreshold:ANT_THRESHOLD,
     safetyDaysWithSavings,
     inc7,exp7,inc30,exp30,
-    burnRate,burnRateHistorique,safetyDays,
+    burnRate,burnRateHistorique,safetyDays,safetyDaysForecast,
+    historicalDays,historicalIncome,historicalExpense,historicalIncomeDaily,
     retention,pressureIdx,pressureDataOK,evaporationRate,
     dopamineIdx,investIdx,
     nightSpend,nightPct,
@@ -4185,7 +4232,7 @@ function localAI(q){
   var ql=(q||'').toLowerCase();
   var activeBal=allAccs.filter(function(a){return a.type!=='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
   var savBal=allAccs.filter(function(a){return a.type==='savings';}).reduce(function(s,a){return s+(a.balance||0);},0);
-  var burnRate=kpi.burnRate||0;
+  var burnRate=kpi.burnRate||kpi.burnRateHistorique||0;
   var j0=burnRate>0?Math.floor(activeBal/burnRate):999;
   var exp30=allTx.filter(function(t){return t.type==='expense'&&(Date.now()-new Date(t.date))<2592000000;});
   var inc30=allTx.filter(function(t){return t.type==='income'&&(Date.now()-new Date(t.date))<2592000000;});
@@ -4444,7 +4491,7 @@ function renderModalChat(){
   var badge = document.getElementById('cmoBadge');
   if(badge){
     var src = window._lastAISource;
-    badge.textContent = !navigator.onLine ? 'LOCAL' : src==='gemini' ? 'GEMINI ✨' : src==='groq' ? 'GROQ AI' : (window.safeStorage&&window.safeStorage.getItem('gemini_key') ? 'GEMINI ✨' : 'GROQ AI');
+    badge.textContent = !navigator.onLine ? 'LOCAL' : src==='gemini' ? 'GEMINI ✨' : src==='groq' ? 'GROQ AI' : '···';
   }
   var msgs = typeof aiMsgs!=='undefined' ? aiMsgs : [];
   var typing = typeof aiTyping!=='undefined' ? aiTyping : false;
@@ -5670,7 +5717,7 @@ RÈGLE ABSOLUE: Réponds en 2 phrases maximum. Phrase 1: constat chiffré préci
     if(!txt){
       const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
-        body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.3-70b-versatile',max_tokens:180,temperature:.6,messages:[{role:'user',content:prompt}]})
+        body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.1-8b-instant',max_tokens:180,temperature:.6,messages:[{role:'user',content:prompt}]})
       });
       const j=await r.json();
       txt=j.choices?.[0]?.message?.content;
@@ -7885,7 +7932,7 @@ function tutAttachSwipe(){ wAttachSwipe(); }
   if(settings.currency){safeStorage.setItem('app_currency',settings.currency);}
   try{await gdriveLoadState()}catch(e){}
   try{gdriveInit()}catch(e){}
-  try{await cloudInit()}catch(e){console.warn('cloudInit',e)}
+  cloudInit().catch(e=>console.warn('cloudInit',e));
   try{await render()}catch(e){console.error('initial render',e)}
   setTimeout(()=>{try{cloudUpdateUI()}catch(e){}}, 200);
   // Onboarding + Tutorial fusionnés — un seul flow
@@ -8732,8 +8779,8 @@ window.renderNBACard = function renderNBACard(kpi){
 window.runStressTest = function runStressTest(){
   try{
     const k = computeKPIs();
-    const burn = Math.max(0, k.burnRate||0);
-    const incDaily = Math.max(0, (k.inc30||0)/30);
+    const burn = Math.max(0, k.burnRate||k.burnRateHistorique||0);
+    const incDaily = Math.max(0, k.inc30>0 ? k.inc30/30 : (k.historicalIncomeDaily||0));
     const start = (k.activeBalance||0) + (k.savingsBalance||0);
 
     function simulate(incFactor, expFactor){
@@ -8748,7 +8795,8 @@ window.runStressTest = function runStressTest(){
       return {runway, soldeFin};
     }
     const choc = simulate(0.70, 1.20);
-    const baseline = {runway: k.safetyDays===9999?'30j+':(k.safetyDays>=30?'30j+':k.safetyDays+'j')};
+     const baselineDays = burn>0 ? Math.floor(start/burn) : 9999;
+     const baseline = {runway: baselineDays===9999?'30j+':(baselineDays>=30?'30j+':baselineDays+'j')};
     const optimal = simulate(1.20, 0.90);
     const epargneGen = Math.max(0, optimal.soldeFin - start);
     return {choc, baseline, optimal:{...optimal, epargneGeneree:epargneGen}, isShort:k.isShortHistory};
@@ -8767,7 +8815,7 @@ window.openStressTestModal = function openStressTestModal(){
     }
     const narrow = (window.innerWidth||400)<380;
     const grid = narrow?'1fr':'1fr 1fr 1fr';
-    const recommandedBuffer = Math.round((k.burnRate||0)*30);
+    const recommandedBuffer = Math.round((k.burnRate||k.burnRateHistorique||0)*30);
     const dataDays = k.dataDays||0;
     const subChoc = L('-30% revenus, +20% dépenses — ex: perte d\'un client, urgence médicale.','-30% income, +20% expenses — e.g. lost client, medical emergency.','-30% ingresos, +20% gastos — ej: pérdida de cliente, urgencia médica.','-30% receitas, +20% despesas — ex: perda de cliente, urgência médica.');
     const subBase = L('Si tu continues exactement comme ces 30 derniers jours.','If you continue exactly as the last 30 days.','Si continúas igual que los últimos 30 días.','Se continuares como nos últimos 30 dias.');
@@ -8818,7 +8866,11 @@ window.openStressTestModal = function openStressTestModal(){
 window.computeFinancialHealthScore = function computeFinancialHealthScore(kpi){
   try{
     const k = kpi || computeKPIs();
-    const safetyDays = k.safetyDays===9999?9999:k.safetyDays;
+    // Une autonomie infinie pendant 96 jours de silence ne doit pas donner
+    // les points de réserve maximum : le score utilise la référence historique.
+    const safetyDays = k.isSilent
+      ?(k.safetyDaysForecast===9999?9999:k.safetyDaysForecast)
+      :(k.safetyDays===9999?9999:k.safetyDays);
     const reserve = safetyDays>=30?20:safetyDays>=14?15:safetyDays>=7?10:safetyDays>=3?5:0;
     const retention = k.retention===null?10
       :k.retention>=50?20:k.retention>=30?15:k.retention>=10?10:k.retention>=0?5:0;
@@ -9005,8 +9057,8 @@ window.buildCashflowProjection = function buildCashflowProjection(period){
     period = period || 'month';
     const STEPS = period==='day' ? 24 : period==='week' ? 7 : 30;
     const k = computeKPIs();
-    const burn = Math.max(0, k.burnRate||0);
-    const incDaily = Math.max(0, (k.inc30||0)/30);
+    const burn = Math.max(0, k.burnRate||k.burnRateHistorique||0);
+    const incDaily = Math.max(0, k.inc30>0 ? k.inc30/30 : (k.historicalIncomeDaily||0));
     const burnPerStep = period==='day' ? burn/24 : burn;
     const incPerStep  = period==='day' ? incDaily/24 : incDaily;
     const start = (k.activeBalance||0);
@@ -9067,7 +9119,7 @@ window.renderProjectionCard = function renderProjectionCard(kpi, period){
     const W=300, H=80, pad=8;
     // v6.3 — projection enrichie : scénario central + bande pessimiste/optimiste + événements prédits
     const base = proj.series.map(p=>p.solde);
-    const burnU = Math.max(1, (kpi && kpi.burnRate) || Math.abs((base[STEPS-1]-proj.start)/(STEPS||1)) || 1);
+    const burnU = Math.max(1, (kpi && (kpi.burnRate||kpi.burnRateHistorique)) || Math.abs((base[STEPS-1]-proj.start)/(STEPS||1)) || 1);
     const spread = (i)=> burnU*0.4*(i+1); // incertitude cumulée
     const pess = base.map((v,i)=> v - spread(i));
     const opt  = base.map((v,i)=> v + spread(i));
@@ -9607,7 +9659,9 @@ console.log('[v5.3] 6 modules institutionnels chargés');
    ───────────────────────────────────────────────────────────────────── */
 const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GEMINI_MODEL_VERSION : 'gemini-3.5-flash',   // ← variable unique pour upgrade
-  GROQ_MODEL           : 'llama-3.3-70b-versatile',  // meilleure qualité pour le Conseil ALADDIN
+  // 3.3 peut exister dans le catalogue Groq mais rester inaccessible à
+  // certaines clés ; 3.1 est le modèle déjà utilisé par le chemin legacy.
+  GROQ_MODEL           : 'llama-3.1-8b-instant',
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
   MAX_TOKENS           : 900,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
@@ -10166,13 +10220,16 @@ window.callAladdinAI = callAladdinAI;
   window.askAI = async function(userMsg){
     /* Détermine le viewType selon l'écran et la question */
     const scr = (()=>{ try{return window._currentScreen||'home';}catch(_){return 'home';} })();
+    const q=(userMsg||'').toLowerCase();
     let vt = 'HOME';
-    if(scr==='analytics') {
+    // Une question lancée depuis le détail Santé garde son mode, même si
+    // l'écran source est Analytics.
+    if(/sant[eé].*financ|financ.*sant[eé]|score.*sant[eé]|sant[eé].*score|bilan.*sant[eé]|am[eé]liore.*score|axe.*sant|score.*(100|global|detail)/.test(q)) {
+      vt = 'SANTE_FINANCIERE';
+    } else if(scr==='analytics') {
       vt = 'ANALYSE';
     } else if(scr==='ai') {
-      const q=(userMsg||'').toLowerCase();
       if(/pr[eé]vi|forecast|prochain|risque|d[eé]couvert|30j|15j|trajectoire|dans.*jour|survie|simulation|levier|runway/.test(q)) vt='PRÉVISIONS';
-      else if(/sant[eé].*financ|financ.*sant[eé]|score.*sant[eé]|sant[eé].*score|bilan.*sant[eé]|am[eé]liore.*score|axe|axe.*sant|score.*(100|global|detail)/.test(q)) vt='SANTE_FINANCIERE';
       else if(/analys|pattern|biais|tendance|cat[eé]g|mois|semaine/.test(q)) vt='ANALYSE';
       else vt='HOME';
     }
@@ -10563,7 +10620,7 @@ window._callGroqRaw = async function(messages, maxTok){
     method:'POST',
     signal:ac.signal,
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.3-70b-versatile',max_tokens:maxTok,temperature:0.35,messages:messages})
+    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.1-8b-instant',max_tokens:maxTok,temperature:0.35,messages:messages})
   });
   clearTimeout(to);
   if(!r.ok) return null;
@@ -11247,7 +11304,7 @@ console.log('[ALADDIN Engine v9.4.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL
         fields.insertAdjacentHTML('afterend',`
           <label id="pocketPardonWrap" style="display:none;margin:8px 0;padding:10px;border:1px solid rgba(251,191,36,.3);border-radius:10px;background:rgba(251,191,36,.06);font-size:12px;line-height:1.4;cursor:pointer">
             <input id="pocketPardon" type="checkbox" style="margin-right:7px">
-            <strong>🫶 Pardon</strong> — enregistrer cette dépense sans message de pénalité.
+            <strong>🫶 Pardon</strong> — dépense non planifiée : l'enregistrer sans message de pénalité.
           </label>`);
       }
       if(typeof window.updateTxFields==='function') window.updateTxFields();
@@ -11399,6 +11456,55 @@ RÈGLES DE GARDE-FOUS — SEUIL DE SURVIE ET POCHES :
   });},0);
 
   console.log('[POCKETS] Seuil de survie et garde-fous chargés');
+})();
+</script>
+
+<script>
+// Correctifs de dernier rang : ils doivent rester après le patch ALADDIN,
+// sinon le wrapper hors-ligne est écrasé par la redéfinition d'askAI.
+(function(){
+  function syncVisualViewport(){
+    try{
+      const vv=window.visualViewport;
+      const h=vv?vv.height:window.innerHeight;
+      document.documentElement.style.setProperty('--visual-vh',Math.max(240,h)+'px');
+      const keyboard=!!vv && (window.innerHeight-vv.height)>120;
+      document.body.classList.toggle('keyboard-open',keyboard);
+    }catch(_){}
+  }
+  syncVisualViewport();
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',syncVisualViewport);
+    window.visualViewport.addEventListener('scroll',syncVisualViewport);
+  }
+  window.addEventListener('resize',syncVisualViewport);
+
+  const activeAskAI=window.askAI;
+  if(typeof activeAskAI==='function'){
+    window.askAI=async function(userMsg){
+      if(!navigator.onLine){
+        const ex=typeof localExtract==='function'?localExtract(userMsg):null;
+        try{if(typeof iqPush==='function')await iqPush({message:userMsg,extracted:ex});}catch(_){}
+        let count=1;
+        try{if(typeof iqCount==='function')count=await iqCount();}catch(_){}
+        let local='';
+        try{local=typeof localAI==='function'?localAI(userMsg):'';}catch(_){}
+        const prefix=safeLang()==='en'
+          ?`📡 Offline. Message queued (#${count}). ALADDIN will analyze it when the connection returns.`
+          :`📡 Hors-ligne. Message en file (#${count}). ALADDIN l'analysera au retour réseau.`;
+        return {text:prefix+(local?'\n\n'+local:''),src:'Queued (offline)'};
+      }
+      const result=await activeAskAI.call(this,userMsg);
+      // Une clé peut être présente mais refuser le modèle ou être épuisée :
+      // l'utilisateur reçoit quand même une analyse locale exploitable.
+      if(result && (result.src==='Online'||result.src==='Erreur')){
+        let local='';
+        try{local=typeof localAI==='function'?localAI(userMsg):'';}catch(_){}
+        if(local)return {text:(result.text||'')+'\n\n'+local,src:'Local fallback'};
+      }
+      return result;
+    };
+  }
 })();
 </script>
 

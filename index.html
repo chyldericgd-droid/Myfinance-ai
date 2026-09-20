@@ -726,12 +726,12 @@ const I18N={
   fr:{
     // === v4.11 hardcoded FR → i18n full coverage ===
     groq_invalid_key:"Clé invalide. Elle doit commencer par gsk_…",
-    groq_saved:"✅ Clé Groq enregistrée ! L'IA est maintenant active.",
-    groq_advice_invalid:"\n\n🔑 Clé invalide. Va dans Config → entre ta clé Groq depuis console.groq.com",
+    groq_saved:"✅ Clé GPT enregistrée ! L'IA est maintenant active.",
+    groq_advice_invalid:"\n\n🔑 Clé invalide. Va dans Config → Intelligence Artificielle → colle ta clé GPT depuis console.groq.com (gsk_…)",
     groq_api_err:"Erreur API",
     groq_sandbox:"🔒 Preview Claude.ai — API bloquée par sandbox. Sur Netlify ça marche.",
     net_unavailable:"⚠️ Réseau indisponible.",
-    no_key_online:"🔑 Clé API manquante. Va dans Config → entre ta clé Groq gratuite (console.groq.com).",
+    no_key_online:"🔑 Clé API manquante. Va dans Config → Intelligence Artificielle → colle ta clé GPT gratuite créée sur console.groq.com (API Keys → Create, gsk_…).",
     offline_prefix:"📴 Hors-ligne — ",
     err_select_both_accs:"Sélectionne les deux comptes",
     err_same_accs:"Comptes identiques",
@@ -767,8 +767,8 @@ const I18N={
     ai_offline_title:"📴 Hors ligne",
     ai_offline_body:"L'IA Groq nécessite une connexion. En offline, va sur l'écran IA pour utiliser l'analyse locale.",
     ai_open_local:"Ouvrir IA Local",
-    ai_nokey_title:"🔑 Clé Groq manquante",
-    ai_nokey_body:"Pour activer l'IA, configure ta clé Groq (gratuite) dans Config.",
+    ai_nokey_title:"🔑 Clé GPT manquante",
+    ai_nokey_body:"Pour activer l'IA, crée une clé gratuite sur console.groq.com (API Keys → Create, elle commence par gsk_) puis colle-la dans Config → Intelligence Artificielle.",
     ai_goto_config:"Aller dans Config",
     modal_cat_new:"Nouvelle catégorie",
     modal_goal_new:"Nouvel objectif",
@@ -1021,9 +1021,9 @@ const I18N={
     cfg_categories:'Catégories',cfg_new_cat:'+ Nouvelle',cfg_cat_hint:'Clique sur une catégorie pour la modifier ou la supprimer.',
     cfg_goals:'Objectifs',cfg_notifs:'Notifications',cfg_notifs_enable:'Activer',
     cfg_notifs_active:'✅ Actives',cfg_notifs_inactive:'Activer',cfg_remind:'Heure rappel',
-    cfg_notifs_test:'🔔 Tester',cfg_groq:'Intelligence Artificielle — Groq',
-    cfg_groq_free:'Groq est 100% gratuit',cfg_groq_desc:'14 400 req/jour, aucune carte bancaire.',
-    cfg_groq_key:'CLÉ ACTUELLE',cfg_groq_save:'💾 Enregistrer la clé Groq',
+    cfg_notifs_test:'🔔 Tester',cfg_groq:'Intelligence Artificielle — GPT (via Groq)',
+    cfg_groq_free:'Modèle GPT-OSS 20B — 100% gratuit',cfg_groq_desc:'La clé se crée sur console.groq.com → API Keys → Create. Elle commence par gsk_. 14 400 req/jour, aucune carte bancaire.',
+    cfg_groq_key:'CLÉ ACTUELLE',cfg_groq_save:'💾 Enregistrer la clé GPT (gsk_…)',
     cfg_groq_test:'✏️ Tester',cfg_groq_del:'🗑️ Supprimer',
     cfg_currency:'Devise',cfg_currency_change:'Changer',cfg_currency_current:'Devise actuelle:',
     cfg_lang:'Langue',cfg_lang_change:'Changer',
@@ -1083,7 +1083,7 @@ const I18N={
     an_no_cat:'Aucune dépense cette période.',
     an_pic:'Pic',an_solde:'Solde',an_comparison:'Comparaison',
     groq_no_key:'⚠️ Aucune clé — IA désactivée',groq_step3:'3. Colle la clé ci-dessous',
-    groq_key_ph:'gsk_...',groq_delete_confirm:'Supprimer la clé Groq?',
+    groq_key_ph:'gsk_...',groq_delete_confirm:'Supprimer la clé GPT ?',
     notif_daily:'✋ Aucune transaction aujourd\'hui. Mets à jour.',
     notif_silence_title:'🤫 Finance AI — Silence détecté',
     notif_silence_body:'Aucune saisie depuis {n}j. Le silence masque souvent une dépense qu\'on évite de voir. Reprends le suivi.',
@@ -1116,8 +1116,8 @@ const I18N={
     tut_s1_icon:'💸',tut_s1_title:'Enregistre chaque mouvement',tut_s1_body:'Tape <strong>+</strong> pour ajouter une dépense ou un revenu. Précise l\'heure, l\'humeur, une note — l\'IA utilise tout ça pour analyser ton comportement.',
     tut_s2_icon:'📊',tut_s2_title:'Lis tes vrais chiffres',tut_s2_body:'L\'onglet <strong>Analyse</strong> révèle ton Burn Rate, tes jours de sécurité, tes dépenses nocturnes et ton score de discipline. Tout change en temps réel.',
     tut_s3_icon:'🤖',tut_s3_title:'IVY — ton coach brutal',tut_s3_body:'IVY n\'est pas un assistant poli. Elle nomme tes biais (dopamine, fatigue décisionnelle, effet domino) et te donne UN ordre concret. Tape ✨ pour lui parler.',
-    tut_s4_icon:'⚡',tut_s4_title:'Active l\'IA complète — gratuit',tut_s4_body:'Sans clé, IVY fonctionne en mode local. <strong>Avec une clé Groq gratuite</strong> (14 400 req/jour, sans carte bancaire), elle se connecte à un vrai LLM et devient 10× plus précise.',
-    tut_s4_step1:'① Va sur <strong>console.groq.com</strong>',tut_s4_step2:'② Crée un compte → API Keys → <em>Create</em>',tut_s4_step3:'③ Colle la clé dans <strong>Config → Clé Groq</strong>',
+    tut_s4_icon:'⚡',tut_s4_title:'Active l\'IA complète — gratuit',tut_s4_body:'Sans clé, IVY fonctionne en mode local. <strong>Avec une clé GPT gratuite (console.groq.com)</strong> (14 400 req/jour, sans carte bancaire), elle se connecte à un vrai LLM et devient 10× plus précise.',
+    tut_s4_step1:'① Va sur <strong>console.groq.com</strong>',tut_s4_step2:'② Crée un compte → API Keys → <em>Create</em>',tut_s4_step3:'③ Colle la clé (gsk_…) dans <strong>Config → Intelligence Artificielle</strong>',
     tut_s4_later:'Je ferai ça plus tard',
     cfg_groq_test_btn:'🧪 Tester',cfg_groq_del_btn:'🗑️ Supprimer',cfg_groq_current:'Clé actuelle',
     cfg_life:'Vie & prévisions',cfg_life_desc:"Deux chiffres qui changent comment l'app pense.",
@@ -1198,8 +1198,8 @@ const I18N={
     ai_offline_title:"📴 Offline",
     ai_offline_body:"Groq AI requires a connection. Offline, go to the AI screen for local analysis.",
     ai_open_local:"Open Local AI",
-    ai_nokey_title:"🔑 Missing Groq key",
-    ai_nokey_body:"To enable AI, configure your free Groq key in Config.",
+    ai_nokey_title:"🔑 Missing GPT key",
+    ai_nokey_body:"To enable AI, create a free key at console.groq.com (API Keys → Create, starts with gsk_) then paste it in Config → Artificial Intelligence.",
     ai_goto_config:"Open Config",
     modal_cat_new:"New category",
     modal_goal_new:"New goal",
@@ -1432,9 +1432,9 @@ const I18N={
     cfg_categories:'Categories',cfg_new_cat:'+ New',cfg_cat_hint:'Tap a category to edit or delete it.',
     cfg_goals:'Goals',cfg_notifs:'Notifications',cfg_notifs_enable:'Enable',
     cfg_notifs_active:'✅ Active',cfg_notifs_inactive:'Enable',cfg_remind:'Reminder time',
-    cfg_notifs_test:'🔔 Test',cfg_groq:'Artificial Intelligence — Groq',
-    cfg_groq_free:'Groq is 100% free',cfg_groq_desc:'14,400 req/day, no credit card needed.',
-    cfg_groq_key:'CURRENT KEY',cfg_groq_save:'💾 Save Groq key',
+    cfg_notifs_test:'🔔 Test',cfg_groq:'Artificial Intelligence — GPT (via Groq)',
+    cfg_groq_free:'GPT-OSS 20B model — 100% free',cfg_groq_desc:'Create the key at console.groq.com → API Keys → Create. It starts with gsk_. 14,400 req/day, no credit card.',
+    cfg_groq_key:'CURRENT KEY',cfg_groq_save:'💾 Save GPT key (gsk_…)',
     cfg_groq_test:'✏️ Test',cfg_groq_del:'🗑️ Delete',
     cfg_currency:'Currency',cfg_currency_change:'Change',cfg_currency_current:'Current currency:',
     cfg_lang:'Language',cfg_lang_change:'Change',
@@ -1519,8 +1519,8 @@ const I18N={
     tut_s1_icon:'💸',tut_s1_title:'Log every move',tut_s1_body:'Tap <strong>+</strong> to add an expense or income. Add time, mood, a note — the AI uses all of it to analyze your behavior.',
     tut_s2_icon:'📊',tut_s2_title:'Read your real numbers',tut_s2_body:'The <strong>Analysis</strong> tab reveals your Burn Rate, safety days, night spending, and discipline score. Everything updates in real time.',
     tut_s3_icon:'🤖',tut_s3_title:'IVY — your brutal coach',tut_s3_body:'IVY is not a polite assistant. She names your biases (dopamine, decision fatigue, domino effect) and gives you ONE concrete order. Tap ✨ to talk to her.',
-    tut_s4_icon:'⚡',tut_s4_title:'Unlock full AI — free',tut_s4_body:'Without a key, IVY runs in local mode. <strong>With a free Groq key</strong> (14,400 req/day, no credit card), she connects to a real LLM and becomes 10× more precise.',
-    tut_s4_step1:'① Go to <strong>console.groq.com</strong>',tut_s4_step2:'② Create account → API Keys → <em>Create</em>',tut_s4_step3:'③ Paste the key in <strong>Config → Groq Key</strong>',
+    tut_s4_icon:'⚡',tut_s4_title:'Unlock full AI — free',tut_s4_body:'Without a key, IVY runs in local mode. <strong>With a free GPT key (console.groq.com)</strong> (14,400 req/day, no credit card), she connects to a real LLM and becomes 10× more precise.',
+    tut_s4_step1:'① Go to <strong>console.groq.com</strong>',tut_s4_step2:'② Create account → API Keys → <em>Create</em>',tut_s4_step3:'③ Paste the key (gsk_…) in <strong>Config → Artificial Intelligence</strong>',
     tut_s4_later:'I\'ll do this later',
     cfg_groq_test_btn:'🧪 Test',cfg_groq_del_btn:'🗑️ Delete',cfg_groq_current:'Current key',
     cfg_life:'Life & forecasts',cfg_life_desc:'Two numbers that change how the app thinks.',
@@ -1599,8 +1599,8 @@ const I18N={
     ai_offline_title:"📴 Sin conexión",
     ai_offline_body:"La IA Groq necesita conexión. Sin conexión, abre la pantalla IA para usar el análisis local.",
     ai_open_local:"Abrir IA Local",
-    ai_nokey_title:"🔑 Falta clave Groq",
-    ai_nokey_body:"Para activar la IA, configura tu clave gratuita Groq en Config.",
+    ai_nokey_title:"🔑 Falta clave GPT",
+    ai_nokey_body:"Para activar la IA, crea una clave gratuita en console.groq.com (API Keys → Create, empieza por gsk_) y pégala en Config → Inteligencia Artificial.",
     ai_goto_config:"Ir a Config",
     modal_cat_new:"Nueva categoría",
     modal_goal_new:"Nuevo objetivo",
@@ -1841,9 +1841,9 @@ const I18N={
     cfg_categories:'Categorías',cfg_new_cat:'+ Nueva',cfg_cat_hint:'Toca una categoría para editar o eliminar.',
     cfg_goals:'Metas',cfg_notifs:'Notificaciones',cfg_notifs_enable:'Activar',
     cfg_notifs_active:'✅ Activas',cfg_notifs_inactive:'Activar',cfg_remind:'Hora recordatorio',
-    cfg_notifs_test:'🔔 Probar',cfg_groq:'Inteligencia Artificial — Groq',
-    cfg_groq_free:'Groq es 100% gratuito',cfg_groq_desc:'14.400 req/día, sin tarjeta.',
-    cfg_groq_key:'CLAVE ACTUAL',cfg_groq_save:'💾 Guardar clave Groq',
+    cfg_notifs_test:'🔔 Probar',cfg_groq:'Inteligencia Artificial — GPT (vía Groq)',
+    cfg_groq_free:'Modelo GPT-OSS 20B — 100% gratuito',cfg_groq_desc:'Crea la clave en console.groq.com → API Keys → Create. Empieza por gsk_. 14.400 req/día, sin tarjeta.',
+    cfg_groq_key:'CLAVE ACTUAL',cfg_groq_save:'💾 Guardar clave GPT (gsk_…)',
     cfg_groq_test:'✏️ Probar',cfg_groq_del:'🗑️ Eliminar',
     cfg_currency:'Moneda',cfg_currency_change:'Cambiar',cfg_currency_current:'Moneda actual:',
     cfg_lang:'Idioma',cfg_lang_change:'Cambiar',
@@ -1921,8 +1921,8 @@ const I18N={
     tut_s1_icon:'💸',tut_s1_title:'Registra cada movimiento',tut_s1_body:'Pulsa <strong>+</strong> para añadir un gasto o ingreso. Añade hora, estado de ánimo, nota — la IA usa todo eso para analizar tu comportamiento.',
     tut_s2_icon:'📊',tut_s2_title:'Lee tus cifras reales',tut_s2_body:'La pestaña <strong>Análisis</strong> muestra tu Burn Rate, días de seguridad, gastos nocturnos y puntuación de disciplina. Todo se actualiza en tiempo real.',
     tut_s3_icon:'🤖',tut_s3_title:'IVY — tu coach brutal',tut_s3_body:'IVY no es una asistente amable. Nombra tus sesgos (dopamina, fatiga decisional, efecto dominó) y te da UNA orden concreta. Pulsa ✨ para hablar con ella.',
-    tut_s4_icon:'⚡',tut_s4_title:'Activa la IA completa — gratis',tut_s4_body:'Sin clave, IVY funciona en modo local. <strong>Con una clave Groq gratuita</strong> (14.400 req/día, sin tarjeta), se conecta a un LLM real y es 10× más precisa.',
-    tut_s4_step1:'① Ve a <strong>console.groq.com</strong>',tut_s4_step2:'② Crea cuenta → API Keys → <em>Create</em>',tut_s4_step3:'③ Pega la clave en <strong>Config → Clave Groq</strong>',
+    tut_s4_icon:'⚡',tut_s4_title:'Activa la IA completa — gratis',tut_s4_body:'Sin clave, IVY funciona en modo local. <strong>Con una clave GPT gratuita (console.groq.com)</strong> (14.400 req/día, sin tarjeta), se conecta a un LLM real y es 10× más precisa.',
+    tut_s4_step1:'① Ve a <strong>console.groq.com</strong>',tut_s4_step2:'② Crea cuenta → API Keys → <em>Create</em>',tut_s4_step3:'③ Pega la clave (gsk_…) en <strong>Config → Inteligencia Artificial</strong>',
     tut_s4_later:'Lo haré más tarde',
     cfg_groq_test_btn:'🧪 Probar',cfg_groq_del_btn:'🗑️ Eliminar',cfg_groq_current:'Clave actual',
     cfg_life:'Vida & previsiones',cfg_life_desc:'Dos cifras que cambian cómo piensa la app.',
@@ -2001,8 +2001,8 @@ const I18N={
     ai_offline_title:"📴 Offline",
     ai_offline_body:"A IA Groq precisa de ligação. Offline, abre o ecrã IA para usar a análise local.",
     ai_open_local:"Abrir IA Local",
-    ai_nokey_title:"🔑 Falta chave Groq",
-    ai_nokey_body:"Para ativar a IA, configura a tua chave Groq gratuita em Config.",
+    ai_nokey_title:"🔑 Falta chave GPT",
+    ai_nokey_body:"Para ativar a IA, cria uma chave gratuita em console.groq.com (API Keys → Create, começa por gsk_) e cola-a em Config → Inteligência Artificial.",
     ai_goto_config:"Ir para Config",
     modal_cat_new:"Nova categoria",
     modal_goal_new:"Novo objetivo",
@@ -2243,9 +2243,9 @@ const I18N={
     cfg_categories:'Categorias',cfg_new_cat:'+ Nova',cfg_cat_hint:'Toca numa categoria para editar ou eliminar.',
     cfg_goals:'Objetivos',cfg_notifs:'Notificações',cfg_notifs_enable:'Ativar',
     cfg_notifs_active:'✅ Ativas',cfg_notifs_inactive:'Ativar',cfg_remind:'Hora do lembrete',
-    cfg_notifs_test:'🔔 Testar',cfg_groq:'Inteligência Artificial — Groq',
-    cfg_groq_free:'Groq é 100% gratuito',cfg_groq_desc:'14.400 req/dia, sem cartão.',
-    cfg_groq_key:'CHAVE ATUAL',cfg_groq_save:'💾 Guardar chave Groq',
+    cfg_notifs_test:'🔔 Testar',cfg_groq:'Inteligência Artificial — GPT (via Groq)',
+    cfg_groq_free:'Modelo GPT-OSS 20B — 100% gratuito',cfg_groq_desc:'Cria a chave em console.groq.com → API Keys → Create. Começa por gsk_. 14.400 req/dia, sem cartão.',
+    cfg_groq_key:'CHAVE ATUAL',cfg_groq_save:'💾 Guardar chave GPT (gsk_…)',
     cfg_groq_test:'✏️ Testar',cfg_groq_del:'🗑️ Eliminar',
     cfg_currency:'Moeda',cfg_currency_change:'Alterar',cfg_currency_current:'Moeda atual:',
     cfg_lang:'Idioma',cfg_lang_change:'Alterar',
@@ -2323,8 +2323,8 @@ const I18N={
     tut_s1_icon:'💸',tut_s1_title:'Regista cada movimento',tut_s1_body:'Toca em <strong>+</strong> para adicionar uma despesa ou receita. Adiciona hora, humor, nota — a IA usa tudo isso para analisar o teu comportamento.',
     tut_s2_icon:'📊',tut_s2_title:'Lê os teus números reais',tut_s2_body:'O separador <strong>Análise</strong> revela o teu Burn Rate, dias de segurança, despesas noturnas e pontuação de disciplina. Tudo atualiza em tempo real.',
     tut_s3_icon:'🤖',tut_s3_title:'IVY — a tua coach brutal',tut_s3_body:'IVY não é uma assistente educada. Nomeia os teus vieses (dopamina, fadiga decisional, efeito dominó) e dá-te UMA ordem concreta. Toca em ✨ para falar com ela.',
-    tut_s4_icon:'⚡',tut_s4_title:'Ativa a IA completa — grátis',tut_s4_body:'Sem chave, IVY funciona em modo local. <strong>Com uma chave Groq gratuita</strong> (14.400 req/dia, sem cartão), liga-se a um LLM real e torna-se 10× mais precisa.',
-    tut_s4_step1:'① Vai a <strong>console.groq.com</strong>',tut_s4_step2:'② Cria conta → API Keys → <em>Create</em>',tut_s4_step3:'③ Cola a chave em <strong>Config → Chave Groq</strong>',
+    tut_s4_icon:'⚡',tut_s4_title:'Ativa a IA completa — grátis',tut_s4_body:'Sem chave, IVY funciona em modo local. <strong>Com uma chave GPT gratuita (console.groq.com)</strong> (14.400 req/dia, sem cartão), liga-se a um LLM real e torna-se 10× mais precisa.',
+    tut_s4_step1:'① Vai a <strong>console.groq.com</strong>',tut_s4_step2:'② Cria conta → API Keys → <em>Create</em>',tut_s4_step3:'③ Cola a chave (gsk_…) em <strong>Config → Inteligência Artificial</strong>',
     tut_s4_later:'Faço isso mais tarde',
     cfg_groq_test_btn:'🧪 Testar',cfg_groq_del_btn:'🗑️ Apagar',cfg_groq_current:'Chave atual',
     cfg_life:'Vida & previsões',cfg_life_desc:'Dois números que mudam como a app pensa.',
@@ -4190,7 +4190,7 @@ Tu es IVY: brutal, loyal, factuel.`;
         signal:_askAc.signal,
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
         body:JSON.stringify({
-          model:'llama-3.1-8b-instant',
+          model:'openai/gpt-oss-20b',
           max_tokens:400,
           temperature:0.3,
           messages:[
@@ -4375,7 +4375,7 @@ async function fetchHomeInsight(){
       signal:_ac.signal,
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
       body:JSON.stringify({
-        model:'llama-3.1-8b-instant',
+        model:'openai/gpt-oss-20b',
         max_tokens:60,
         temperature:0.4,
         messages:[{role:'system',content:sys},{role:'user',content:ctx+'\n\nGive ONE targeted insight based on the data above.'}]
@@ -5717,7 +5717,7 @@ RÈGLE ABSOLUE: Réponds en 2 phrases maximum. Phrase 1: constat chiffré préci
     if(!txt){
       const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getGroqKey()},
-        body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.1-8b-instant',max_tokens:180,temperature:.6,messages:[{role:'user',content:prompt}]})
+        body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'openai/gpt-oss-20b',max_tokens:180,temperature:.6,messages:[{role:'user',content:prompt}]})
       });
       const j=await r.json();
       txt=j.choices?.[0]?.message?.content;
@@ -5849,7 +5849,7 @@ async function testGroqKey(){
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:20,messages:[{role:'user',content:'Réponds juste: OK'}]})
+      body:JSON.stringify({model:'openai/gpt-oss-20b',max_tokens:20,messages:[{role:'user',content:'Réponds juste: OK'}]})
     });
     const d = await resp.json();
     if(resp.ok && d.choices?.[0]?.message?.content){
@@ -9661,7 +9661,7 @@ const AI_CONFIG = window.AI_CONFIG = Object.freeze({
   GEMINI_MODEL_VERSION : 'gemini-3.5-flash',   // ← variable unique pour upgrade
   // 3.3 peut exister dans le catalogue Groq mais rester inaccessible à
   // certaines clés ; 3.1 est le modèle déjà utilisé par le chemin legacy.
-  GROQ_MODEL           : 'llama-3.1-8b-instant',
+  GROQ_MODEL           : 'openai/gpt-oss-20b',
   GEMINI_BASE          : 'https://generativelanguage.googleapis.com/v1beta/openai',
   GROQ_BASE            : 'https://api.groq.com/openai/v1',
   MAX_TOKENS           : 900,   // Groq free tier: ~6000 TPM — Gemini gère plus via sa propre limite
@@ -10166,9 +10166,10 @@ async function callAladdinAI(viewType, userQuery) {
           // Return friendly message rather than falling back to Groq (which may also be rate-limited)
           return {text:'⏳ Gemini momentanément limité — réessaie dans quelques secondes.\n\nTon historique est intact.', src:'Limite', anomalies:payload.anomalies};
         }
+        window._lastGeminiError = _gErr || ('HTTP '+r.status);
         console.warn('[ALADDIN] Gemini error:',_gErr);
-      }
-    } catch(e){ console.warn('[ALADDIN] Gemini failed:',e.message); }
+      } else { window._lastGeminiError=''; }
+    } catch(e){ window._lastGeminiError = e.message||'appel interrompu'; console.warn('[ALADDIN] Gemini failed:',e.message); }
   }
 
   /* ── Groq fallback ── */
@@ -10381,7 +10382,7 @@ ${geminiResponse.slice(0,500)}`;
     const r = await fetch_('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-      body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:25,temperature:0.3,
+      body:JSON.stringify({model:'openai/gpt-oss-20b',max_tokens:25,temperature:0.3,
         messages:[{role:'user',content:actionPrompt}]})
     });
     if(!r.ok) return null;
@@ -10452,6 +10453,60 @@ window._forceGeminiKey = function(){
   delete window._geminiKeyPendingForce;
 };
 
+window.testGeminiKey = async function(){
+  var el = document.getElementById('aladdinGeminiTestMsg');
+  if(!el) return;
+  el.style.display='block';
+  el.style.background='var(--surf2)';
+  el.style.color='var(--mut)';
+  el.textContent='⏳ Test en cours...';
+  var key=''; try{ key = window.safeStorage?.getItem('gemini_key')||''; }catch(_){}
+  if(!key){
+    el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
+    el.textContent='❌ Aucune clé enregistrée — colle ta clé AIza... puis Sauver.';
+    return;
+  }
+  if(!navigator.onLine){
+    el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
+    el.textContent='❌ Hors ligne — impossible de tester la clé.';
+    return;
+  }
+  var fetch_ = window._origFetch || window.fetch;
+  try{
+    var ac=new AbortController();
+    var to=setTimeout(function(){try{ac.abort()}catch(_){}} ,10000);
+    var r = await fetch_(((window.AI_CONFIG&&window.AI_CONFIG.GEMINI_BASE)||'https://generativelanguage.googleapis.com/v1beta/openai')+'/chat/completions',{
+      method:'POST',
+      signal:ac.signal,
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({
+        model:(window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'gemini-3.5-flash',
+        max_tokens:20,
+        messages:[{role:'user',content:'Réponds juste: OK'}]
+      })
+    });
+    clearTimeout(to);
+    var d={}; try{ d = await r.json(); }catch(_){}
+    if(r.ok && d.choices?.[0]?.message?.content){
+      window._lastGeminiError='';
+      el.style.background='rgba(16,185,129,.15)'; el.style.color='var(--grn)';
+      el.textContent='✅ Clé valide — '+((window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'Gemini')+' opérationnel.';
+    } else {
+      var m = (d.error&&d.error.message)||('HTTP '+r.status);
+      window._lastGeminiError = m;
+      el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
+      el.textContent='❌ '+String(m).slice(0,200)
+        + (r.status===404?' — modèle introuvable pour cette clé.':'')
+        + (r.status===401||r.status===403?' — clé refusée.':'')
+        + (r.status===429?' — quota atteint.':'');
+    }
+  }catch(e){
+    window._lastGeminiError = e.message||'réseau';
+    el.style.background='rgba(244,63,94,.15)'; el.style.color='var(--red)';
+    el.textContent='❌ Échec réseau — '+(e.message||'connexion indisponible');
+  }
+};
+
 function injectGeminiKeyUI(){
   if(document.getElementById('aladdinGeminiSection')) return;
   const gemKey = (()=>{ try{return window.safeStorage?.getItem('gemini_key')||'';}catch(_){return '';} })();
@@ -10483,6 +10538,11 @@ function injectGeminiKeyUI(){
       style="width:100%;padding:12px;font-size:14px;font-weight:700;border-radius:12px">
       Sauver la clé Gemini
     </button>
+    <button onclick="window.testGeminiKey()" class="btn btn-ghost"
+      style="width:100%;padding:12px;font-size:14px;font-weight:700;border-radius:12px;margin-top:8px">
+      🧪 Tester la clé Gemini
+    </button>
+    <div id="aladdinGeminiTestMsg" style="display:none;font-size:12px;margin-top:8px;padding:10px;border-radius:10px;line-height:1.45;font-family:var(--mono)"></div>
     <div id="aladdinGeminiMsg" style="font-size:12px;min-height:18px;margin-top:8px;line-height:1.4"></div>
   </div>
 </div>`;
@@ -10604,7 +10664,12 @@ window._callGeminiRaw = async function(messages, maxTok){
     body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GEMINI_MODEL_VERSION)||'gemini-3.5-flash',max_tokens:maxTok,temperature:0.45,messages:messages})
   });
   clearTimeout(to);
-  if(!r.ok) return null;
+  if(!r.ok){
+    try{ var eg=await r.json(); window._lastGeminiError=(eg&&eg.error&&eg.error.message)||('HTTP '+r.status); }
+    catch(_e){ window._lastGeminiError='HTTP '+r.status; }
+    return null;
+  }
+  window._lastGeminiError='';
   var d=await r.json();
   return d.choices?.[0]?.message?.content||null;
 };
@@ -10620,10 +10685,15 @@ window._callGroqRaw = async function(messages, maxTok){
     method:'POST',
     signal:ac.signal,
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
-    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'llama-3.1-8b-instant',max_tokens:maxTok,temperature:0.35,messages:messages})
+    body:JSON.stringify({model:(window.AI_CONFIG&&window.AI_CONFIG.GROQ_MODEL)||'openai/gpt-oss-20b',max_tokens:maxTok,temperature:0.35,messages:messages})
   });
   clearTimeout(to);
-  if(!r.ok) return null;
+  if(!r.ok){
+    try{ var eq=await r.json(); window._lastGroqError=(eq&&eq.error&&eq.error.message)||('HTTP '+r.status); }
+    catch(_e){ window._lastGroqError='HTTP '+r.status; }
+    return null;
+  }
+  window._lastGroqError='';
   var d=await r.json();
   return d.choices?.[0]?.message?.content||null;
 };
@@ -10781,6 +10851,7 @@ window.runAladdinCouncil = async function(trigger){
   window.councilPending = [];
   window.councilTrigger = trigger || {reason:'manuel',label:'Prédictions demandées',severity:'manual'};
   window.councilMsgs = [];
+  window._councilFallbackUsed = false;
 
   try{if(typeof render==='function')render();}catch(ex){}
 
@@ -10808,13 +10879,13 @@ window.runAladdinCouncil = async function(trigger){
 
   var t1sys='Tu es ALADDIN-STRATÈGE. Réponds en français, tutoiement. Analyse prédictive uniquement: scénario choc/actuel/optimal, date de passage sous zéro si présente, revenu attendu, dépense récurrente. MAX 5 lignes. Zéro blabla.';
   var gem1=await window._callGeminiRaw([{role:'system',content:t1sys},{role:'user',content:ctx+'\nTour 1: formule la prédiction principale et l\'incertitude.'}],260);
-  if(!gem1) gem1=fallback1;
+  if(!gem1){ window._councilFallbackUsed=true; gem1='⚠️ Repli local — Gemini n’a pas répondu ('+(window._lastGeminiError||'appel échoué')+'). Ce texte est un calcul local, pas une analyse IA.\n'+fallback1; }
   window.councilMsgs.push({agent:'gemini',text:gem1,cmds:[],ts:Date.now()});
   try{if(typeof render==='function')render();}catch(ex){}
 
   var t2sys='Tu es ALADDIN-TACTICIEN. Tu corriges les chiffres et tu dois émettre au moins une [PRÉDICTION: libellé | montant | date] basée sur les données. MAX 4 lignes.';
   var groq1=await window._callGroqRaw([{role:'system',content:t2sys},{role:'user',content:ctx+'\nAnalyse Stratège:\n'+gem1+'\nValide ou corrige.'}],220);
-  if(!groq1) groq1=fallback2;
+  if(!groq1){ window._councilFallbackUsed=true; groq1='⚠️ Repli local — Groq n’a pas répondu ('+(window._lastGroqError||'appel échoué')+'). Ce texte est un calcul local, pas une analyse IA.\n'+fallback2; }
   var cmds1=window.parseCouncilCommands(groq1);
   window.councilMsgs.push({agent:'groq',text:groq1,cmds:cmds1,ts:Date.now()});
   if(cmds1.length) window.councilPending=window.councilPending.concat(cmds1);
@@ -10822,7 +10893,7 @@ window.runAladdinCouncil = async function(trigger){
 
   var t3sys='Tu es ALADDIN-STRATÈGE. Transforme les prédictions en charte d’action. Utilise exactement: [PLAN: étape1 | étape2 | étape3] et au moins une [PRÉDICTION: ...]. MAX 5 lignes.';
   var gem2=await window._callGeminiRaw([{role:'system',content:t3sys},{role:'user',content:ctx+'\nDébat:\n'+gem1+'\n'+groq1+'\nTour 3: plan + prédictions structurées.'}],280);
-  if(!gem2) gem2=fallback3;
+  if(!gem2){ window._councilFallbackUsed=true; gem2='⚠️ Repli local — Gemini n’a pas répondu ('+(window._lastGeminiError||'appel échoué')+'). Ce texte est un calcul local, pas une analyse IA.\n'+fallback3; }
   var cmds2=window.parseCouncilCommands(gem2);
   window.councilMsgs.push({agent:'gemini',text:gem2,cmds:cmds2,ts:Date.now()});
   if(cmds2.length) window.councilPending=window.councilPending.concat(cmds2);
@@ -10830,7 +10901,7 @@ window.runAladdinCouncil = async function(trigger){
 
   var t4sys='Tu es ALADDIN-TACTICIEN. Valide uniquement si les prédictions suivent les chiffres. Ajoute 1 quick win immédiat. MAX 3 lignes. Termine par Plan validé ✓ ou Plan révisé ✓.';
   var groq2=await window._callGroqRaw([{role:'system',content:t4sys},{role:'user',content:ctx+'\nPlan proposé:\n'+gem2+'\nTour 4: validation finale.'}],190);
-  if(!groq2) groq2=fallback4;
+  if(!groq2){ window._councilFallbackUsed=true; groq2='⚠️ Repli local — Groq n’a pas répondu ('+(window._lastGroqError||'appel échoué')+'). Ce texte est un calcul local, pas une analyse IA.\n'+fallback4; }
   var cmds3=window.parseCouncilCommands(groq2);
   window.councilMsgs.push({agent:'groq',text:groq2,cmds:cmds3,ts:Date.now()});
   if(cmds3.length) window.councilPending=window.councilPending.concat(cmds3);

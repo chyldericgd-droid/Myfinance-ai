@@ -6,7 +6,7 @@
   <link rel="dns-prefetch" href="https://api.groq.com">
   <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 
-<!-- Finance AI OS v9.4.0 | Refactored PWA -->
+<!-- Finance AI OS v9.5.0 | Refactored PWA -->
 
 <!-- Early error capture — must be first -->
 <script>
@@ -30,10 +30,10 @@
 <meta name="msapplication-tap-highlight" content="no">
 <meta name="HandheldFriendly" content="true">
 <title>Finance AI OS</title>
-<meta name="version" content="9.4.0">
-<link rel="manifest" href="./manifest.json?v=9.4.0">
-<link rel="icon" href="./icon-192.png?v=9.4.0">
-<link rel="apple-touch-icon" href="./icon-192.png?v=9.4.0">
+<meta name="version" content="9.5.0">
+<link rel="manifest" href="./manifest.json?v=9.5.0">
+<link rel="icon" href="./icon-192.png?v=9.5.0">
+<link rel="apple-touch-icon" href="./icon-192.png?v=9.5.0">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -50,6 +50,8 @@
   --grn:#10b981;--red:#f43f5e;--org:#f97316;--ylw:#fbbf24;
   --txt:#f1f5f9;--txt2:#94a3b8;--mut:#475569;
   --r:22px;--r2:16px;--r3:28px;
+   --bottom-nav-height:68px;
+   --bottom-nav-clearance:28px;
   --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:'JetBrains Mono','SF Mono','Roboto Mono',ui-monospace,Menlo,Monaco,Consolas,monospace;
 }
@@ -61,8 +63,26 @@ input,textarea,select{scroll-margin-bottom:160px;scroll-margin-top:80px}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* SCROLL */
-.scroll{position:fixed;top:0;left:0;right:0;bottom:84px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;background:transparent;z-index:1}
-#root{position:relative;background:transparent}
+ /* The scroll viewport continues behind the fixed bottom navigation. The
+    clearance belongs to the scroll content, not to the viewport itself:
+    this prevents a hard horizontal cut and lets the last card / shadow
+    travel naturally beneath the glass navigation. */
+ .scroll{
+   position:fixed;top:0;left:0;right:0;bottom:0;
+   overflow-y:auto;overflow-x:hidden;
+   padding-bottom:calc(var(--bottom-nav-height) + var(--bottom-nav-clearance) + env(safe-area-inset-bottom));
+   scroll-padding-bottom:calc(var(--bottom-nav-height) + var(--bottom-nav-clearance) + env(safe-area-inset-bottom));
+   -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
+   background:transparent;z-index:1;
+ }
+ /* A soft scrim fills the area behind the translucent navigation instead of
+    exposing a sharp viewport edge while content passes underneath it. */
+ .scroll::after{
+   content:"";position:fixed;left:0;right:0;bottom:0;height:calc(var(--bottom-nav-height) + 42px + env(safe-area-inset-bottom));
+   pointer-events:none;z-index:2;
+   background:linear-gradient(to bottom,rgba(9,9,15,0),rgba(9,9,15,.42) 48%,rgba(9,9,15,.88) 100%);
+ }
+ #root{position:relative;background:transparent;overflow:visible}
 /* v9 fix: prevent any stale-DOM ghost during async page swap */
 #root.swapping{opacity:.001;transition:opacity .12s}
 .page{max-width:600px;margin:0 auto;padding:14px 14px 24px}
@@ -291,7 +311,7 @@ body.state-zero{
 
 
 /* AI FLOAT */
-.aifab{position:fixed;right:14px;bottom:78px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:90;
+ .aifab{position:fixed;right:14px;bottom:calc(var(--bottom-nav-height) + 10px + env(safe-area-inset-bottom));z-index:90;
   width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
   background:linear-gradient(135deg,var(--acc),var(--acc2));
   box-shadow:0 6px 20px rgba(124,58,237,.45),0 0 0 3px rgba(124,58,237,.18);
@@ -378,7 +398,7 @@ body.state-zero{
 
 /* Bottom navigation bar — pill bubble, springy active state */
 .nav{
-  height:68px;
+   height:var(--bottom-nav-height);
   border-radius:34px;
   background:rgba(18,18,28,.78);
   border:1px solid rgba(255,255,255,.06);
@@ -386,6 +406,8 @@ body.state-zero{
     0 18px 48px -16px rgba(0,0,0,.7),
     0 0 0 1px rgba(255,255,255,.04) inset,
     0 1px 0 rgba(255,255,255,.06) inset;
+   overflow:visible;
+   isolation:isolate;
 }
 .ni{
   position:relative;
@@ -417,6 +439,7 @@ body.state-zero{
     0 0 0 5px rgba(139,92,246,.10),
     0 1px 0 rgba(255,255,255,.18) inset;
   transition:transform .25s var(--spring), border-radius .25s var(--spring);
+   position:relative;z-index:1;
 }
 .fab:active{transform:scale(.88) rotate(8deg);border-radius:30px}
 
@@ -4519,6 +4542,7 @@ function renderModalChat(){
 
 function openChatModal(prefillQuery){
   var overlay = document.getElementById('chatModalOverlay');
+  window._chatModalOpen = true;
   if(!overlay) return;
   overlay.style.display='flex';
   void overlay.offsetHeight; /* force reflow before transition */
@@ -4542,6 +4566,7 @@ function openChatModal(prefillQuery){
 
 function closeChatModal(){
   var overlay = document.getElementById('chatModalOverlay');
+  window._chatModalOpen = false;
   if(!overlay) return;
   overlay.classList.remove('open');
   document.body.style.overflow='';
@@ -5072,7 +5097,7 @@ function renderHome(){
     <div class="ai-h">✨ ${t('ai_assistant')} <span id="homeAIBadge" style="margin-left:auto;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0;padding:2px 7px;border-radius:6px;background:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'rgba(251,191,36,.15)':g?'rgba(167,139,250,.18)':'rgba(99,102,241,.15)'})()};color:${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'var(--ylw)':g?'#a78bfa':'var(--acc3)'})()}">${(()=>{const g=window.safeStorage?.getItem('gemini_key')||'';return _lastInsightSource!=='cloud'?'LOCAL':g?'GEMINI ✨':'GROQ AI'})()}</span></div>
     <div class="ai-b" id="aiInsightBody">${_lastInsight?'💡 '+_lastInsight:'<span class="ai-loading"></span> '+t('ai_loading')}</div>
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-      <button onclick="event.stopPropagation();_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
+      <button onclick="event.stopPropagation();window.invalidateLiaCache&&window.invalidateLiaCache('home-manual-refresh');_lastInsight='';_lastInsightTime=0;maybeAutoInsight()" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--mut);font-size:10px;padding:4px 8px;cursor:pointer">↻</button>
       <button onclick="event.stopPropagation();go('ai')" style="background:none;border:1px solid var(--brd2);border-radius:8px;color:var(--acc3);font-size:10px;padding:4px 8px;cursor:pointer">Discuter →</button>
       <button onclick="event.stopPropagation();openChatModal('Explique-moi en détail ma santé financière actuelle, le score IVY, et dis-moi exactement quoi faire cette semaine pour l\'améliorer')" style="background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:8px;color:#a78bfa;font-size:10px;padding:4px 8px;cursor:pointer">Analyse complète ✨</button>
     </div>
@@ -7442,8 +7467,8 @@ async function checkCelebrations(){
 // ════════════════════════════════════════
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=9.4.0',{scope:'./'}).then(reg=>{
-      console.log('SW v9.4.0 enregistré ✓');
+    navigator.serviceWorker.register('./sw.js?v=9.5.0',{scope:'./'}).then(reg=>{
+      console.log('SW v9.5.0 enregistré ✓');
       reg.addEventListener('updatefound',()=>{
         const w=reg.installing;if(!w)return;
         w.addEventListener('statechange',()=>{
@@ -9223,19 +9248,9 @@ window._triggerProjectionAI = async function(period){
     return;
   }
   try{
-    const _kpi = window.computeKPIs();
     const _proj = window.buildCashflowProjection(period);
-    const _finalSolde = _proj ? _proj.series[_proj.steps-1]?.solde || 0 : 0;
-    const _burnRate = _kpi.burnRate || 0;
-    const _safetyDays = _kpi.safetyDays || 0;
-    const _evap = _kpi.evaporationRate || 0;
-    const _q = `Projection cashflow sur ${_proj?.steps||30} jours. Solde actuel: ${fmtFull(_kpi.activeBalance||0)}. Burn rate: ${fmtFull(_burnRate)}/j. Jours d'autonomie: ${_safetyDays}j. Évaporation: ${_evap}%. Projection centrale: ${fmtFull(_finalSolde)}.
-Génère EXACTEMENT 3 scénarios probabilistes en 3 lignes max:
-🔴 CHOC (-30% revenus +20% dépenses): solde J+${_proj?.steps||30} et probabilité %
-🟡 ACTUEL (rythme inchangé): solde J+${_proj?.steps||30} et probabilité %  
-🟢 OPTIMAL (+20% revenus -10% dépenses): solde J+${_proj?.steps||30} et probabilité %
-Puis: 1 insight comportemental basé sur l'évaporation de ${_evap}%. Max 5 lignes total.`;
-    const _res = await window.callAladdinAI('PRÉVISIONS', _q);
+    const _q = "Analyse la projection de trésorerie et produis les prévisions.";
+    const _res = await window.callAladdinAI('PRÉVISIONS', _q, {horizon:_proj?.steps||30});
     if(_res && _res.text){
       const _cacheKey = 'proj_ai_'+period+'_'+(new Date().toDateString().replace(/ /g,''));
       window[_cacheKey] = _res.text;
@@ -10222,19 +10237,24 @@ window.callAladdinAI = callAladdinAI;
     /* Détermine le viewType selon l'écran et la question */
     const scr = (()=>{ try{return window._currentScreen||'home';}catch(_){return 'home';} })();
     const q=(userMsg||'').toLowerCase();
+    const inChat = scr==='ai' ||
+      document.getElementById('chatModalOverlay')?.classList.contains('open') ||
+      window._chatModalOpen === true;
     let vt = 'HOME';
     // Une question lancée depuis le détail Santé garde son mode, même si
     // l'écran source est Analytics.
     if(/sant[eé].*financ|financ.*sant[eé]|score.*sant[eé]|sant[eé].*score|bilan.*sant[eé]|am[eé]liore.*score|axe.*sant|score.*(100|global|detail)/.test(q)) {
       vt = 'SANTE_FINANCIERE';
+    } else if(inChat && /pr[eé]vi|forecast|prochain|risque|d[eé]couvert|30j|15j|trajectoire|dans.*jour|survie|simulation|levier|runway/.test(q)) {
+      vt='PRÉVISIONS';
+    } else if(inChat && /analys|pattern|biais|tendance|cat[eé]g|mois|semaine/.test(q)) {
+      vt='ANALYSE';
+    } else if(inChat) {
+      vt='CHAT';
     } else if(scr==='analytics') {
-      vt = 'ANALYSE';
-    } else if(scr==='ai') {
-      if(/pr[eé]vi|forecast|prochain|risque|d[eé]couvert|30j|15j|trajectoire|dans.*jour|survie|simulation|levier|runway/.test(q)) vt='PRÉVISIONS';
-      else if(/analys|pattern|biais|tendance|cat[eé]g|mois|semaine/.test(q)) vt='ANALYSE';
-      else vt='HOME';
+      vt='ANALYSE';
     }
-    const result = await callAladdinAI(vt, userMsg);
+    const result = await callAladdinAI(vt, userMsg, {period:window.analyticsPeriod});
     return {text:result.text, src:result.src};
   };
   console.log('[ALADDIN] askAI patché → routeur HOME/ANALYSE/PRÉVISIONS');
@@ -10518,7 +10538,7 @@ function injectGeminiKeyUI(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
       <span style="font-size:20px">🏦</span>
       <div>
-        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.4.0</div>
+        <div style="font-size:13px;font-weight:800;color:var(--acc3)">ALADDIN ENGINE v9.5.0</div>
         <div style="font-size:11px;color:var(--mut)">Modèle actif: <span style="font-family:var(--mono);color:var(--acc3)">${activeProvider}</span></div>
       </div>
       <span style="margin-left:auto;font-size:10px;background:rgba(139,92,246,.2);color:var(--acc3);padding:3px 8px;border-radius:6px;font-weight:700">IA Centralisée</span>
@@ -11145,7 +11165,7 @@ var _councilRenderHook = (function(){
 
 console.log('[ALADDIN §H] Conseil Délibératif prêt — Gemini×Groq multi-agents actif');
 
-console.log('[ALADDIN Engine v9.4.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
+console.log('[ALADDIN Engine v9.5.0] Prêt — Modèle: '+AI_CONFIG.GEMINI_MODEL_VERSION+' | Routeur: HOME/ANALYSE/PRÉVISIONS | Anomaly Engine: actif');
 })();
 
 </script>
@@ -11594,5 +11614,677 @@ RÈGLES DE GARDE-FOUS — SEUIL DE SURVIE ET POCHES :
     <button id="modalSendBtn" aria-label="Envoyer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
   </div>
 </div>
+
+<!-- ══ LIA CONTEXT V1 — canonical context, provider parity, cache bus ══ -->
+<script>
+(function installLiaContextV1(){
+  'use strict';
+  if(window.__liaContextV1Installed) return;
+  window.__liaContextV1Installed=true;
+
+  const safe=(fn,fallback)=>{
+    try{ const value=fn(); return value===undefined?fallback:value; }
+    catch(_){ return fallback; }
+  };
+  const list=key=>Array.isArray(window[key])?window[key]:[];
+  const txList=()=>list('txs');
+  const accList=()=>list('accs');
+  const goalList=()=>list('goals');
+  const categoryName=id=>safe(()=>{
+    if(window.catById){
+      const cat=window.catById(id);
+      return cat&&cat.name?cat.name:(id||'Sans catégorie');
+    }
+    return id||'Sans catégorie';
+  },id||'Sans catégorie');
+  const currency=()=>safe(()=>window.cur?window.cur():'XAF','XAF');
+  const language=()=>safe(()=>window._lang||'fr','fr');
+  const validDate=value=>{
+    const d=value instanceof Date?value:new Date(value);
+    return Number.isNaN(d.getTime())?null:d;
+  };
+  const isoDate=d=>d&&validDate(d)?validDate(d).toISOString().slice(0,10):null;
+  const dateKey=d=>validDate(d)?.toDateString()||'';
+  const amount=(value)=>Number.isFinite(Number(value))?Number(value):0;
+  const round=value=>Math.round(amount(value));
+  const humanHour=d=>{
+    const date=validDate(d)||new Date();
+    return String(date.getHours()).padStart(2,'0')+'h'+String(date.getMinutes()).padStart(2,'0');
+  };
+  const mapTx=tx=>{
+    const d=validDate(tx&&tx.date)||new Date();
+    return {
+      heure:humanHour(d),
+      montant:amount(tx&&tx.amount),
+      type:(tx&&tx.type)||'expense',
+      categorie:categoryName(tx&&tx.categoryId),
+      note:(tx&&tx.note)||'',
+      humeur:(tx&&(tx.mood||tx.humeur))||null
+    };
+  };
+
+  window.liaDataSignature=function liaDataSignature(){
+    const txs=txList();
+    const accounts=accList();
+    const goals=goalList();
+    const last=txs[0]?(txs[0].id||txs[0].date):'none';
+    const balance=accounts.reduce((sum,account)=>sum+amount(account&&account.balance),0);
+    return [txs.length,last,Math.round(balance),goals.length,new Date().toISOString().slice(0,13)].join('|');
+  };
+
+  function buildTemporalCore(){
+    const now=new Date();
+    const txs=txList();
+    const sorted=txs.slice().sort((a,b)=>(validDate(b&&b.date)?.getTime()||0)-(validDate(a&&a.date)?.getTime()||0));
+    const today=txs.filter(tx=>dateKey(tx&&tx.date)===now.toDateString());
+    const expenses=today.filter(tx=>tx.type==='expense');
+    const incomes=today.filter(tx=>tx.type==='income');
+    const last=sorted.length?validDate(sorted[0].date):null;
+    const silentDays=last===null?null:Math.max(0,Math.floor((now-last)/86400000));
+    const h=now.getHours();
+    const moment=h<5?'nuit':h<12?'matin':h<14?'midi':h<18?'apres-midi':h<21?'soiree':'nuit';
+    return {
+      dateAujourdhui:now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}),
+      dateISO:now.toISOString().slice(0,10),
+      heure:humanHour(now),
+      jourSemaine:now.toLocaleDateString('fr-FR',{weekday:'long'}),
+      momentJournee:moment,
+      nbTxAujourdhui:today.length,
+      depensesAujourdhui:round(expenses.reduce((sum,tx)=>sum+amount(tx.amount),0)),
+      revenusAujourdhui:round(incomes.reduce((sum,tx)=>sum+amount(tx.amount),0)),
+      txAujourdhui:today.slice().sort((a,b)=>(validDate(a.date)?.getTime()||0)-(validDate(b.date)?.getTime()||0)).map(mapTx),
+      aucuneSaisieAujourdhui:today.length===0,
+      derniereSaisieDate:last?last.toISOString().slice(0,10):'jamais',
+      joursSansSaisie:silentDays,
+      alerteSilence:silentDays!==null&&silentDays>=2,
+      silenceCritique:silentDays!==null&&silentDays>=5,
+      nbTxTotal:txs.length
+    };
+  }
+  window.buildTemporalCore=buildTemporalCore;
+
+  const CONTRACTS={
+    HOME:{longueurMax:'3 phrases maximum',tonalite:'ami direct',formatSortie:'prose courte, sans rapport',tokens:320},
+    ANALYSE:{longueurMax:'2 à 3 phrases',tonalite:'insight précis et direct',formatSortie:'constat puis action',tokens:400},
+    PRÉVISIONS:{longueurMax:'5 sections numérotées',tonalite:'prospectif et factuel',formatSortie:'5 sections numérotées',tokens:2000},
+    SANTE_FINANCIERE:{longueurMax:'plan 30/90/180 jours',tonalite:'structuré et actionnable',formatSortie:'jalons 30/90/180 jours',tokens:1800},
+    CHAT:{longueurMax:'réponse conversationnelle',tonalite:'conversationnel et précis',formatSortie:'réponse naturelle',tokens:1200},
+    CONSEIL:{longueurMax:'5 sections numérotées',tonalite:'stratège puis tacticien',formatSortie:'prédictions et plan',tokens:2000}
+  };
+  const normalizeView=view=>{
+    const raw=String(view||'HOME').toUpperCase();
+    return CONTRACTS[raw]?raw:(raw==='SANTE'||raw==='SANTÉ_FINANCIÈRE'?'SANTE_FINANCIERE':'HOME');
+  };
+  const periodFor=opts=>{
+    const p=opts&&opts.period||safe(()=>window.analyticsPeriod,'month');
+    return ['day','week','month','year'].includes(p)?p:'month';
+  };
+  const periodText=p=>safe(()=>window.periodLabel?window.periodLabel(p):p,p);
+  const periodTxs=p=>safe(()=>window.getPeriodTxs?window.getPeriodTxs(p):[],[]);
+  const previousTxs=p=>safe(()=>window.getPrevPeriodTxs?window.getPrevPeriodTxs(p):[],[]);
+  const summarizeTxs=txs=>txs.map(tx=>{
+    const d=validDate(tx&&tx.date);
+    return {
+      date:d?d.toISOString().slice(0,10):null,
+      heure:d?humanHour(d):null,
+      montant:amount(tx&&tx.amount),
+      type:(tx&&tx.type)||'expense',
+      categorie:categoryName(tx&&tx.categoryId),
+      note:(tx&&tx.note)||'',
+      humeur:(tx&&(tx.mood||tx.humeur))||null
+    };
+  });
+  const totals=txs=>({
+    depenses:round(txs.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+amount(tx.amount),0)),
+    revenus:round(txs.filter(tx=>tx.type==='income').reduce((s,tx)=>s+amount(tx.amount),0)),
+    nbTx:txs.length
+  });
+  const activeBalance=()=>round(accList().filter(a=>a.type!=='savings').reduce((s,a)=>s+amount(a.balance),0));
+  const savingsBalance=()=>round(accList().filter(a=>a.type==='savings').reduce((s,a)=>s+amount(a.balance),0));
+  const kpis=()=>safe(()=>window.computeKPIs?window.computeKPIs():{}, {});
+
+  function recurringWithin(days){
+    const now=new Date();
+    return safe(()=>window.detectRecurringPatterns?window.detectRecurringPatterns():[],[])
+      .filter(item=>{
+        const d=validDate(item.nextExpectedDate);
+        return d&&d>now&&d-now<=days*86400000;
+      })
+      .slice(0,8)
+      .map(item=>({
+        categorie:item.categoryName||item.label||'Dépense récurrente',
+        montant:round(item.amount),
+        date:isoDate(item.nextExpectedDate),
+        dansJours:Math.max(0,Math.ceil((validDate(item.nextExpectedDate)-now)/86400000)),
+        frequence:item.frequency||null
+      }));
+  }
+  function priorityGoal(){
+    return safe(()=>window.getPriorityGoal?window.getPriorityGoal():null,null);
+  }
+  function buildHomeData(temp){
+    const k=kpis();
+    const last7=txList().filter(tx=>{
+      const d=validDate(tx.date);
+      return d&&Date.now()-d.getTime()<7*86400000;
+    });
+    const t7=totals(last7);
+    const pg=priorityGoal();
+    const cycle=safe(()=>window.ALADDIN&&window.ALADDIN.detectIncomeCycle?window.ALADDIN.detectIncomeCycle():null,null);
+    const inc30=amount(k.inc30);
+    return {
+      soldeActif:activeBalance(),
+      soldeEpargne:savingsBalance(),
+      txAujourdhui:temp.txAujourdhui,
+      echeancesRecurrentes7j:recurringWithin(7),
+      prochainRevenuAttendu:cycle?{
+        dansJours:cycle.daysToNextExpected??null,
+        montant:round(cycle.expectedCycleIncome),
+        confiance:cycle.confidence||null
+      }:null,
+      objectifPrioritaire:pg?{
+        nom:pg.name,cible:amount(pg.target),epargne:amount(pg.saved),
+        reste:round(amount(pg.target)-amount(pg.saved)),deadline:pg.deadline||null
+      }:null,
+      comparatif7j:{depenses7j:t7.depenses,revenus7j:t7.revenus,nbTx7j:t7.nbTx},
+      budgetSemaineRestant_estime:round(Math.max(0,inc30/4-t7.depenses)),
+      budgetSemaineRestant_estime_source:'approximation: revenus30j / 4 - dépenses des 7 derniers jours',
+      burnRateJour:round(k.burnRate),
+      devise:currency()
+    };
+  }
+  function buildAnalysisData(opts){
+    const period=periodFor(opts);
+    const current=periodTxs(period);
+    const previous=previousTxs(period);
+    const cur=totals(current), prev=totals(previous);
+    const byCategory={};
+    current.filter(tx=>tx.type==='expense').forEach(tx=>{
+      const name=categoryName(tx.categoryId);
+      byCategory[name]=(byCategory[name]||0)+amount(tx.amount);
+    });
+    const categories=Object.entries(byCategory).sort((a,b)=>b[1]-a[1]).map(([categorie,value])=>({
+      categorie,montant:round(value),pourcentage:cur.depenses?Math.round(value/cur.depenses*100):0
+    }));
+    return {
+      periode:period,
+      periodeLabel:periodText(period),
+      transactions:summarizeTxs(current),
+      transactionsPeriode:current.length,
+      totaux:{depenses:cur.depenses,revenus:cur.revenus,nbTx:cur.nbTx,soldeNet:cur.revenus-cur.depenses},
+      topCategories:categories.slice(0,10),
+      notes:current.filter(tx=>tx.note).slice(0,30).map(tx=>({categorie:categoryName(tx.categoryId),note:tx.note,montant:amount(tx.amount)})),
+      humeurs:current.filter(tx=>tx.mood||tx.humeur).map(tx=>tx.mood||tx.humeur),
+      virements:summarizeTxs(current.filter(tx=>tx.type==='transfer'||tx.isTransfer)),
+      comparatifPeriodePrecedente:{
+        depenses:prev.depenses,revenus:prev.revenus,nbTx:prev.nbTx,
+        pctChangeDepenses:prev.depenses?Math.round((cur.depenses-prev.depenses)/prev.depenses*100):null
+      },
+      devise:currency()
+    };
+  }
+  function projection(days, incomeFactor, expenseFactor){
+    const k=kpis();
+    const start=activeBalance();
+    const dailyIncome=Math.max(0,amount(k.inc30)/30)*incomeFactor;
+    const burn=Math.max(0,amount(k.burnRate))*expenseFactor;
+    let balance=start,zero=null;
+    for(let day=1;day<=days;day++){
+      balance+=dailyIncome-burn;
+      if(zero===null&&balance<0)zero=day;
+    }
+    return {horizonJours:days,soldeFinal:round(balance),passageSousZeroDansJours:zero};
+  }
+  function buildForecastData(temp,opts){
+    opts=opts||{};
+    const last30=txList().filter(tx=>{
+      const d=validDate(tx.date); return d&&Date.now()-d.getTime()<30*86400000;
+    });
+    const byCat={};
+    last30.filter(tx=>tx.type==='expense').forEach(tx=>{
+      const name=categoryName(tx.categoryId);byCat[name]=(byCat[name]||0)+amount(tx.amount);
+    });
+    const cycle=safe(()=>window.ALADDIN&&window.ALADDIN.detectIncomeCycle?window.ALADDIN.detectIncomeCycle():null,null);
+    return {
+      dateDepart:temp.dateISO,
+      horizonDemande:Number(opts.horizon)||30,
+      scenarios:{
+        choc:{j30:projection(30,0.7,1.2),j90:projection(90,0.7,1.2),j180:projection(180,0.7,1.2)},
+        actuel:{j30:projection(30,1,1),j90:projection(90,1,1),j180:projection(180,1,1)},
+        optimal:{j30:projection(30,1.2,0.9),j90:projection(90,1.2,0.9),j180:projection(180,1.2,0.9)}
+      },
+      depensesRecurrentes30j:recurringWithin(30),
+      top5Leviers:Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([categorie,value])=>({
+        categorie,montant30j:round(value),economie20pourcent:round(value*.2)
+      })),
+      cycleRevenu:cycle?{dansJours:cycle.daysToNextExpected,montant:round(cycle.expectedCycleIncome),confiance:cycle.confidence||null}:null,
+      soldeActif:activeBalance(),soldeEpargne:savingsBalance(),devise:currency()
+    };
+  }
+  function buildHealthData(){
+    const k=kpis();
+    const health=safe(()=>window.computeFinancialHealthScore?window.computeFinancialHealthScore(k):null,null);
+    return {
+      score:health?health.score:null,label:health?health.label:null,axes:health?health.axes:{},
+      soldeActif:activeBalance(),soldeEpargne:savingsBalance(),
+      reserveJours:k.safetyDays===9999?'infini':k.safetyDays,
+      retention:k.retention??null,objectifs:goalList().map(g=>({
+        nom:g.name,cible:amount(g.target),epargne:amount(g.saved),deadline:g.deadline||null
+      })),
+      plan:'jalons 30/90/180 jours',devise:currency()
+    };
+  }
+  function buildChatData(temp){
+    const k=kpis();
+    const recent=txList().slice().sort((a,b)=>(validDate(b.date)?.getTime()||0)-(validDate(a.date)?.getTime()||0)).slice(0,60);
+    const last30=txList().filter(tx=>{
+      const d=validDate(tx.date);
+      return d && Date.now()-d.getTime()<30*86400000;
+    });
+    return {
+      soldeActif:activeBalance(),soldeEpargne:savingsBalance(),temporelResume:temp,
+      transactionsRecentes:summarizeTxs(recent),
+      totaux60DernieresTx:totals(recent),
+      totaux30Jours:totals(last30),
+      comptes:accList().map(a=>({nom:a.name,type:a.type||'main',solde:amount(a.balance)})),
+      objectifs:goalList().map(g=>({nom:g.name,cible:amount(g.target),epargne:amount(g.saved)})),
+      burnRateJour:round(k.burnRate),devise:currency()
+    };
+  }
+  function buildLiaContext(viewType,opts){
+    opts=opts||{};
+    const view=normalizeView(viewType);
+    const temp=buildTemporalCore();
+    let cadrage;
+    if(view==='HOME') cadrage={
+      fenetre:"AUJOURD'HUI, heure par heure",
+      perimetre:'solde actif, transactions du jour, échéances récurrentes <7j, prochain revenu attendu, objectif prioritaire',
+      comparatif:'7 jours glissants, référence uniquement',
+      interdits:['inventer une dépense absente de txAujourdhui','commenter le mois','citer un chiffre absent du JSON','produire un rapport']
+    };
+    else if(view==='ANALYSE') cadrage={
+      fenetre:periodText(periodFor(opts)),
+      perimetre:'transactions de la période sélectionnée, période précédente pour le delta, catégories, notes, humeurs et virements de la période',
+      comparatif:'période précédente uniquement',
+      interdits:['élargir hors de la période sélectionnée','présenter un historique long terme sans le nommer']
+    };
+    else if(view==='PRÉVISIONS') cadrage={
+      fenetre:'prospectif 30 / 90 / 180 jours, ancré sur temporel.dateISO',
+      perimetre:'scénarios choc/actuel/optimal, passage sous zéro, récurrences <30j, top 5 leviers, cycle de revenu',
+      comparatif:'scénarios entre eux uniquement',
+      interdits:['projeter sans citer la date de départ','annoncer une date qui ne dérive pas de dateISO']
+    };
+    else if(view==='SANTE_FINANCIERE') cadrage={
+      fenetre:'structurel 30 jours + trajectoire objectifs',
+      perimetre:'axes du score, réserve, rétention et plan 30/90/180 jours',
+      comparatif:'benchmarks réserve 3-6 mois, rétention 20-30%',
+      interdits:['inventer un benchmark personnel','présenter une estimation non étiquetée']
+    };
+    else if(view==='CHAT') cadrage={
+      fenetre:'déterminée par la question, avec le contexte temporel complet',
+      perimetre:'contexte financier large et historique des 6 derniers échanges',
+      comparatif:'uniquement si demandé et étiqueté',
+      interdits:['inventer un chiffre','hériter du cadrage HOME ou ANALYSE sans le dire']
+    };
+    else cadrage={
+      fenetre:'prospectif 30 / 90 / 180 jours, ancré sur temporel.dateISO',
+      perimetre:'scénarios, risques, leviers et cycle de revenu',
+      comparatif:'scénarios entre eux uniquement',
+      interdits:['inventer une date','inventer un chiffre']
+    };
+    let donnees;
+    if(view==='HOME') donnees=buildHomeData(temp);
+    else if(view==='ANALYSE') donnees=buildAnalysisData(opts);
+    else if(view==='PRÉVISIONS'||view==='CONSEIL') donnees=buildForecastData(temp,opts);
+    else if(view==='SANTE_FINANCIERE') donnees=buildHealthData();
+    else donnees=buildChatData(temp);
+    const provider=opts.provider||(
+      safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'')?'gemini':
+      safe(()=>window.getGroqKey?window.getGroqKey():'','')?'groq':'local'
+    );
+    return {
+      meta:{viewType:view,generatedAt:new Date().toISOString(),signature:window.liaDataSignature(),devise:currency(),langue:language(),provider,version:'9.5.0'},
+      temporel:temp,cadrage,donnees,
+      anomalies:safe(()=>typeof detectAnomalies==='function'?detectAnomalies():[],[]),
+      contrat:CONTRACTS[view]||CONTRACTS.CHAT
+    };
+  }
+  window.buildLiaContext=buildLiaContext;
+  const SCREEN_TO_VIEW={home:'HOME',analytics:'ANALYSE',ai:'CHAT',projections:'PRÉVISIONS',sante:'SANTE_FINANCIERE'};
+  window.SCREEN_TO_VIEW=SCREEN_TO_VIEW;
+  window.liaInspect=function(viewType,opts){
+    const key=String(viewType||window._currentScreen||'home').toLowerCase();
+    return buildLiaContext(SCREEN_TO_VIEW[key]||viewType||'HOME',opts||{});
+  };
+
+  const cacheStore=Object.create(null);
+  window.liaCache={
+    get(key){
+      const item=cacheStore[key];
+      if(!item)return null;
+      const sig=window.liaDataSignature();
+      if(item.sig!==sig||Date.now()-item.ts>=item.ttl){delete cacheStore[key];return null;}
+      return item.value;
+    },
+    set(key,value,ttl){
+      cacheStore[key]={value,sig:window.liaDataSignature(),ts:Date.now(),ttl:Number(ttl)||600000};
+      return value;
+    },
+    clear(){Object.keys(cacheStore).forEach(key=>delete cacheStore[key]);}
+  };
+  let invalidateTimer=0;
+  window.invalidateLiaCache=function(reason){
+    window.liaCache.clear();
+    try{window._aladdinHomeCache=null;window._aladdinHomeCacheTime=0;}catch(_){}
+    try{window._lastInsightTime=0;}catch(_){}
+    try{Object.keys(window).filter(k=>/^proj_ai_/.test(k)).forEach(k=>{try{delete window[k]}catch(_){}});}catch(_){}
+    if(window.LIA_DEBUG)console.info('[LIA] cache invalidated:',reason||'unspecified',window.liaDataSignature());
+    clearTimeout(invalidateTimer);
+    invalidateTimer=setTimeout(()=>{
+      try{
+        const activeView=SCREEN_TO_VIEW[String(window._currentScreen||'home').toLowerCase()]||'HOME';
+        if(activeView==='HOME'&&typeof window.maybeAutoInsight==='function')window.maybeAutoInsight();
+        if(activeView==='ANALYSE'&&typeof window.fetchPeriodInsight==='function')window.fetchPeriodInsight(window.analyticsPeriod);
+      }catch(_){}
+    },400);
+  };
+  window.LIA_DEBUG=false;
+  setInterval(()=>window.invalidateLiaCache('10-minute refresh'),10*60*1000);
+
+  /* Keep the legacy variables and the public bridge on the same source. */
+  try{
+    Object.defineProperties(window,{
+      _lastInsight:{configurable:true,get:()=>_lastInsight,set:v=>{_lastInsight=String(v||'');}},
+      _lastInsightTime:{configurable:true,get:()=>_lastInsightTime,set:v=>{_lastInsightTime=Number(v)||0;}},
+      _lastInsightSource:{configurable:true,get:()=>_lastInsightSource,set:v=>{_lastInsightSource=String(v||'offline');}}
+    });
+  }catch(_){}
+  if(typeof window._lastAISource==='undefined')window._lastAISource='local';
+  const setInsight=(text,source)=>{
+    try{_lastInsight=text||'';_lastInsightTime=Date.now();_lastInsightSource=source==='local'?'offline':'cloud';}catch(_){}
+    window._lastAISource=source;
+    window._lastInsightProvider=source;
+  };
+
+  /* All IndexedDB writes invalidate the same registry. */
+  try{
+    const originalPut=dbPut;
+    if(typeof originalPut==='function'&&!window.__liaDbPutWrapped){
+      window.__liaDbPutWrapped=true;
+      dbPut=async function(store,data){
+        const result=await originalPut(store,data);
+        if(['transactions','accounts','goals','categories','settings'].includes(store))window.invalidateLiaCache('write:'+store);
+        return result;
+      };
+    }
+    const originalDel=dbDel;
+    if(typeof originalDel==='function'&&!window.__liaDbDelWrapped){
+      window.__liaDbDelWrapped=true;
+      dbDel=async function(store,id){
+        const result=await originalDel(store,id);
+        if(['transactions','accounts','goals','categories','settings'].includes(store))window.invalidateLiaCache('delete:'+store);
+        return result;
+      };
+    }
+  }catch(e){if(window.LIA_DEBUG)console.warn('[LIA] DB invalidation hook failed',e);}
+  window.addEventListener('online',()=>window.invalidateLiaCache('online'));
+
+  const canonicalPrepare=function(viewType,userQuery,opts){
+    const lia=buildLiaContext(viewType,opts||{});
+    return {contextData:lia.donnees,anomalies:lia.anomalies,systemFocus:lia.cadrage,query:userQuery||'',liaContext:lia};
+  };
+  const canonicalPrompt=function(payload){
+    const lia=payload&&payload.liaContext?payload.liaContext:buildLiaContext(payload&&payload.contextData&&payload.contextData.mode||'HOME',{});
+    const critical=(lia.anomalies||[]).filter(a=>a.severity==='CRITIQUE');
+    const anomalyText=critical.length
+      ?'\nANOMALIES CRITIQUES — PRIORITÉ ABSOLUE:\n'+critical.map(a=>'- '+(a.message||a.type||'anomalie')+' '+(a.detail||'')).join('\n')
+      :'';
+    return '<<LIA_CTX_V1>>\n'+
+      'Tu es ALADDIN, conseiller financier personnel. Tutoiement systématique, ton direct et humain.\n'+
+      'SOCLE ANTI-HALLUCINATION INVARIANT:\n'+
+      '- Toute date citée dérive de temporel.dateISO; ne suppose jamais la date.\n'+
+      '- Tout chiffre cité provient du JSON; aucune estimation non étiquetée.\n'+
+      '- Respecte strictement cadrage.fenetre et cadrage.perimetre.\n'+
+      '- Respecte cadrage.interdits sans exception.\n'+
+      '- Si les données sont insuffisantes, dis-le en une phrase au lieu d extrapoler.\n'+
+      '- Respecte contrat.longueurMax, contrat.formatSortie et contrat.tokens.\n'+
+      '- Aucun titre entre crochets et aucune instruction concurrente dans la question.\n'+
+      '- Ne reproche jamais une épargne manquée sous le seuil de survie.\n'+
+      '- Traite l épargne et les poches projets comme intouchables sans choix explicite.\n'+
+      '- Un repas, un trajet nécessaire ou un médicament ne sont jamais des achats impulsifs.\n'+
+      anomalyText+
+      '\nCADRAGE:\n'+JSON.stringify(lia.cadrage)+
+      '\nCONTRAT:\n'+JSON.stringify(lia.contrat)+
+      '\nTEMPOREL:\n'+JSON.stringify(lia.temporel)+
+      '\nDONNEES:\n'+JSON.stringify(lia.donnees);
+  };
+  const rawFetch=window._origFetch||window.fetch.bind(window);
+  const jsonResponse=async response=>{
+    const data=await response.json().catch(()=>({}));
+    return {response,data};
+  };
+  async function completion(provider,messages,tokens,view){
+    const cfg=window.AI_CONFIG||{};
+    const key=provider==='gemini'
+      ?safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'')
+      :safe(()=>window.getGroqKey?window.getGroqKey():'','');
+    if(!key||!navigator.onLine)return null;
+    const url=provider==='gemini'
+      ?(cfg.GEMINI_BASE||'https://generativelanguage.googleapis.com/v1beta/openai')+'/chat/completions'
+      :'https://api.groq.com/openai/v1/chat/completions';
+    const body={
+      model:provider==='gemini'?(cfg.GEMINI_MODEL_VERSION||'gemini-3.5-flash'):(cfg.GROQ_MODEL||'openai/gpt-oss-20b'),
+      max_tokens:tokens,temperature:typeof cfg.TEMPERATURE==='number'?cfg.TEMPERATURE:.3,messages
+    };
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{try{controller.abort()}catch(_){}},view==='HOME'?8500:16000);
+    const started=Date.now();
+    try{
+      const response=await rawFetch(url,{method:'POST',signal:controller.signal,headers:{
+        'Content-Type':'application/json','Authorization':'Bearer '+key
+      },body:JSON.stringify(body)});
+      clearTimeout(timeout);
+      const result=await jsonResponse(response);
+      const text=result.data&&result.data.choices&&result.data.choices[0]&&result.data.choices[0].message&&result.data.choices[0].message.content;
+      if(window.LIA_DEBUG)console.info('[LIA]',view,provider,'tokens='+tokens,'bytes='+JSON.stringify(body).length,'latency='+((Date.now()-started))+'ms');
+      if(response.ok&&text)return String(text);
+      if(provider==='gemini')window._lastGeminiError=(result.data&&result.data.error&&result.data.error.message)||('HTTP '+response.status);
+      else window._lastGroqError=(result.data&&result.data.error&&result.data.error.message)||('HTTP '+response.status);
+    }catch(error){
+      clearTimeout(timeout);
+      if(provider==='gemini')window._lastGeminiError=error.message||'appel interrompu';
+      else window._lastGroqError=error.message||'appel interrompu';
+    }
+    return null;
+  }
+  const answerText=value=>safe(()=>window.detutoyer?window.detutoyer(value):value,String(value||''));
+
+  const canonicalCall=async function(viewType,userQuery,opts){
+    opts=opts||{};
+    const lia=buildLiaContext(viewType,opts);
+    const payload={contextData:lia.donnees,anomalies:lia.anomalies,systemFocus:lia.cadrage,query:userQuery||'',liaContext:lia};
+    const view=lia.meta.viewType;
+    const question=String(userQuery||(
+      view==='HOME'?'Que dois-je savoir sur ma situation maintenant ?':
+      view==='ANALYSE'?'Analyse comportementale de la période.':
+      view==='PRÉVISIONS'?'Prépare les cinq sections de prévisions à partir de la date de départ.':
+      'Analyse ma situation financière.'
+    )).trim();
+    const messages=[{role:'system',content:canonicalPrompt(payload)}];
+    if(view==='CHAT'&&!opts.noHistory){
+      safe(()=>Array.isArray(window.aiMsgs)?window.aiMsgs:[],[]).slice(-6).forEach(item=>{
+        messages.push({role:item.r==='ai'?'assistant':'user',content:String(item.c||'').slice(0,1000)});
+      });
+    }
+    messages.push({role:'user',content:question});
+    const providers=[];
+    if(safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'')&&navigator.onLine)providers.push('gemini');
+    if(safe(()=>window.getGroqKey?window.getGroqKey():'','')&&navigator.onLine)providers.push('groq');
+    for(const provider of providers){
+      const text=await completion(provider,messages,lia.contrat.tokens,view);
+      if(text){
+        const cleaned=answerText(text);
+        window._lastAISource=provider;
+        window._lastInsightProvider=provider;
+        if(view==='HOME')setInsight(cleaned,provider);
+        return {text:cleaned,src:provider==='gemini'?'Gemini ✨':'Groq',provider,anomalies:lia.anomalies,context:lia};
+      }
+    }
+    const local=(()=>{try{
+      if(view==='HOME'&&typeof buildOfflineInsight==='function')return buildOfflineInsight();
+      if(window.localAI)return window.localAI(question);
+      return 'Analyse locale indisponible.';
+    }catch(_){return 'Analyse locale indisponible.';}})();
+    window._lastAISource='local';
+    window._lastInsightProvider='local';
+    if(view==='HOME')setInsight(local,'local');
+    return {text:local,src:'Local',provider:'local',anomalies:lia.anomalies,context:lia};
+  };
+
+  /* Replace every canonical entry point, including the lexical bindings used
+     by the older ALADDIN patches. */
+  try{prepareAIPayload=canonicalPrepare;}catch(_){}
+  try{buildAladdinSystemPrompt=canonicalPrompt;}catch(_){}
+  try{callAladdinAI=canonicalCall;}catch(_){}
+  window.prepareAIPayload=canonicalPrepare;
+  window.buildAladdinSystemPrompt=canonicalPrompt;
+  window.callAladdinAI=canonicalCall;
+
+  const canonicalHome=async function(){
+    if(!txList().length)return null;
+    const cached=window.liaCache.get('home-insight');
+    if(cached){setInsight(cached.text,cached.provider||'local');return cached.text;}
+    const result=await canonicalCall('HOME','Que dois-je savoir sur ma situation maintenant ?',{noHistory:true});
+    if(result&&result.text){
+      window.liaCache.set('home-insight',{text:result.text,provider:result.provider},480000);
+      try{window._aladdinHomeCache=result.text;window._aladdinHomeCacheTime=Date.now();}catch(_){}
+      return result.text;
+    }
+    return null;
+  };
+  try{fetchHomeInsight=canonicalHome;}catch(_){}
+  window.fetchHomeInsight=canonicalHome;
+
+  const canonicalPeriod=async function(period){
+    const p=periodFor({period});
+    const el=document.getElementById('periodInsight_'+p);
+    const status=document.getElementById('periodInsight_'+p+'_status');
+    if(!el)return;
+    const cached=window.liaCache.get('analysis-'+p);
+    if(cached){
+      el.innerHTML='💜 '+cached.text;
+      if(status)status.textContent=cached.provider==='local'?'LOCAL':cached.provider==='gemini'?'GEMINI ✨':'GROQ AI';
+      return;
+    }
+    const hasKey=!!safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'')||!!safe(()=>window.getGroqKey?window.getGroqKey():'','');
+    if(!navigator.onLine||!hasKey){
+      const local=safe(()=>window.buildLocalPeriodComment?window.buildLocalPeriodComment(p):'Données insuffisantes.', 'Données insuffisantes.');
+      el.innerHTML='💡 '+local;
+      if(status)status.textContent='LOCAL';
+      window.liaCache.set('analysis-'+p,{text:local,provider:'local'},600000);
+      return;
+    }
+    if(status){status.textContent='IA…';status.style.color='';}
+    const result=await canonicalCall('ANALYSE','Analyse comportementale de la période.',{period:p,noHistory:true});
+    const text=result&&result.text?result.text:'Données insuffisantes.';
+    el.innerHTML=(result&&result.provider==='local'?'💡 ':'💜 ')+text;
+    if(status){status.textContent=result&&result.provider==='gemini'?'GEMINI ✨':result&&result.provider==='groq'?'GROQ AI':'LOCAL';status.style.color='';}
+    window.liaCache.set('analysis-'+p,{text,provider:result&&result.provider||'local'},600000);
+  };
+  window.fetchPeriodInsight=canonicalPeriod;
+  try{fetchPeriodInsight=canonicalPeriod;}catch(_){}
+
+  /* Legacy calls remain supported, but a marked canonical request bypasses
+     the old Groq-only injector and its max_tokens/temperature rewrites. */
+  const previousFetch=window.fetch;
+  const isAIUrl=url=>/api\.groq\.com\/openai\/v1\/chat\/completions|generativelanguage\.googleapis\.com\/v1beta\/openai\/chat\/completions/.test(url||'');
+  window.fetch=async function(input,init){
+    const url=(typeof input==='string'?input:(input&&input.url)||'');
+    if(!isAIUrl(url)||!init||!init.body)return previousFetch(input,init);
+    let body;try{body=JSON.parse(init.body);}catch(_){body=null;}
+    if(!body||!Array.isArray(body.messages))return previousFetch(input,init);
+    const marked=body.messages.some(msg=>msg&&msg.role==='system'&&String(msg.content||'').startsWith('<<LIA_CTX_V1>>'));
+    if(marked)return rawFetch(input,init);
+    const userContent=body.messages.filter(msg=>msg&&msg.role==='user').map(msg=>String(msg.content||'')).join('\n');
+    const hasNonTrivialSystem=body.messages.some(msg=>msg&&msg.role==='system'&&String(msg.content||'').trim().length>20);
+    if(Number(body.max_tokens)<=32||userContent.length<40||(
+      body.messages.length<=1&&!hasNonTrivialSystem
+    ))return rawFetch(input,init);
+    if(/generativelanguage\.googleapis\.com/.test(url)){
+      const scope=safe(()=>window.analyticsPeriod,'month');
+      const legacy=buildLiaContext(scope==='day'||scope==='week'||scope==='month'||scope==='year'?'ANALYSE':'CHAT',{period:scope});
+      body.messages=[{role:'system',content:'SCOPED_PAYLOAD (legacy):\n'+JSON.stringify(legacy.donnees)},
+        {role:'system',content:'CONTEXT_META (legacy):\n'+JSON.stringify(legacy.temporel)}].concat(body.messages);
+      return rawFetch(input,Object.assign({},init,{body:JSON.stringify(body)}));
+    }
+    return previousFetch(input,init);
+  };
+
+  /* Council: same dated context on every turn, graceful single-provider mode. */
+  const previousCouncil=window.runAladdinCouncil;
+  window.runAladdinCouncil=async function(trigger){
+    if(window.councilRunning)return;
+    const gemKey=!!safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'');
+    const groqKey=!!safe(()=>window.getGroqKey?window.getGroqKey():'','');
+    const ctx=buildLiaContext('CONSEIL',{});
+    window.councilRunning=true;window.councilDone=false;window.councilMsgs=[];window.councilPending=[];
+    window.councilTrigger=trigger||{reason:'manuel',label:'Prédictions demandées',severity:'manual'};
+    try{if(typeof render==='function')render();}catch(_){}
+    if(!gemKey&&!groqKey){
+      const data=ctx.donnees;
+      const local='Calcul local — date de départ '+ctx.temporel.dateISO+'. Scénario actuel à J+30: '+data.scenarios.actuel.j30.soldeFinal+' '+data.devise+'.';
+      window.councilMsgs.push({agent:'local',text:local,cmds:[],ts:Date.now()});
+      window._lastAISource='local';window.councilRunning=false;window.councilDone=true;
+      try{if(typeof render==='function')render();}catch(_){}
+      return;
+    }
+    const providerForTurn=i=>(gemKey&&groqKey)?(i%2===0?'gemini':'groq'):gemKey?'gemini':'groq';
+    const base='<<LIA_CTX_V1>>\nCONTEXTE TEMPOREL: '+JSON.stringify(ctx.temporel)+'\nToute date citée dérive de dateISO ci-dessus.\nDONNEES CONSEIL: '+JSON.stringify(ctx.donnees);
+    const roles=[
+      'Tu es le stratège. Donne la prédiction principale et son incertitude.',
+      'Tu es le tacticien. Vérifie les chiffres et propose une action immédiate.',
+      'Tu es le stratège. Transforme le débat en plan numéroté et prédictions.',
+      'Tu es le tacticien. Valide le plan selon les chiffres et donne le quick win.'
+    ];
+    let previous='';
+    try{
+      for(let i=0;i<4;i++){
+        const provider=providerForTurn(i);
+        const prompt='Tour '+(i+1)+': '+roles[i]+'\n'+(previous?'Sortie précédente:\n'+previous:'');
+        const text=await completion(provider,[{role:'system',content:base+'\n'+roles[i]},{role:'user',content:prompt}],i===2?420:300,'CONSEIL');
+        const out=text?answerText(text):'Calcul local — fournisseur indisponible pour ce tour.';
+        previous=out;
+        const agent=provider;
+        const cmds=safe(()=>window.parseCouncilCommands?window.parseCouncilCommands(out):[],[]);
+        window.councilMsgs.push({agent,text:out,cmds,ts:Date.now()});
+        if(cmds.length)window.councilPending=window.councilPending.concat(cmds);
+        window._lastAISource=text?provider:'local';
+        try{if(typeof render==='function')render();}catch(_){}
+      }
+      window.councilPreds=(window.councilPreds||[]).slice(0,8);
+      window.councilPreds.unshift({cat:'Scénario actuel J+30',amount:ctx.donnees.scenarios.actuel.j30.soldeFinal,date:ctx.temporel.dateISO,label:'Actuel J+30',addedAt:Date.now()});
+      window._lastCouncilSummary={ts:Date.now(),snapshot:ctx.donnees,contexteTemporel:ctx.temporel};
+    }finally{
+      window.councilRunning=false;window.councilDone=true;
+      try{if(typeof render==='function')render();}catch(_){}
+    }
+  };
+
+  const oldCouncilCard=window.renderCouncilCard;
+  window.renderCouncilCard=function(){
+    const hasKey=!!safe(()=>window.safeStorage&&window.safeStorage.getItem('gemini_key'),'')||!!safe(()=>window.getGroqKey?window.getGroqKey():'','');
+    if(hasKey&&typeof oldCouncilCard==='function')return oldCouncilCard();
+    if(!txList().length)return '';
+    const context=buildLiaContext('CONSEIL',{});
+    const current=context.donnees.scenarios.actuel.j30;
+    return '<div class="card" style="border-color:rgba(167,139,250,.35)">'+
+      '<div class="ch" style="color:#a78bfa">📊 Conseil ALADDIN <span style="margin-left:auto;color:var(--ylw)">CALCUL LOCAL</span></div>'+
+      '<div style="font-size:12px;color:var(--txt2);line-height:1.55">Point de départ: <strong>'+context.temporel.dateISO+'</strong>. '+
+      'À rythme actuel, le solde estimé à J+30 est <strong>'+current.soldeFinal+' '+context.donnees.devise+'</strong>.</div>'+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="window.runAladdinCouncil&&window.runAladdinCouncil({reason:\'manuel\',label:\'Conseil manuel\',severity:\'manual\'})">Actualiser le calcul local</button></div>';
+  };
+  console.info('[LIA_CTX_V1] couche canonique active');
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,285 @@
+========================================================================
+MISSION : UNIFICATION DU MOTEUR DE CONTEXTE IA ("LIA") — Finance AI OS
+Fichier : index.html unique (~11 600 lignes), v9.4.0
+========================================================================
+
+PROBLÈME RACINE
+L'application possède TROIS systèmes de contexte IA concurrents qui ne se
+connaissent pas :
+  (A) buildCtx()               l.3768  — riche, alimente l'ancien askAI/Groq
+  (B) prepareAIPayload()       §C      — routeur ALADDIN HOME/ANALYSE/PRÉVISIONS
+  (C) buildContextPayload() + buildScopedPayload(detectScope())  l.8182/8288
+      injectés par l'intercepteur window.fetch l.8342 — UNIQUEMENT sur Groq
+Résultat : Gemini (chemin principal) ne reçoit jamais le scoping par écran,
+Groq reçoit deux "uniques sources de vérité" contradictoires, et l'accueil
+n'a aucune ancre temporelle.
+
+OBJECTIF
+Une seule couche de contexte, un contrat explicite par écran, une
+invalidation pilotée par les données. Ne casse aucune fonctionnalité
+existante : tu unifies, tu ne supprimes pas de fonctionnalité utilisateur.
+
+------------------------------------------------------------------------
+§1 — COUCHE UNIQUE : buildLiaContext(viewType, opts)
+------------------------------------------------------------------------
+Crée UNE fonction canonique, placée juste avant prepareAIPayload() :
+
+  window.buildLiaContext = function(viewType, opts = {}) => {
+    meta, temporel, cadrage, donnees, anomalies, contrat
+  }
+
+1.1  meta : { viewType, generatedAt (ISO), signature (cf. §5), devise,
+             langue, provider: 'gemini'|'groq', version: '9.4.0' }
+
+1.2  temporel (bloc buildTemporalCore(), TOUJOURS présent, toutes vues) :
+     dateAujourdhui (fr-FR long), dateISO, heure "14h05", jourSemaine,
+     momentJournee (matin|midi|apres-midi|soiree|nuit),
+     nbTxAujourdhui, depensesAujourdhui, revenusAujourdhui,
+     txAujourdhui[] {heure, montant, type, categorie, note, humeur},
+     aucuneSaisieAujourdhui, derniereSaisieDate, joursSansSaisie,
+     alerteSilence (>=2j), silenceCritique (>=5j), nbTxTotal
+     Source unique : window.txs / window.cur() (pont d'état l.2554).
+
+1.3  cadrage : { fenetre, perimetre, comparatif, interdits[] }
+     C'est le contrat analytique de l'écran (cf. §3). Il DOIT être sérialisé
+     dans le JSON envoyé au modèle, pas seulement dans le system prompt.
+
+1.4  donnees : le contenu métier de l'écran (reprend les case existants de
+     prepareAIPayload, enrichis comme indiqué au §3).
+
+1.5  anomalies : detectAnomalies() — inchangé, priorité absolue.
+
+1.6  contrat : { longueurMax, tonalite, formatSortie, tokens }
+     Une seule autorité sur la longueur et le format. Aucun appelant n'a
+     plus le droit de redéfinir la longueur dans son userQuery (cf. §4).
+
+prepareAIPayload() devient un simple adaptateur qui appelle
+buildLiaContext() et retourne {contextData, anomalies, systemFocus, query}
+pour ne pas casser buildAladdinSystemPrompt().
+
+------------------------------------------------------------------------
+§2 — PARITÉ GEMINI / GROQ (fin de l'asymétrie)
+------------------------------------------------------------------------
+2.1  Dans l'intercepteur window.fetch (l.8342) : étends la détection à
+     Gemini — isAI = /api\.groq\.com\/openai\/v1\/chat\/completions|
+     generativelanguage\.googleapis\.com\/v1beta\/openai\/chat\/completions/.
+
+2.2  MAIS : si le corps contient déjà un message system produit par
+     buildAladdinSystemPrompt() (détecte un marqueur que tu ajoutes :
+     "<<LIA_CTX_V1>>" en tête du system prompt), l'intercepteur
+     N'INJECTE RIEN. Le contexte est déjà canonique. Il n'injecte
+     SCOPED_PAYLOAD/CONTEXT_META que pour les appels legacy qui n'ont pas
+     le marqueur (askAI fallback, testGroqKey, aladdinAgentCoordination).
+     → plus jamais deux "uniques sources de vérité" dans le même appel.
+
+2.3  Supprime la réécriture aveugle des paramètres : ne force plus
+     max_tokens à 256 ni temperature à 0.3 sur les requêtes marquées
+     <<LIA_CTX_V1>> (le contrat §1.6 fait autorité).
+
+2.4  detutoyer() : applique-le à UN seul endroit (callAladdinAI). Retire
+     le second passage dans le resp.json() réenveloppé de l'intercepteur
+     pour les requêtes marquées.
+
+------------------------------------------------------------------------
+§3 — CONTRATS PAR ÉCRAN (le cœur de la demande)
+------------------------------------------------------------------------
+Chaque viewType reçoit exactement sa fenêtre, son périmètre, ses interdits.
+
+[ACCUEIL] viewType 'HOME'
+  fenetre    : "AUJOURD'HUI, heure par heure"
+  perimetre  : solde actif, txAujourdhui[], échéances récurrentes <7j,
+               prochain revenu attendu (cycle), objectif prioritaire
+  comparatif : 7 jours glissants {depenses7j, revenus7j, nbTx7j} — référence
+               uniquement, jamais sujet principal
+  interdits  : inventer une dépense absente de txAujourdhui ; commenter le
+               mois ; citer un chiffre absent du JSON ; produire un rapport
+  contrat    : 3 phrases max, ton ami direct, tokens 320
+  règle spéciale : si nbTxAujourdhui === 0 → le dire explicitement.
+               Si alerteSilence → le silence devient le sujet UNIQUE.
+  Remplace budgetSemaineRestant par budgetSemaineRestant_estime et
+  documente dans le JSON qu'il dérive de inc30/4 (approximation).
+
+[ANALYSE] viewType 'ANALYSE'
+  fenetre    : opts.period || window.analyticsPeriod ('day'|'week'|'month'|'year')
+               + libellé humain via periodLabel()
+  perimetre  : getPeriodTxs(period) + getPrevPeriodTxs(period) pour le delta,
+               top catégories, notes, humeurs, virements de LA PÉRIODE
+  comparatif : période précédente uniquement (pctChange)
+  interdits  : élargir hors de la période sélectionnée sauf pour un pattern
+               historique explicitement étiqueté "historique long terme"
+  contrat    : 2 à 3 phrases pour la carte d'insight, tokens 400
+  IMPÉRATIF  : la période est PASSÉE EN PARAMÈTRE, jamais relue implicitement.
+               callAladdinAI('ANALYSE', q, {period: p})
+
+[PRÉVISIONS] viewType 'PRÉVISIONS'
+  fenetre    : prospectif 30 / 90 / 180 jours, ancré sur temporel.dateISO
+  perimetre  : scénarios choc/actuel/optimal, date de passage sous zéro,
+               récurrences <30j, top 5 leviers, cycle de revenu
+  interdits  : projeter sans citer la date de départ ; annoncer une date
+               qui ne dérive pas de dateISO
+  contrat    : 5 sections numérotées, tokens 2000
+  → aligne le userQuery de la l.9238 sur ces 5 sections (supprime le
+    "Max 5 lignes total" qui contredit le systemFocus).
+
+[SANTÉ FINANCIÈRE] viewType 'SANTE_FINANCIERE'
+  fenetre    : structurel 30 jours + trajectoire objectifs
+  perimetre  : axes du score, benchmarks (réserve 3-6 mois, rétention 20-30%)
+  contrat    : plan 30/90/180j avec jalons, tokens 1800
+
+[CHAT] viewType 'CHAT'  (nouveau — aujourd'hui le chat emprunte HOME/ANALYSE)
+  fenetre    : déterminée par la question via le routeur §F1, mais le
+               contexte temporel complet est TOUJOURS joint
+  perimetre  : contexte large (équivalent buildCtx) + historique 6 échanges
+  contrat    : réponse conversationnelle, tokens 1200
+  C'est le SEUL viewType qui reçoit window.aiMsgs.
+
+[CONSEIL] viewType 'CONSEIL'
+  cf. §7.
+
+------------------------------------------------------------------------
+§4 — FIN DES PROMPTS CONCURRENTS
+------------------------------------------------------------------------
+4.1  Interdiction : aucun appelant ne passe plus d'instruction de format,
+     de ton ou de longueur dans userQuery. Le userQuery ne contient QUE la
+     question métier. Toute contrainte passe par opts ou par le contrat §1.6.
+
+4.2  fetchPeriodInsight (l.5667) : il existe aujourd'hui TROIS générateurs
+     pour la même carte (le natif l.5667, la branche callAladdinAI l.5711,
+     le patch §F4 l.10289). Fusionne-les en UN seul chemin :
+       getPeriodTxs(p) → buildLiaContext('ANALYSE',{period:p}) →
+       callAladdinAI('ANALYSE', "Analyse comportementale de la période.",
+                     {period:p, noHistory:true})
+     Supprime les prompts en dur des l.5699-5709 et du §F4 (leurs données
+     passent désormais par donnees.*).
+
+4.3  §F2 (accueil) : userQuery devient
+     "Que dois-je savoir sur ma situation maintenant ?" — point final.
+     Tout le reste (solde, échéances, revenu attendu, action) est imposé
+     par le cadrage HOME.
+
+4.4  askAI : le code Gemini l.4123-4140 est devenu mort depuis le patch §F1.
+     Garde-le strictement comme fallback si callAladdinAI est indisponible,
+     et fais-le passer par buildLiaContext('CHAT') au lieu de buildCtx().
+
+------------------------------------------------------------------------
+§5 — SIGNATURE DE DONNÉES ET BUS D'INVALIDATION
+------------------------------------------------------------------------
+5.1  window.liaDataSignature = () => {
+       const t = window.txs || [];
+       const a = (window.accs||[]).reduce((s,x)=>s+(x.balance||0),0);
+       const g = (window.goals||[]).length;
+       const last = t[0] ? (t[0].id || t[0].date) : 'none';
+       return [t.length, last, Math.round(a), g,
+               new Date().toISOString().slice(0,13)].join('|');
+     }
+     Elle change à chaque transaction, chaque solde, chaque objectif,
+     et au moins une fois par heure.
+
+5.2  Tous les caches IA deviennent {value, sig, ts} et ne sont servis que si
+     sig === liaDataSignature() ET ts < TTL :
+       - _aladdinHomeCache        (accueil, TTL 8 min)
+       - _lastInsight             (accueil legacy, TTL 10 min)
+       - window['proj_ai_'+period+...] (prévisions — remplace la clé par
+         date par une clé par signature)
+       - le cache d'analyse s'il existe
+     Centralise-les dans window.liaCache = { get(key), set(key,val,ttl) }.
+
+5.3  window.invalidateLiaCache(reason) vide TOUT le registre liaCache et
+     journalise la raison. Branche-la sur :
+       - sauvegarde / modification / suppression de transaction (~l.7946, 7957)
+       - création ou modification de compte, d'objectif, de catégorie
+       - changement de devise ou de langue
+       - bouton ↻ de l'accueil (l.5075) — aujourd'hui il ne vide que
+         _lastInsight et laisse _aladdinHomeCache intact : le rafraîchissement
+         est mort sur le chemin Gemini
+       - setInterval 10 min (l.7967)
+       - retour en ligne (flushIntents)
+
+5.4  Après invalidation sur l'écran actif, relance l'insight correspondant
+     (maybeAutoInsight sur home, fetchPeriodInsight sur analytics) —
+     un seul appel, débounce 400 ms pour absorber les saisies en rafale.
+
+------------------------------------------------------------------------
+§6 — SOCLE ANTI-HALLUCINATION (system prompt unique)
+------------------------------------------------------------------------
+Dans buildAladdinSystemPrompt(), préfixe par "<<LIA_CTX_V1>>" puis un bloc
+invariant, identique pour toutes les vues :
+
+  • Toute date que tu cites dérive de temporel.dateISO. Tu ne supposes
+    jamais la date.
+  • Tout chiffre provient du JSON. Aucun arrondi inventé, aucune estimation
+    non étiquetée comme telle.
+  • Tu respectes strictement cadrage.fenetre et cadrage.perimetre. Ce qui
+    est hors périmètre n'existe pas pour cette réponse.
+  • Tu respectes cadrage.interdits sans exception.
+  • Si les données sont insuffisantes, tu le dis en une phrase au lieu
+    d'extrapoler.
+  • Tu respectes contrat.longueurMax. Pas de titres entre crochets.
+  • Tutoiement systématique.
+Puis les anomalies CRITIQUES, puis le cadrage, puis les données.
+
+------------------------------------------------------------------------
+§7 — CONSEIL DES AGENTS (Gemini ↔ Groq, 4 tours)
+------------------------------------------------------------------------
+7.1  runAladdinCouncil() : préfixe la variable ctx par
+     'CONTEXTE TEMPOREL: ' + JSON.stringify(buildTemporalCore()) + '\n'
+     et ajoute la règle : "Toute date citée dérive de dateISO ci-dessus."
+
+7.2  Dégradation propre selon les clés disponibles (aujourd'hui les 4 tours
+     partent même sans clé et tombent tous en fallback local) :
+       - Gemini + Groq → tours 1&3 Gemini (stratège), 2&4 Groq (tacticien)
+       - Gemini seul   → les 4 tours sur Gemini, rôles conservés
+       - Groq seul     → les 4 tours sur Groq, rôles conservés
+       - aucune clé    → n'exécute aucun tour, affiche directement le
+                         snapshot local en l'étiquetant "calcul local"
+7.3  Chaque tour reçoit le même ctx daté. Le tour N+1 reçoit la sortie du
+     tour N — c'est déjà le cas, conserve-le.
+7.4  councilPreds : horodate chaque prédiction avec dateISO pour pouvoir
+     la confronter au réel plus tard.
+
+------------------------------------------------------------------------
+§8 — PROVENANCE ET BADGES
+------------------------------------------------------------------------
+8.1  Expose _lastInsight, _lastInsightTime, _lastInsightSource dans le pont
+     d'état (Object.defineProperties l.2554, mêmes getters/setters que txs).
+     Aujourd'hui ce sont des `let` racine : §F2 écrit window._lastInsightSource
+     qui n'atteint jamais updateInsightUI() → badge LOCAL malgré Gemini.
+8.2  window._lastAISource devient la source unique de vérité du fournisseur
+     ('gemini'|'groq'|'local'|'queued'). Tous les badges (accueil, chat modal
+     cmoBadge, quickAI, analyse, prévisions) le lisent.
+8.3  Étiquette explicitement tout repli local : l'utilisateur doit toujours
+     savoir s'il lit une analyse IA ou un calcul déterministe local.
+
+------------------------------------------------------------------------
+§9 — OBSERVABILITÉ
+------------------------------------------------------------------------
+window.LIA_DEBUG = false par défaut. Si true, chaque appel journalise :
+viewType, cadrage.fenetre, signature, provider, tokens demandés, taille du
+JSON, latence, cache hit/miss. Ajoute window.liaInspect(viewType) qui
+retourne le contexte complet sans appeler l'API — indispensable pour
+vérifier ce que Lia voit réellement sur chaque écran.
+
+------------------------------------------------------------------------
+§10 — CONTRÔLES DE NON-RÉGRESSION
+------------------------------------------------------------------------
+ 1. Accueil sans transaction du jour → Lia dit explicitement qu'il n'y a eu
+    aucune transaction aujourd'hui et n'infère aucune dépense.
+ 2. Ajout d'un dépôt → la carte d'accueil se met à jour immédiatement et
+    cite le montant exact du dépôt.
+ 3. liaInspect('HOME') contient temporel.dateISO, temporel.heure et
+    cadrage.fenetre.
+ 4. Boutons jour/semaine/mois/année → donnees.periode et le nombre de
+    transactions correspondent exactement au bouton actif.
+ 5. Une réponse Gemini et une réponse Groq sur la même question citent les
+    mêmes chiffres (parité §2).
+ 6. Aucune requête ne contient deux blocs se déclarant source de vérité.
+ 7. Prévisions : les 5 sections sont produites, aucune date antérieure à
+    dateISO.
+ 8. Conseil avec une seule clé → 4 tours réels, aucun fallback local.
+ 9. Badge accueil = GEMINI ✨ quand Gemini répond, LOCAL seulement hors-ligne.
+10. Chat IA conserve son historique ; accueil, analyse et prévisions n'en
+    héritent plus.
+
+LIVRAISON : index.html complet modifié, aucune fonctionnalité retirée,
+patches §F1-§F4 conservés mais alignés sur la couche unique.
+========================================================================
